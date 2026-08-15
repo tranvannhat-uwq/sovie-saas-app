@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Catalog and business rules harness</title>
+  <link rel="stylesheet" href="../style.css">
+</head>
+<body style="padding: 2rem;">
+  <main class="glass-panel" style="max-width: 560px; margin: 0 auto;">
+    <h2>Kiểm tra quy cách và nghiệp vụ</h2>
+    <div class="form-group">
+      <label class="form-label" for="package-type">Quy cách</label>
+      <select class="form-control" id="package-type"></select>
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="negative-debt">Công nợ âm</label>
+      <input class="form-control" id="negative-debt" type="number" value="-1000000">
+    </div>
+    <p>Giờ chốt mẫu: <strong id="finalized-time"></strong></p>
+  </main>
+  <script type="module">
+    import { parseOrderBusinessDateInput } from '../js/domain/order-business-date.js?v=20260804-order-time1';
+
+    const productPackageTypes = ['Thùng', 'Lon', 'Hộp', 'Bao', 'Túi', 'Chai', 'Gói', 'Kg', 'Lít', 'Cái', 'Bộ', 'Mét', 'Lọ'];
+    document.getElementById('package-type').innerHTML = productPackageTypes
+      .map(value => `<option value="${value}">${value}</option>`)
+      .join('');
+    document.getElementById('package-type').value = 'Mét';
+    document.getElementById('finalized-time').textContent = parseOrderBusinessDateInput(
+      '2026-08-04',
+      new Date('2026-08-04T03:15:27Z')
+    ).value;
+  </script>
+</body>
+</html>

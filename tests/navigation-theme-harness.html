@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="../style.css">
+  <title>Navigation theme harness</title>
+</head>
+<body>
+  <script>window.__app_initialized = true;</script>
+  <aside class="sidebar" style="position:relative;">
+    <div class="brand"><div class="brand-project-logo"><img src="../sovie-logo.png?v=20260815-sovie-v2" alt="SoVie"></div></div>
+    <nav class="nav-menu">
+      <li class="nav-item"><a class="nav-link active">Tổng quan</a></li>
+      <li class="nav-item purchase-nav-item">
+        <button type="button" class="nav-link purchase-menu-trigger">Mua hàng</button>
+        <div class="purchase-menu" style="display:grid">
+          <div class="purchase-menu-section"><div class="purchase-menu-heading">Nhà cung cấp</div><a class="purchase-menu-link nav-link">Nhà cung cấp</a></div>
+          <div class="purchase-menu-section"><div class="purchase-menu-heading">Mua hàng</div><a class="purchase-menu-link nav-link">Phiếu mua hàng</a></div>
+        </div>
+      </li>
+      <li class="nav-item staff-nav-item">
+        <button type="button" class="nav-link staff-menu-trigger">Quản lý nhân viên</button>
+        <div class="staff-menu" style="display:grid;position:absolute;top:45px;left:0">
+          <div class="staff-menu-item"><a class="staff-menu-link nav-link">Quản lý tài khoản</a></div>
+          <div class="staff-menu-item"><a class="staff-menu-link nav-link">Báo cáo nghiệp vụ</a></div>
+        </div>
+      </li>
+    </nav>
+    <div class="sidebar-actions">
+      <div class="global-settings-dropdown" style="position:relative;">
+        <button type="button" class="btn-settings-toggle" id="btn-settings-toggle">⚙</button>
+        <div class="global-settings-menu" id="global-settings-menu" style="display:block;position:absolute;right:0;top:45px;background:#fff;width:260px;padding:.5rem 0;">
+          <div class="nav-color-settings" id="nav-color-settings">
+            <div class="nav-color-settings-title"><span>Màu thanh điều hướng</span></div>
+            <div class="nav-color-swatches">
+              <button type="button" class="nav-color-swatch" data-nav-color="#22c55e" style="--swatch-color:#22c55e"></button>
+              <button type="button" class="nav-color-swatch" data-nav-color="#0e59f2" style="--swatch-color:#0e59f2"></button>
+            </div>
+            <div class="nav-color-custom-row"><label for="nav-color-picker">Màu tùy chọn</label><input type="color" id="nav-color-picker" value="#22c55e"><button type="button" id="btn-reset-nav-color">Mặc định</button></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </aside>
+  <script type="module">
+    import { setupNavigationColorSettings } from '../js/components/navigation-theme.js';
+    setupNavigationColorSettings();
+    document.body.dataset.ready = 'true';
+  </script>
+</body>
+</html>

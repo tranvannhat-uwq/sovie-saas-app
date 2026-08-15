@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <title>Warehouse Print Harness</title>
+</head>
+<body>
+  <pre id="result">Đang dựng phiếu xuất kho...</pre>
+  <iframe id="app-frame" src="../index.html?test=warehouse-print-harness" style="width: 1200px; height: 900px;"></iframe>
+  <script>
+    const frame = document.getElementById('app-frame');
+    frame.addEventListener('load', () => {
+      const script = frame.contentDocument.createElement('script');
+      script.type = 'module';
+      script.src = '/tests/warehouse-print-browser-entry.js?v=20260809-activity8';
+      frame.contentDocument.head.appendChild(script);
+
+      const check = setInterval(() => {
+        if (frame.contentDocument.body.dataset.warehousePrintReady !== 'true') return;
+        clearInterval(check);
+        const doc = frame.contentDocument;
+        const result = {
+          printCalled: doc.body.dataset.printCalled,
+          recipientFontSize: doc.getElementById('print-customer-name').style.fontSize,
+          headers: [...doc.querySelectorAll('#print-invoice-table th')].map(cell => cell.textContent.trim()),
+          firstRow: [...doc.querySelectorAll('#print-invoice-table tbody tr:first-child td')].map(cell => cell.textContent.trim())
+        };
+        document.getElementById('result').textContent = JSON.stringify(result, null, 2);
+        document.body.dataset.ready = 'true';
+      }, 50);
+    });
+  </script>
+</body>
+</html>

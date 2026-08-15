@@ -1,0 +1,15 @@
+# Local database backups can contain customer and authentication data.
+backups/
+
+# Generated artifacts and installed dependencies are not application source.
+outputs/
+artifacts/
+node_modules/
+
+# One-off analysis workspaces are local-only.
+.tmp-backup-*/
+
+# Local credentials and transient diagnostics must never be committed.
+.env
+.env.*
+*.log

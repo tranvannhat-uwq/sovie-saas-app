@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <script>window.__app_initialized = true;</script>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Invoice Variant UI Harness</title>
+  <link rel="stylesheet" href="../style.css">
+</head>
+<body style="padding: 16px;">
+  <main class="glass-panel">
+    <select id="invoice-pricelist-select" class="form-control">
+      <option value="general" selected>Giá chung</option>
+      <option value="market">Bảng giá thị trường</option>
+      <option value="tt-restricted">TT 20/07/2026</option>
+      <option value="tt-approved">TT 20/07/2026 - Đã được Kế toán cho phép</option>
+    </select>
+    <div id="invoice-print-only-notice" style="display: none;">Bảng giá thị trường chỉ dùng để in.</div>
+    <button id="btn-save-order" type="button">Lưu đơn</button>
+    <button id="btn-draft-order" type="button">Lưu nháp</button>
+    <button id="btn-print-order" type="button">In đơn</button>
+    <div style="position: relative; margin-top: 12px;">
+      <input id="invoice-product-search" class="form-control-search" placeholder="Tìm sản phẩm">
+      <ul id="invoice-product-suggestions" class="suggestions-list" style="display: none;"></ul>
+    </div>
+    <button id="btn-add-to-invoice-table" class="btn btn-primary" type="button">Thêm</button>
+
+    <table class="table invoice-items-table" style="margin-top: 16px;">
+      <tbody id="invoice-items-body"></tbody>
+    </table>
+  </main>
+
+  <div class="modal-overlay invoice-variant-overlay" id="invoice-variant-modal">
+    <div class="modal-content invoice-variant-modal-content">
+      <div class="modal-header">
+        <div>
+          <div class="variant-modal-eyebrow" id="invoice-variant-base-code"></div>
+          <h3 class="modal-title" id="invoice-variant-modal-title"></h3>
+          <div class="variant-modal-brand" id="invoice-variant-brand"></div>
+        </div>
+        <button id="btn-close-invoice-variant-modal" class="modal-close" type="button">Đóng</button>
+      </div>
+      <div class="modal-body">
+        <div class="variant-choice-list" id="invoice-variant-options"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    window.addEventListener('error', event => {
+      document.body.dataset.error = event.message || 'unknown error';
+    });
+    window.addEventListener('unhandledrejection', event => {
+      document.body.dataset.error = event.reason?.message || String(event.reason || 'unhandled rejection');
+    });
+    window.addEventListener('load', async () => {
+      const { state } = await import('../js/state.js');
+      const { renderInvoiceTable, setupInvoiceCreator } = await import('../js/components/invoice.js?v=20260809-activity8');
+
+    state.currentUser = { id: 'admin-test', username: 'admin-test', displayName: 'Admin Test', role: 'admin' };
+    state.products = [
+      {
+        id: 'ct-d1-lon',
+        code: 'CT-Đ1-LON',
+        variantCode: 'CT-Đ1-LON',
+        baseCode: 'CT-Đ1',
+        productGroupId: 'pg-ct-d1',
+        name: 'Sơn lót chống kiềm nội thất cao cấp',
+        brand: 'COVA NANO',
+        packageType: 'Lon',
+        packagingName: 'Lon',
+        packageWeight: 6.3,
+        weightOrVolume: 6.3,
+        packageWeightUnit: 'kg',
+        unitName: 'kg',
+        isActive: true,
+        isLegacy: false
+      },
+      {
+        id: 'ct-d1-thung',
+        code: 'CT-Đ1-THÙNG',
+        variantCode: 'CT-Đ1-THÙNG',
+        baseCode: 'CT-Đ1',
+        productGroupId: 'pg-ct-d1',
+        name: 'Sơn lót chống kiềm nội thất cao cấp',
+        brand: 'COVA NANO',
+        packageType: 'Thùng',
+        packagingName: 'Thùng',
+        packageWeight: 22.5,
+        weightOrVolume: 22.5,
+        packageWeightUnit: 'kg',
+        unitName: 'kg',
+        isActive: true,
+        isLegacy: false
+      },
+      {
+        id: 'single-lon',
+        code: 'SP-01-LON',
+        variantCode: 'SP-01-LON',
+        baseCode: 'SP-01',
+        productGroupId: 'pg-sp-01',
+        name: 'Sản phẩm một quy cách',
+        brand: 'COVA NANO',
+        packageType: 'Lon',
+        packagingName: 'Lon',
+        packageWeight: 5,
+        weightOrVolume: 5,
+        packageWeightUnit: 'kg',
+        unitName: 'kg',
+        isActive: true,
+        isLegacy: false
+      },
+      {
+        id: 'gift-lon',
+        code: 'QUA-TANG-01',
+        variantCode: 'QUA-TANG-01',
+        baseCode: 'QUA-TANG-01',
+        productGroupId: 'pg-gift-01',
+        name: 'Quà tặng giá 0 đồng',
+        brand: 'COVA NANO',
+        packageType: 'Lon',
+        packagingName: 'Lon',
+        packageWeight: 1,
+        weightOrVolume: 1,
+        packageWeightUnit: 'kg',
+        unitName: 'kg',
+        isActive: true,
+        isLegacy: false
+      }
+    ];
+    state.pricelists = [
+      { id: 'general', name: 'Giá chung', type: 'general', isActive: true, isAvailableForSales: true },
+      { id: 'market', name: 'Bảng giá thị trường', type: 'sales', isActive: true, isAvailableForSales: true, isPrintOnly: true }
+      ,{ id: 'tt-restricted', name: 'TT 20/07/2026', type: 'sales', isActive: true, isAvailableForSales: true, isPrintOnly: true }
+      ,{ id: 'tt-approved', name: 'TT 20/07/2026', type: 'sales', isActive: true, isAvailableForSales: true, isPrintOnly: false }
+    ];
+    state.allPricelists = [...state.pricelists];
+    state.priceListItems = [
+      { id: 'price-lon', priceListId: 'general', productId: 'ct-d1-lon', variantId: 'ct-d1-lon', price: 350000 },
+      { id: 'price-thung', priceListId: 'general', productId: 'ct-d1-thung', variantId: 'ct-d1-thung', price: 1150000 },
+      { id: 'price-single', priceListId: 'general', productId: 'single-lon', variantId: 'single-lon', price: 200000 }
+      ,{ id: 'price-gift', priceListId: 'general', productId: 'gift-lon', variantId: 'gift-lon', price: 0 }
+    ];
+    state.finishedGoodsStock = [
+      { productCode: 'CT-Đ1-LON', brand: 'COVA NANO', packageType: 'Lon', quantity: 12 },
+      { productCode: 'CT-Đ1-THÙNG', brand: 'COVA NANO', packageType: 'Thùng', quantity: 8 }
+    ];
+    state.invoiceItems = [];
+    state.users = [];
+
+      setupInvoiceCreator();
+      renderInvoiceTable();
+      document.body.dataset.ready = 'true';
+    });
+  </script>
+</body>
+</html>

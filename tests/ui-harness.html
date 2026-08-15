@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <script>window.__app_initialized = true;</script>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SKU Pricing UI Harness</title>
+  <link rel="stylesheet" href="../style.css">
+  <meta id="mock-xlsx-output" data-json="[]">
+  <script>
+    const encodeColumn = index => {
+      let result = '';
+      for (let value = index; value >= 0; value = Math.floor(value / 26) - 1) {
+        result = String.fromCharCode(65 + (value % 26)) + result;
+      }
+      return result;
+    };
+    const XLSX = {
+      utils: {
+        book_new: () => ({ SheetNames: [], Sheets: {} }),
+        aoa_to_sheet: rows => ({ __rows: rows }),
+        json_to_sheet: (rows, options = {}) => {
+          const headers = options.header || Object.keys(rows[0] || {});
+          return { __rows: [headers, ...rows.map(row => headers.map(header => row[header]))] };
+        },
+        book_append_sheet: (workbook, sheet, name) => {
+          workbook.SheetNames.push(name);
+          workbook.Sheets[name] = sheet;
+        },
+        encode_col: encodeColumn,
+        encode_cell: ({ r, c }) => `${encodeColumn(c)}${r + 1}`,
+        sheet_to_json: sheet => sheet.__rows
+      },
+      read: () => ({
+        SheetNames: ['Nhap Gia'],
+        Sheets: {
+          'Nhap Gia': {
+            __rows: [
+              ['Mã SKU', 'Tên sản phẩm', 'Hãng sơn', 'Quy cách', 'Giá chung [standard]', 'BG03 [bg03]'],
+              ['BA-46-LON', 'Sơn siêu bóng ngoại thất đặc biệt Nano', 'MUTSUTEC NANO', 'Lon 5,3 kg', 2116000, 1999000]
+            ]
+          }
+        }
+      }),
+      writeFile: (workbook, name) => {
+        const output = document.getElementById('mock-xlsx-output');
+        const written = JSON.parse(output.getAttribute('data-json'));
+        written.push({ workbook, name });
+        output.setAttribute('data-json', JSON.stringify(written));
+      }
+    };
+  </script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body style="padding: 16px;">
+  <main>
+    <section id="products-panel" class="panel active">
+      <div class="glass-panel">
+        <div class="panel-header">
+          <h2 class="panel-title">Danh sách SKU</h2>
+          <button id="btn-export-products-excel" class="btn btn-secondary btn-sm">Xuất Excel sản phẩm</button>
+        </div>
+        <div class="controls-row">
+          <input id="product-search-input" class="form-control-search" placeholder="Tìm SKU">
+          <select id="product-brand-filter" class="form-control"></select>
+          <select id="product-package-filter" class="form-control"></select>
+          <select id="product-status-filter" class="form-control">
+            <option value="">Tất cả trạng thái</option>
+            <option value="active">Đang áp dụng</option>
+            <option value="inactive">Ngừng áp dụng</option>
+          </select>
+        </div>
+        <div class="table-responsive">
+          <table class="table">
+            <thead>
+              <tr><th>STT</th><th>Mã gốc</th><th>Tên sản phẩm</th><th>Hãng sơn</th><th>Đóng gói</th><th>Khối lượng</th><th>Các SKU</th><th>Trạng thái</th><th>Hành động</th></tr>
+            </thead>
+            <tbody id="products-table-body"></tbody>
+          </table>
+        </div>
+        <div id="products-pagination"></div>
+      </div>
+    </section>
+
+    <section id="pricelists-panel" class="panel active" style="margin-top: 18px;">
+      <div class="glass-panel">
+        <div class="panel-header">
+          <h2 class="panel-title">Ma trận bảng giá sản phẩm</h2>
+          <div>
+            <button id="btn-export-pricelist-excel" class="btn btn-secondary btn-sm">Xuất Excel bảng giá</button>
+            <button id="btn-import-pricelist-excel" class="btn btn-secondary btn-sm">Nhập Excel bảng giá</button>
+            <button id="mock-import-price-excel" class="btn btn-secondary btn-sm">Chạy nhập thử</button>
+            <input type="file" id="pricelist-excel-file-input" accept=".xlsx,.xls" hidden>
+            <button id="btn-save-price-matrix" class="btn btn-success btn-sm" disabled>Lưu tất cả thay đổi</button>
+          </div>
+        </div>
+        <div class="controls-row" style="display:grid;grid-template-columns:minmax(240px,1.2fr) minmax(220px,1fr) repeat(3,minmax(150px,.7fr));gap:.75rem;">
+          <input id="price-matrix-product-search" class="form-control-search" placeholder="Tìm SKU theo mã, tên, hãng, quy cách">
+          <details class="price-list-picker" id="pricelist-visible-picker">
+            <summary id="pricelist-visible-summary">Chọn bảng giá hiển thị</summary>
+            <div class="price-list-picker-menu" id="pricelist-visible-select"></div>
+          </details>
+          <select id="price-matrix-brand-filter" class="form-control"></select>
+          <select id="price-matrix-package-filter" class="form-control"></select>
+          <select id="price-matrix-group-filter" class="form-control"></select>
+        </div>
+        <div class="table-responsive price-matrix-wrap">
+          <table class="table price-matrix-table"><thead></thead><tbody id="pricelists-table-body"></tbody></table>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script type="module">
+    import { state } from '../js/state.js';
+    import { renderProductsTable, setupExcelImportAndTemplate } from '../js/components/products.js?v=20260802-backup-cell-fix1';
+    import { renderPricelistsTable, setupPricelistManagement } from '../js/components/pricelists.js?v=20260802-backup-cell-fix1';
+
+    const testRole = new URLSearchParams(window.location.search).get('role') || 'admin';
+    state.currentUser = { username: 'tester', role: testRole };
+    state.products = [
+      { id: 'b-h2-lon', code: 'B-H2-LON', name: 'Keo phủ bóng bề mặt sơn', brand: 'NANO10 MB', baseProductId: 'b-h2', packageType: 'Lon', packageWeight: 4.5, packageWeightUnit: 'kg', displaySpecification: 'Lon 4,5 kg', isActive: true, isLegacy: false },
+      { id: 'ba46-thung', code: 'BA-46-THUNG', name: 'Sơn siêu bóng ngoại thất đặc biệt Nano', brand: 'MUTSUTEC NANO', baseProductId: 'ba46', packageType: 'Thùng', packageWeight: 19, packageWeightUnit: 'kg', displaySpecification: 'Thùng 19 kg', group: 'Ngoại thất', isActive: true, isLegacy: false },
+      { id: 'ba46-lon', code: 'BA-46-LON', name: 'Sơn siêu bóng ngoại thất đặc biệt Nano', brand: 'MUTSUTEC NANO', baseProductId: 'ba46', packageType: 'Lon', packageWeight: 5.3, packageWeightUnit: 'kg', displaySpecification: 'Lon 5,3 kg', group: 'Ngoại thất', isActive: true, isLegacy: false },
+      { id: 'ba46-hop', code: 'BA-46-HOP', name: 'Sơn siêu bóng ngoại thất đặc biệt Nano', brand: 'MUTSUTEC NANO', baseProductId: 'ba46', packageType: 'Hộp', packageWeight: 1.2, packageWeightUnit: 'kg', displaySpecification: 'Hộp 1,2 kg', group: 'Ngoại thất', isActive: true, isLegacy: false },
+      { id: 'ba46', code: 'BA-46', name: 'Sản phẩm legacy', brand: 'MUTSUTEC NANO', packageType: '', isActive: false, isLegacy: true }
+    ];
+    state.pricelists = [
+      { id: 'standard', code: 'GIA_CHUNG', name: 'Giá chung', type: 'standard', isActive: true, isAvailableForSales: true, displayOrder: 0 },
+      { id: 'bg03', code: 'BG03', name: 'BG03', type: 'customer_group', parentPriceListId: 'standard', isActive: true, isAvailableForSales: true, displayOrder: 10 },
+      { id: 'private', code: 'TUNG_QN', name: 'Giá Tùng Quảng Ninh', type: 'customer_specific', customerId: 'tung', parentPriceListId: 'bg03', isActive: true, isAvailableForSales: false, displayOrder: 20 }
+    ];
+    state.customers = [{ id: 'tung', code: 'TUNG-QN', name: 'Tùng Quảng Ninh' }];
+    state.priceListItems = [
+      { id: '1', priceListId: 'standard', productId: 'b-h2-lon', price: 1625000 },
+      { id: '2', priceListId: 'standard', productId: 'ba46-thung', price: 6349000 },
+      { id: '3', priceListId: 'standard', productId: 'ba46-lon', price: 2116000 },
+      { id: '4', priceListId: 'standard', productId: 'ba46-hop', price: 615000 },
+      { id: '5', priceListId: 'bg03', productId: 'ba46-lon', price: 1950000 }
+    ];
+    state.selectedPriceListIds = ['standard', 'bg03', 'private'];
+    renderProductsTable();
+    setupExcelImportAndTemplate();
+    setupPricelistManagement();
+    renderPricelistsTable();
+    document.getElementById('mock-import-price-excel').addEventListener('click', () => {
+      window.confirm = () => true;
+      const input = document.getElementById('pricelist-excel-file-input');
+      const transfer = new DataTransfer();
+      transfer.items.add(new File(['mock'], 'bang-gia-test.xlsx', {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      }));
+      input.files = transfer.files;
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+  </script>
+</body>
+</html>

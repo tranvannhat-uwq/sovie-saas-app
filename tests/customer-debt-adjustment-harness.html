@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Customer debt adjustment modal harness</title>
+  <link rel="stylesheet" href="../style.css">
+</head>
+<body>
+  <div class="modal-overlay active" id="customer-debt-adjust-modal">
+    <div class="modal-content" style="max-width: 520px;">
+      <div class="modal-header">
+        <h3 class="modal-title">Điều chỉnh công nợ</h3>
+        <button class="modal-close" type="button" aria-label="Đóng">×</button>
+      </div>
+      <form>
+        <div class="modal-body">
+          <div style="padding: 0.75rem; margin-bottom: 1rem; border-radius: 8px; background: var(--bg-secondary);">
+            <div><strong>Khách hàng:</strong> Khách hàng mẫu (KH001)</div>
+            <div style="margin-top: 0.25rem;"><strong>Số dư hiện tại:</strong> <span style="font-weight: 700; color: var(--color-danger);">5.000.000 ₫</span></div>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="customer-debt-adjust-value">Số dư mới (đ) *</label>
+            <input type="number" class="form-control" id="customer-debt-adjust-value" value="2000000" style="width: 100%;">
+            <small style="color: var(--text-muted);">Số dương: khách còn nợ; số âm: tiền khách trả trước.</small>
+          </div>
+          <div class="form-group" style="margin-bottom: 0;">
+            <label class="form-label" for="customer-debt-adjust-reason">Lý do điều chỉnh *</label>
+            <textarea class="form-control" id="customer-debt-adjust-reason" rows="3" style="width: 100%;">Đối chiếu công nợ</textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary">Hủy bỏ</button>
+          <button type="submit" class="btn btn-primary">Lưu điều chỉnh</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</body>
+</html>

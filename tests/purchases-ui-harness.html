@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="vi">
+<head><meta charset="utf-8"><title>Purchases UI Harness</title><link rel="stylesheet" href="../style.css"></head>
+<body><main id="goods-panel" class="panel active"></main>
+<script>window.__app_initialized = true;</script>
+<script type="module">
+  import { state } from '../js/state.js';
+  import { renderPurchasesPanel } from '../js/components/purchases.js?v=20260802-backup-cell-fix1';
+  const role = new URLSearchParams(location.search).get('role') || 'admin';
+  state.currentUser = { id: 'finance-test', username: 'finance-test', role };
+  state.suppliers = [{ id: 'sup-1', code: 'NCC-01', name: 'Nhà cung cấp A' }];
+  state.purchases = [{
+    id: 'pur-1', code: 'PM-0001', purchaseDate: '2026-08-01T08:00:00Z',
+    invoiceNumber: 'INV-001', supplierId: 'sup-1', supplierCode: 'NCC-01',
+    supplierName: 'Nhà cung cấp A', totalAmount: 250000, paidAmount: 100000,
+    balanceDue: 150000, status: 'completed', items: []
+  }];
+  renderPurchasesPanel(document.getElementById('goods-panel'));
+  document.body.dataset.ready = 'true';
+</script></body></html>

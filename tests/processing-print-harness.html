@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <title>Processing Invoice Print Harness</title>
+</head>
+<body>
+  <pre id="result">Đang dựng hóa đơn bên gia công...</pre>
+  <iframe id="app-frame" src="../index.html?test=processing-print-harness" style="width: 1200px; height: 900px;"></iframe>
+  <script>
+    const frame = document.getElementById('app-frame');
+    frame.addEventListener('load', () => {
+      const script = frame.contentDocument.createElement('script');
+      script.type = 'module';
+      script.src = '/tests/processing-print-browser-entry.js?v=20260814-processing-print-v2';
+      frame.contentDocument.head.appendChild(script);
+
+      const check = setInterval(() => {
+        if (frame.contentDocument.body.dataset.processingPrintReady !== 'true') return;
+        clearInterval(check);
+        const doc = frame.contentDocument;
+        const display = selector => getComputedStyle(doc.querySelector(selector)).display;
+        const totalRow = doc.querySelector('#print-invoice-table tbody tr:last-child');
+        const result = {
+          printCalled: doc.body.dataset.printCalled,
+          title: doc.getElementById('print-invoice-title-large').textContent.trim(),
+          companyHeaderDisplay: display('.print-header'),
+          companyNameDisplay: display('#print-company-name-large'),
+          invoiceIdDisplay: display('#print-invoice-id-row'),
+          dateLabel: doc.getElementById('print-invoice-date-label').textContent.trim(),
+          reason: doc.getElementById('print-processing-reason').textContent.trim(),
+          address: doc.getElementById('print-customer-address').textContent.trim(),
+          paymentMethod: doc.getElementById('print-payment-method').textContent.trim(),
+          managerDisplay: display('#print-customer-manager'),
+          warehouseInfoDisplay: display('#print-warehouse-row'),
+          headers: [...doc.querySelectorAll('#print-invoice-table th')].map(cell => cell.textContent.trim()),
+          firstRow: [...doc.querySelectorAll('#print-invoice-table tbody tr:first-child td')].map(cell => cell.textContent.trim()),
+          totalLabel: totalRow?.cells[0]?.textContent.trim(),
+          totalColspan: totalRow?.cells[0]?.colSpan || null,
+          totalQuantity: totalRow?.cells[1]?.textContent.trim(),
+          amountSummaryDisplay: display('.print-summary'),
+          amountWordsDisplay: display('#print-amount-in-words-container')
+        };
+        document.getElementById('result').textContent = JSON.stringify(result, null, 2);
+        document.body.dataset.ready = 'true';
+      }, 50);
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Cashbook inline detail harness</title>
+  <link rel="stylesheet" href="../style.css">
+</head>
+<body style="margin: 0; padding: 24px; background: #f4f6f8;">
+  <main class="so-quy-table-card" style="max-width: 1280px; margin: auto;">
+    <div class="table-responsive">
+      <table class="table so-quy-table" style="width: 100%; border-collapse: collapse;">
+        <thead><tr><th></th><th>⭐</th><th>Mã phiếu</th><th>Thời gian</th><th>Loại thu chi</th><th>Người nộp/nhận</th><th>Địa chỉ</th><th>Giá trị</th></tr></thead>
+        <tbody>
+          <tr class="so-quy-transaction-row is-expanded" aria-expanded="true">
+            <td><input type="checkbox"></td><td>☆</td><td><strong style="color:#087bea">PT-20260811-00000153</strong></td><td>11/08/2026 07:09</td><td>Thu Hỗ trợ vận chuyển cho khách</td><td>ANH DŨNG - HỒNG ANH</td><td>thôn 1 Quang Khê, Quảng Xương, Thanh Hóa</td><td style="text-align:right;color:#087bea"><strong>787.012 đ</strong></td>
+          </tr>
+          <tr class="so-quy-inline-detail-row"><td colspan="8">
+            <section class="so-quy-inline-detail">
+              <div class="so-quy-inline-tab">Thông tin</div>
+              <div class="so-quy-inline-heading"><div class="so-quy-inline-title"><strong>Phiếu thu <span>PT-20260811-00000153</span></strong><span class="badge-status badge-status-paid">Đã thanh toán</span><span class="so-quy-accounting-badge is-accounting">Có hạch toán</span></div></div>
+              <div class="so-quy-inline-meta"><span>Người tạo: <strong>Administrator</strong></span><span>Người thu: <strong>ABS JAPAN</strong></span><span>Thời gian: <strong>11/08/2026 07:09</strong></span></div>
+              <div class="so-quy-inline-grid"><div class="so-quy-inline-field"><span>Số tiền</span><strong class="so-quy-inline-amount is-receipt">+ 787.012 đ</strong></div><div class="so-quy-inline-field"><span>Loại thu chi</span><strong>Thu Hỗ trợ vận chuyển cho khách</strong></div><div class="so-quy-inline-field"><span>Đối tượng nộp</span><strong>Khách hàng</strong></div><div class="so-quy-inline-field"><span>Phương thức thanh toán</span><strong>Tiền mặt</strong></div></div>
+              <div class="so-quy-inline-wide-field"><span>Người nộp</span><strong>ANH DŨNG - HỒNG ANH</strong><small>thôn 1 Quang Khê, Quảng Xương, Thanh Hóa</small></div>
+              <div class="so-quy-inline-note"><span>Thu hỗ trợ vận chuyển cho khách</span></div>
+              <div class="so-quy-inline-actions"><div><button class="btn btn-danger btn-sm">Hủy phiếu</button></div><div><button class="btn btn-primary btn-sm">Chỉnh sửa</button><button class="btn btn-secondary btn-sm">Thu gọn</button></div></div>
+            </section>
+          </td></tr>
+        </tbody>
+      </table>
+    </div>
+  </main>
+</body>
+</html>

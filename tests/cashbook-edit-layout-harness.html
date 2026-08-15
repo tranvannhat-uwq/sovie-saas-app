@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Cashbook edit layout harness</title>
+  <link rel="stylesheet" href="../style.css">
+</head>
+<body style="margin:0;background:#e5e7eb;">
+  <div class="modal-overlay active" style="position:relative;min-height:100vh;display:flex;">
+    <div class="modal-content cashbook-edit-modal-content">
+      <div class="modal-header cashbook-edit-header"><div><h3 class="modal-title">Sửa phiếu thu</h3><p>Cập nhật thông tin chứng từ và đối tượng giao dịch</p></div><button class="modal-close">×</button></div>
+      <form class="cashbook-edit-form">
+        <div class="modal-body cashbook-edit-body">
+          <section class="cashbook-edit-section">
+            <div class="cashbook-edit-section-heading"><span class="cashbook-edit-section-index">1</span><div><strong>Thông tin phiếu</strong><small>Mã, thời gian và nội dung thu chi</small></div></div>
+            <div class="cashbook-edit-grid"><div class="form-group"><label class="form-label">Mã phiếu</label><input class="form-control" value="PT-20260811-00000154" readonly></div><div class="form-group"><label class="form-label">Loại phiếu</label><input class="form-control" value="Phiếu thu" readonly></div><div class="form-group"><label class="form-label">Thời gian</label><input class="form-control" type="datetime-local" value="2026-08-11T07:38"></div><div class="form-group"><label class="form-label">Loại thu</label><input class="form-control" value="Thu tiền khách hàng"></div></div>
+          </section>
+          <section class="cashbook-edit-section">
+            <div class="cashbook-edit-section-heading"><span class="cashbook-edit-section-index">2</span><div><strong>Đối tượng giao dịch</strong><small>Người thực hiện và bên nộp tiền</small></div></div>
+            <div class="cashbook-edit-grid"><div class="form-group"><label class="form-label">Người thu</label><select class="form-control"><option>Trần Văn Nhất</option></select></div><div class="form-group"><label class="form-label">Đối tượng nộp</label><select class="form-control"><option>Khách hàng</option></select></div><div class="form-group"><label class="form-label">Chọn đối tượng</label><select class="form-control"><option>ANH DŨNG - HỒNG ANH</option></select></div><div class="form-group"><label class="form-label">Tên người nộp</label><input class="form-control" value="ANH DŨNG - HỒNG ANH"></div></div>
+          </section>
+          <section class="cashbook-edit-section">
+            <div class="cashbook-edit-section-heading"><span class="cashbook-edit-section-index">3</span><div><strong>Thanh toán & ghi chú</strong><small>Số tiền, phương thức và nội dung bổ sung</small></div></div>
+            <div class="cashbook-edit-grid"><div class="form-group"><label class="form-label">Giá trị (đ)</label><input class="form-control cashbook-edit-value-input" value="787012"></div><div class="form-group"><label class="form-label">Phương thức thanh toán</label><select class="form-control"><option>Tiền mặt</option></select></div><label class="cashbook-edit-accounting-option"><input type="checkbox" checked><span><strong>Hạch toán kết quả kinh doanh</strong><small>Tính giao dịch này vào báo cáo kinh doanh</small></span></label><div class="form-group cashbook-edit-note-group"><label class="form-label">Ghi chú</label><textarea class="form-control" rows="3">Thu tiền khách hàng</textarea></div></div>
+          </section>
+          <div class="cashbook-edit-guidance">Với phiếu liên kết, hệ thống tự ghi điều chỉnh công nợ và lưu đầy đủ lịch sử trước/sau.</div>
+        </div>
+        <div class="modal-footer cashbook-edit-footer"><button class="btn btn-secondary">Hủy</button><button class="btn btn-primary">Lưu thay đổi</button></div>
+      </form>
+    </div>
+  </div>
+</body>
+</html>

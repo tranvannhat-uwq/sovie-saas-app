@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <script>window.__app_initialized = true;</script>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>History Financials Harness</title>
+  <link rel="stylesheet" href="../style.css">
+</head>
+<body style="padding:16px">
+  <script>window.__app_initialized = true;</script>
+  <main id="history-panel">
+    <button id="btn-history-view-card" type="button">Thẻ</button>
+    <button id="btn-history-view-details" class="active" type="button">Bảng</button>
+    <input id="history-search-input" value="">
+    <select id="history-date-mode"><option value="all">Tất cả</option></select>
+    <input id="history-filter-date">
+    <input id="history-filter-month">
+    <select id="history-filter-year"><option value="">Năm</option></select>
+    <div id="history-filter-range">
+      <input id="history-filter-from">
+      <input id="history-filter-to">
+    </div>
+    <select id="history-company-filter"><option value="all">Tất cả công ty</option></select>
+    <select id="history-brand-filter"><option value="all">Tất cả hãng</option></select>
+    <div id="history-status-filter">
+      <label><input type="checkbox" class="history-status-filter-check" value="settled" checked>Đã chốt</label>
+      <label><input type="checkbox" class="history-status-filter-check" value="draft" checked>Nháp</label>
+      <label><input type="checkbox" class="history-status-filter-check" value="cancelled">Đã hủy</label>
+    </div>
+    <div class="history-creator-filter-wrap">
+      <input id="history-creator-filter">
+      <ul id="history-creator-suggestions"></ul>
+    </div>
+    <section class="history-summary-bar">
+      <div class="history-summary-item"><span>Tổng tiền hàng</span><strong id="history-total-before-discount">0</strong></div>
+      <div class="history-summary-item"><span>Giảm giá</span><strong id="history-total-discount">0</strong></div>
+      <div class="history-summary-item"><span>Thu khác</span><strong id="history-total-other-fee">0</strong></div>
+      <div class="history-summary-item"><span>Tổng thanh toán</span><strong id="history-total-payable">0</strong></div>
+      <div id="history-total-settled-count"></div>
+    </section>
+    <div class="history-grid details-mode" id="history-orders-container"></div>
+  </main>
+
+  <script type="module">
+    import { state } from '../js/state.js';
+    import { renderHistoryOrders, setupHistoryPanel } from '../js/components/history.js?v=20260809-activity8';
+
+    state.currentUser = { username: 'admin', role: 'admin' };
+    state.historyViewMode = 'details';
+    state.companies = [];
+    state.brands = [];
+    state.customers = [];
+    state.pricelists = [];
+    state.users = [{ username: 'admin', displayName: 'Admin' }];
+    state.salesReturns = [{
+      id: 'TH-1',
+      saleId: 'HD-2',
+      status: 'completed',
+      totalRefund: 80000
+    }];
+    state.savedOrders = [
+      {
+        id: 'HD-1',
+        customerName: 'Khách A',
+        createdBy: 'admin',
+        date: '2026-07-01T08:00:00Z',
+        status: 'settled',
+        items: [{ productName: 'SP A', package: 'Lon', quantity: 1, price: 600000 }],
+        discountType: 'amount',
+        discountValue: 18000,
+        shippingFeeAmount: 56000
+      },
+      {
+        id: 'HD-2',
+        customerName: 'Khách B',
+        createdBy: 'admin',
+        date: '2026-07-02T08:00:00Z',
+        status: 'partially_returned',
+        items: [{ productName: 'SP B', package: 'Lon', colorCode: 'A01', quantity: 2, price: 100000, discountPercent: 10 }],
+        discountAmount: 20000
+      },
+      {
+        id: 'HD-3',
+        customerName: 'Khách C',
+        createdBy: 'admin',
+        date: '2026-07-03T08:00:00Z',
+        status: 'cancelled',
+        items: [{ productName: 'SP C', package: 'Lon', quantity: 1, price: 500000 }]
+      },
+      {
+        id: 'HD-4',
+        customerName: 'Khách D',
+        createdBy: 'admin',
+        date: '2026-07-04T08:00:00Z',
+        status: 'draft',
+        items: [{ productName: 'SP D', package: 'Lon', quantity: 1, price: 120000 }]
+      }
+    ];
+
+    setupHistoryPanel();
+    renderHistoryOrders();
+  </script>
+</body>
+</html>

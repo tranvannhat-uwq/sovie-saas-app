@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <script>window.__app_initialized = true;</script>
+  <meta charset="utf-8">
+  <title>Draft price-list refresh harness</title>
+</head>
+<body>
+  <select id="invoice-pricelist-select" data-explicit-override="false">
+    <option value="bg01">Bảng giá 01</option>
+    <option value="bg03" selected>Bảng giá 03</option>
+  </select>
+  <span id="invoice-pricelist-source-lbl">Bảng giá đang áp dụng: Bảng giá 01</span>
+  <table><tbody id="invoice-items-body"></tbody></table>
+
+  <script>
+    window.addEventListener('error', event => {
+      document.body.dataset.error = event.message || 'unknown error';
+    });
+    window.addEventListener('unhandledrejection', event => {
+      document.body.dataset.error = event.reason?.message || String(event.reason || 'unhandled rejection');
+    });
+    window.addEventListener('load', async () => {
+      const { state } = await import('../js/state.js');
+      await import('../js/components/invoice.js?v=20260809-activity8');
+
+      const product = {
+        id: 'sku-kt160', code: 'KT-160', variantCode: 'KT-160', baseCode: 'KT-160',
+        productGroupId: 'pg-kt160', name: 'Sơn siêu mịn nội thất', brand: 'FESTIVA NANO',
+        packageType: 'Thùng', packagingName: 'Thùng', packageWeight: 22,
+        weightOrVolume: 22, packageWeightUnit: 'kg', unitName: 'kg',
+        isActive: true, isLegacy: false
+      };
+      state.currentUser = { id: 'admin-test', username: 'admin-test', role: 'admin' };
+      state.products = [product];
+      state.customers = [{
+        id: 'customer-tuan', name: 'Nguyễn Văn Tuấn', pricelistId: 'bg03',
+        defaultPriceListId: 'bg01'
+      }];
+      state.activeCustomerId = 'customer-tuan';
+      state.pricelists = [
+        { id: 'bg01', name: 'Bảng giá 01', type: 'general', isActive: true, displayOrder: 1 },
+        { id: 'bg03', name: 'Bảng giá 03', type: 'general', isActive: true, displayOrder: 3 }
+      ];
+      state.allPricelists = [...state.pricelists];
+      const simulateMissingCurrentPrice = new URLSearchParams(location.search).has('missing');
+      state.priceListItems = [
+        { id: 'bg01:sku-kt160', priceListId: 'bg01', productId: 'sku-kt160', price: 160000 },
+        ...(simulateMissingCurrentPrice ? [] : [
+          { id: 'bg03:sku-kt160', priceListId: 'bg03', productId: 'sku-kt160', price: 170000 }
+        ])
+      ];
+      state.allPriceListItems = [...state.priceListItems];
+      state.invoiceItems = [{
+        product, variantId: product.id, variantCode: product.code, brand: product.brand,
+        quantity: 1, discountPercent: 0, price: 160000, unitPrice: 160000,
+        listPrice: 160000, priceListId: 'bg01', priceListName: 'Bảng giá 01', priceSource: 'standard'
+      }];
+
+      document.dispatchEvent(new CustomEvent('loadDraftOrder', {
+        detail: { order: { id: 'draft-1' }, isReadOnly: false, isCopy: false }
+      }));
+
+      const item = state.invoiceItems[0];
+      document.body.dataset.selectedPriceList = document.getElementById('invoice-pricelist-select').value;
+      document.body.dataset.sourceLabel = document.getElementById('invoice-pricelist-source-lbl').textContent;
+      document.body.dataset.itemPriceList = item.priceListId;
+      document.body.dataset.itemUnitPrice = String(item.unitPrice);
+      document.body.dataset.itemPriceSource = item.priceSource;
+      document.body.dataset.ready = 'true';
+    });
+  </script>
+</body>
+</html>

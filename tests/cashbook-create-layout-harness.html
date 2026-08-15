@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Cashbook create layout harness</title>
+  <link rel="stylesheet" href="../style.css">
+</head>
+<body style="margin:0;background:#e5e7eb;">
+  <div class="modal-overlay active" style="position:relative;min-height:100vh;display:flex;">
+    <div class="modal-content cashbook-create-modal-content cashbook-create-receipt" id="preview-modal">
+      <div class="modal-header cashbook-create-header"><div><h3 class="modal-title" id="preview-title">Tạo phiếu thu</h3><p id="preview-subtitle">Ghi nhận khoản tiền nhận vào quỹ</p></div><button class="modal-close">×</button></div>
+      <form class="cashbook-create-form">
+        <div class="modal-body cashbook-create-body">
+          <section class="cashbook-create-section">
+            <div class="cashbook-create-section-heading"><span class="cashbook-create-section-index">1</span><div><strong>Thông tin phiếu</strong><small>Mã chứng từ, thời gian và loại thu/chi</small></div></div>
+            <div class="cashbook-create-grid"><div class="form-group"><label class="form-label">Mã phiếu</label><input class="form-control" placeholder="Để trống để hệ thống tự tạo"><small class="cashbook-create-field-hint">Ví dụ: TTM000001</small></div><div class="form-group"><label class="form-label">Thời gian</label><input class="form-control" type="datetime-local" value="2026-08-11T08:00"></div><div class="form-group cashbook-create-field-full"><label class="form-label">Loại thu/chi</label><select class="form-control"><option>Thu tiền khách hàng / Trả trước</option></select></div></div>
+          </section>
+          <section class="cashbook-create-section">
+            <div class="cashbook-create-section-heading"><span class="cashbook-create-section-index">2</span><div><strong id="preview-section-title">Thông tin khoản thu</strong><small>Đối tượng, số tiền và phương thức thanh toán</small></div></div>
+            <div class="cashbook-create-grid"><div class="form-group cashbook-create-field-full"><label class="form-label" id="preview-party-label">Người nộp</label><input class="form-control" value="ANH DŨNG - HỒNG ANH"></div><div class="form-group"><label class="form-label">Giá trị (đ)</label><input class="form-control cashbook-create-value-input" value="787012"></div><div class="form-group"><label class="form-label">Phương thức thanh toán</label><select class="form-control"><option>Tiền mặt</option></select></div><label class="cashbook-create-accounting-option cashbook-create-field-full"><input type="checkbox" checked><span><strong>Hạch toán kết quả kinh doanh</strong><small>Tính giao dịch này vào báo cáo kinh doanh</small></span></label><div class="form-group cashbook-create-field-full"><label class="form-label">Ghi chú</label><textarea class="form-control" rows="3">Nội dung ghi chú cho phiếu</textarea></div></div>
+          </section>
+        </div>
+        <div class="modal-footer cashbook-create-footer"><button class="btn btn-secondary">Hủy bỏ</button><button class="btn btn-primary cashbook-create-submit" id="preview-submit">Lưu phiếu thu</button></div>
+      </form>
+    </div>
+  </div>
+  <script>
+    if (new URLSearchParams(location.search).get('type') === 'payment') {
+      const modal = document.getElementById('preview-modal');
+      modal.classList.remove('cashbook-create-receipt');
+      modal.classList.add('cashbook-create-payment');
+      document.getElementById('preview-title').textContent = 'Tạo phiếu chi';
+      document.getElementById('preview-subtitle').textContent = 'Ghi nhận khoản tiền chi ra khỏi quỹ';
+      document.getElementById('preview-section-title').textContent = 'Thông tin khoản chi';
+      document.getElementById('preview-party-label').textContent = 'Người nhận';
+      document.getElementById('preview-submit').textContent = 'Lưu phiếu chi';
+    }
+  </script>
+</body>
+</html>

@@ -15,9 +15,9 @@ import {
   dbSaveSemiFinishedBulk,
   dbDeleteAllSemiFinished,
   dbSaveCashbookTransaction
-} from '../services/supabase.js?v=20260817-saas-platform-v6';
-import { renderAll } from '../main.js?v=20260817-saas-platform-v6';
-import { renderPurchasesPanel } from './purchases.js?v=20260817-saas-platform-v6';
+} from '../services/supabase.js?v=20260829-onboarding-v1';
+import { renderAll } from '../main.js?v=20260829-onboarding-v1';
+import { renderPurchasesPanel } from './purchases.js?v=20260829-onboarding-v1';
 
 // --- TRÌNH VẼ GIAO DIỆN (RENDERERS) ---
 

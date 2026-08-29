@@ -958,6 +958,37 @@
   #landing-page .landing-trust-row span { letter-spacing: .02em; }
 }
 
+.login-help-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-top: -4px;
+  color: #718096;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.login-help-row span { max-width: 235px; }
+
+.login-forgot-button {
+  flex: 0 0 auto;
+  padding: 2px 0;
+  color: #1262dc;
+  background: transparent;
+  border: 0;
+  font: inherit;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.login-forgot-button:hover { color: #084eb7; text-decoration: underline; }
+.login-forgot-button:disabled { opacity: .55; cursor: wait; }
+
+@media (max-width: 520px) {
+  .login-help-row { align-items: flex-start; flex-direction: column; gap: 7px; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   #landing-page .feature-card,
   #landing-page .landing-primary-button,

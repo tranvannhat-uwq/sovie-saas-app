@@ -41,10 +41,10 @@
   <!-- Chart.js CDN -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <!-- Style CSS -->
-  <link rel="stylesheet" href="style.css?v=20260817-saas-platform-v1">
+  <link rel="stylesheet" href="style.css?v=20260829-saas-onboarding-v1">
   <link rel="stylesheet" href="landing.css?v=20260817-saas-platform-v1">
   <link rel="stylesheet" href="ui-system.css?v=20260825-dashboard-invoice-v3">
-  <link rel="stylesheet" href="landing-premium.css?v=20260829-landing-premium-v2">
+  <link rel="stylesheet" href="landing-premium.css?v=20260829-auth-flow-v1">
 </head>
 <body>
 
@@ -565,6 +565,18 @@
 
       <!-- Dashboard Panel -->
       <section id="dashboard-panel" class="panel active">
+        <section class="saas-onboarding-card" id="saas-onboarding-checklist" aria-labelledby="saas-onboarding-title" style="display: none;">
+          <div class="saas-onboarding-header">
+            <div>
+              <span class="saas-onboarding-kicker"><i data-lucide="sparkles"></i> Bắt đầu với SoVie</span>
+              <h2 id="saas-onboarding-title">Hoàn thiện thiết lập doanh nghiệp</h2>
+              <p id="saas-onboarding-summary">Thực hiện các bước nền tảng trước khi vận hành đơn hàng đầu tiên.</p>
+            </div>
+            <strong class="saas-onboarding-progress-label" id="saas-onboarding-progress-label">0/5</strong>
+          </div>
+          <div class="saas-onboarding-progress" aria-hidden="true"><span id="saas-onboarding-progress-bar"></span></div>
+          <div class="saas-onboarding-steps" id="saas-onboarding-steps"></div>
+        </section>
         <!-- Dashboard Filter Toolbar -->
         <div class="dashboard-toolbar glass-panel">
           <!-- Row 1: Primary Filters & Action Buttons -->
@@ -4106,6 +4118,10 @@
             <label class="form-label" for="login-password">Mật khẩu</label>
             <div class="login-input-wrap"><i data-lucide="lock-keyhole"></i><input type="password" class="form-control" id="login-password" placeholder="Nhập mật khẩu" required autocomplete="current-password"></div>
           </div>
+          <div class="login-help-row">
+            <span>Dùng đúng một tài khoản cho mọi doanh nghiệp bạn tham gia.</span>
+            <button type="button" id="btn-forgot-password" class="login-forgot-button">Quên mật khẩu?</button>
+          </div>
           <button type="submit" id="btn-login-submit" class="btn btn-primary login-submit-button">
             <span>Đăng nhập</span><i data-lucide="arrow-right"></i>
           </button>
@@ -4774,6 +4790,6 @@
 
   <!-- App logic -->
   <script type="module" src="js/landing-motion.js?v=20260817-saas-platform-v1"></script>
-  <script type="module" src="js/main.js?v=20260817-saas-platform-v6"></script>
+  <script type="module" src="js/main.js?v=20260829-onboarding-v1"></script>
 </body>
 </html>

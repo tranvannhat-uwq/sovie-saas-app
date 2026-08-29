@@ -1,12 +1,12 @@
 import { state } from '../state.js';
 import { showToast, formatCurrency, safeCreateIcons, formatPhoneNumber, isSameUser, getProvinceNameByCode, getManagerDisplayName, PROVINCES, makeSelectSearchable, getCompanyIdByBrand, normalizeCompanyId, formatDateOnly } from '../utils.js';
-import { dbSaveCustomer, dbDeleteCustomer, dbDeleteCustomersBulk, dbSaveCustomersBulk, dbImportCustomerFinancialBaselines, dbFetchCustomers, dbFetchCustomerById, dbRefreshCustomerFinancialState, dbRefreshOrderById, dbFetchCashbookTransactionById, dbRecordCustomerPayment, dbAdjustCustomerDebt, dbFetchCustomerOrderHistory, dbFetchCustomersOrderHistory } from '../services/supabase.js?v=20260817-saas-platform-v6';
-import { renderAll } from '../main.js?v=20260817-saas-platform-v6';
+import { dbSaveCustomer, dbDeleteCustomer, dbDeleteCustomersBulk, dbSaveCustomersBulk, dbImportCustomerFinancialBaselines, dbFetchCustomers, dbFetchCustomerById, dbRefreshCustomerFinancialState, dbRefreshOrderById, dbFetchCashbookTransactionById, dbRecordCustomerPayment, dbAdjustCustomerDebt, dbFetchCustomerOrderHistory, dbFetchCustomersOrderHistory } from '../services/supabase.js?v=20260829-onboarding-v1';
+import { renderAll } from '../main.js?v=20260829-onboarding-v1';
 import { tenantStorage } from '../services/tenant-storage.js';
-import { applyActivePriceListToInvoice, resetInvoiceCustomer } from './invoice.js?v=20260817-saas-platform-v6';
-import { addCashbookTransaction } from './so_quy.js?v=20260817-saas-platform-v6';
-import { getOrderFinancialBreakdown } from '../domain/order-financials.js?v=20260817-saas-platform-v6';
-import { buildCustomerDebtDisplayHistory, collectCustomerDebt, getCustomerDebtPostingDate } from '../domain/customer-debt.js?v=20260817-saas-platform-v6';
+import { applyActivePriceListToInvoice, resetInvoiceCustomer } from './invoice.js?v=20260829-onboarding-v1';
+import { addCashbookTransaction } from './so_quy.js?v=20260829-onboarding-v1';
+import { getOrderFinancialBreakdown } from '../domain/order-financials.js?v=20260829-onboarding-v1';
+import { buildCustomerDebtDisplayHistory, collectCustomerDebt, getCustomerDebtPostingDate } from '../domain/customer-debt.js?v=20260829-onboarding-v1';
 import { businessDateKey, parseExcelDate } from '../domain/import-date.js';
 import { buildCustomerImportColumnMap, normalizeExcelHeader, normalizeExcelSheetName } from '../domain/customer-import-columns.js';
 import { customerDateKey, customerDaysSince, finiteCustomerNumber, normalizeCustomerSearch, queryCustomerRows } from '../domain/customer-query.js';

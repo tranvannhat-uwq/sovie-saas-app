@@ -14,7 +14,7 @@ import {
   switchSaasOrganization,
   verifySaasCustomDomainDns,
   validateSaasOrganizationSlug
-} from '../services/supabase.js?v=20260817-saas-platform-v6';
+} from '../services/supabase.js?v=20260829-onboarding-v1';
 
 let onboardingRequired = false;
 let slugWasEdited = false;

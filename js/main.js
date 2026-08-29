@@ -1,25 +1,25 @@
 import { state } from './state.js';
 import { COMPANY_SUPABASE_URL, COMPANY_SUPABASE_KEY, defaultProducts } from './config.js';
-import { connectSupabase, disconnectSupabase, retrySupabaseConnection, syncLocalToCloud, isCloudActive, supabaseClient, loadLocalStorageBackup, backfillMultiCompanyAndRevenueData, clearSupabaseAuthStorage, fetchCloudData, getMaintenanceStatus, setMaintenanceMode, loadSaasContext } from './services/supabase.js?v=20260817-saas-platform-v6';
-import { setupBackupRestoreListeners } from './services/backup.js?v=20260817-saas-platform-v6';
-import { updateDashboardStats, setupDashboardFilters, setupDashboardQuickActions } from './components/dashboard.js?v=20260817-saas-platform-v6';
-import { renderProductsTable, setupExcelImportAndTemplate, setupProductManagement } from './components/products.js?v=20260817-saas-platform-v6';
-import { renderCustomersTable, setupCustomerManagement, populateManagedByDropdown } from './components/customers.js?v=20260817-saas-platform-v6';
-import { renderInvoiceTable, setupInvoiceCreator, resetInvoiceBuilder, resetInvoiceCustomer } from './components/invoice.js?v=20260817-saas-platform-v6';
-import { renderPricelistsTable, setupPricelistManagement, populatePricelistsDropdowns } from './components/pricelists.js?v=20260817-saas-platform-v6';
-import { renderUsersTable, setupUserManagement, handleLogin, handleLogout, showLoginGate, applyUserPermissions, populateCustomerEmployeeFilter, loadAuthenticatedProfile, createPlatformOnlyUser, clearAuthenticatedSessionState, startMaintenanceMonitor, openInvitationPasswordSetup } from './components/users.js?v=20260817-saas-platform-v6';
-import { setupHistoryPanel, renderHistoryOrders } from './components/history.js?v=20260817-saas-platform-v6';
-import { renderBrandsTable, setupBrandsPanel } from './components/brands.js?v=20260817-saas-platform-v6';
-import { setupSoQuyPanel, renderSoQuyTable } from './components/so_quy.js?v=20260817-saas-platform-v6';
-import { renderSuppliersTable, setupSupplierManagement, populateSupplierDatalist } from './components/suppliers.js?v=20260817-saas-platform-v6';
-import { renderGoodsPanel, setupGoodsPanel } from './components/goods.js?v=20260817-saas-platform-v6';
-import { setupReportsPanel, renderDebtReport, renderReturnsReport } from './components/reports.js?v=20260817-saas-platform-v6';
+import { connectSupabase, disconnectSupabase, retrySupabaseConnection, syncLocalToCloud, isCloudActive, supabaseClient, loadLocalStorageBackup, backfillMultiCompanyAndRevenueData, clearSupabaseAuthStorage, fetchCloudData, getMaintenanceStatus, setMaintenanceMode, loadSaasContext } from './services/supabase.js?v=20260829-onboarding-v1';
+import { setupBackupRestoreListeners } from './services/backup.js?v=20260829-onboarding-v1';
+import { updateDashboardStats, setupDashboardFilters, setupDashboardQuickActions } from './components/dashboard.js?v=20260829-onboarding-v1';
+import { renderProductsTable, setupExcelImportAndTemplate, setupProductManagement } from './components/products.js?v=20260829-onboarding-v1';
+import { renderCustomersTable, setupCustomerManagement, populateManagedByDropdown } from './components/customers.js?v=20260829-onboarding-v1';
+import { renderInvoiceTable, setupInvoiceCreator, resetInvoiceBuilder, resetInvoiceCustomer } from './components/invoice.js?v=20260829-onboarding-v1';
+import { renderPricelistsTable, setupPricelistManagement, populatePricelistsDropdowns } from './components/pricelists.js?v=20260829-onboarding-v1';
+import { renderUsersTable, setupUserManagement, handleLogin, handleLogout, showLoginGate, applyUserPermissions, populateCustomerEmployeeFilter, loadAuthenticatedProfile, createPlatformOnlyUser, clearAuthenticatedSessionState, startMaintenanceMonitor, openInvitationPasswordSetup } from './components/users.js?v=20260829-onboarding-v1';
+import { setupHistoryPanel, renderHistoryOrders } from './components/history.js?v=20260829-onboarding-v1';
+import { renderBrandsTable, setupBrandsPanel } from './components/brands.js?v=20260829-onboarding-v1';
+import { setupSoQuyPanel, renderSoQuyTable } from './components/so_quy.js?v=20260829-onboarding-v1';
+import { renderSuppliersTable, setupSupplierManagement, populateSupplierDatalist } from './components/suppliers.js?v=20260829-onboarding-v1';
+import { renderGoodsPanel, setupGoodsPanel } from './components/goods.js?v=20260829-onboarding-v1';
+import { setupReportsPanel, renderDebtReport, renderReturnsReport } from './components/reports.js?v=20260829-onboarding-v1';
 import { showToast, safeCreateIcons, updateDbStatusUI } from './utils.js';
-import { startRealtimeSync, stopRealtimeSync } from './services/realtime.js?v=20260817-saas-platform-v6';
-import { setupActivityLog, renderActivityLog } from './components/activity-log.js?v=20260817-saas-platform-v6';
-import { setupNavigationColorSettings, setupNavigationDropdowns } from './components/navigation-theme.js?v=20260817-saas-platform-v6';
-import { openWorkspaceOnboarding, renderWorkspaceSwitcher, renderSubscriptionAccessNotice, setupWorkspaceManagement } from './components/workspaces.js?v=20260817-saas-platform-v6';
-import { hydratePlatformAdmin, renderPlatformAdmin, setupPlatformAdmin } from './components/platform-admin.js?v=20260817-saas-platform-v6';
+import { startRealtimeSync, stopRealtimeSync } from './services/realtime.js?v=20260829-onboarding-v1';
+import { setupActivityLog, renderActivityLog } from './components/activity-log.js?v=20260829-onboarding-v1';
+import { setupNavigationColorSettings, setupNavigationDropdowns } from './components/navigation-theme.js?v=20260829-onboarding-v1';
+import { openWorkspaceOnboarding, renderWorkspaceSwitcher, renderSubscriptionAccessNotice, setupWorkspaceManagement } from './components/workspaces.js?v=20260829-onboarding-v1';
+import { hydratePlatformAdmin, renderPlatformAdmin, setupPlatformAdmin } from './components/platform-admin.js?v=20260829-onboarding-v1';
 
 const PANEL_CLOUD_DOMAINS = Object.freeze({
   'invoice-panel': ['pricelists'],
@@ -515,6 +515,14 @@ async function initApp() {
   const loginForm = document.getElementById('login-form');
   if (loginForm) {
     loginForm.addEventListener('submit', handleLogin);
+  }
+
+  if (isCloudActive && supabaseClient) {
+    supabaseClient.auth.onAuthStateChange((event) => {
+      if (event === 'PASSWORD_RECOVERY') {
+        queueMicrotask(() => openInvitationPasswordSetup('recovery'));
+      }
+    });
   }
 
   const logoutBtn = document.getElementById('btn-logout');

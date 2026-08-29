@@ -4352,6 +4352,31 @@ h1, h2, h3, h4, h5, h6,
 .login-submit-button:hover { transform: translateY(-1px); box-shadow: 0 15px 28px rgba(14, 89, 242, .27); }
 .login-security-note { display: flex; align-items: center; justify-content: center; gap: 6px; color: #8092a0; font-size: .66rem; line-height: 1.4; text-align: center; }
 .login-security-note svg { width: 14px; color: #18a960; }
+
+.saas-onboarding-card { margin-bottom: 1rem; padding: 1.1rem; border: 1px solid rgba(37,99,235,.16); border-radius: 16px; background: linear-gradient(135deg,rgba(239,246,255,.98),rgba(247,254,255,.96)); box-shadow: 0 12px 34px rgba(30,64,175,.08); color: #102a43; }
+.saas-onboarding-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; }
+.saas-onboarding-kicker { display: inline-flex; align-items: center; gap: .4rem; color: #1663d8; font-size: .7rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.saas-onboarding-kicker svg { width: 14px; height: 14px; }
+.saas-onboarding-header h2 { margin: .35rem 0 .2rem; color: #102a43; font-size: 1.1rem; }
+.saas-onboarding-header p { margin: 0; color: #627d98; font-size: .78rem; }
+.saas-onboarding-progress-label { display: grid; place-items: center; min-width: 48px; height: 34px; border: 1px solid rgba(37,99,235,.16); border-radius: 999px; color: #155bd7; background: #fff; font-size: .78rem; }
+.saas-onboarding-progress { height: 6px; margin: .9rem 0; overflow: hidden; border-radius: 999px; background: #dbeafe; }
+.saas-onboarding-progress span { display: block; width: 0; height: 100%; border-radius: inherit; background: linear-gradient(90deg,#1d67e8,#12b8c9); transition: width .3s ease; }
+.saas-onboarding-steps { display: grid; grid-template-columns: repeat(5,minmax(0,1fr)); gap: .55rem; }
+.saas-onboarding-step { min-width: 0; padding: .75rem; border: 1px solid #dbe7f3; border-radius: 12px; background: rgba(255,255,255,.9); }
+.saas-onboarding-step-icon { display: grid; place-items: center; width: 25px; height: 25px; margin-bottom: .55rem; border-radius: 8px; color: #2563eb; background: #eaf2ff; }
+.saas-onboarding-step-icon svg { width: 14px; height: 14px; }
+.saas-onboarding-step-copy { display: block; min-height: 52px; }
+.saas-onboarding-step-copy strong,.saas-onboarding-step-copy small { display: block; }
+.saas-onboarding-step-copy strong { color: #17324d; font-size: .75rem; }
+.saas-onboarding-step-copy small { margin-top: .25rem; color: #7890a5; font-size: .65rem; line-height: 1.45; }
+.saas-onboarding-action { display: inline-flex; align-items: center; gap: .3rem; margin-top: .55rem; padding: 0; border: 0; color: #155bd7; background: transparent; font-size: .67rem; font-weight: 750; cursor: pointer; }
+.saas-onboarding-action svg { width: 12px; height: 12px; }
+.saas-onboarding-done { display: inline-block; margin-top: .55rem; color: #059669; font-size: .67rem; font-weight: 750; }
+.saas-onboarding-step.is-complete { border-color: #c9efdf; background: #f4fcf8; }
+.saas-onboarding-step.is-complete .saas-onboarding-step-icon { color: #05885f; background: #dff8ec; }
+@media (max-width: 1100px) { .saas-onboarding-steps { grid-template-columns: repeat(2,minmax(0,1fr)); } }
+@media (max-width: 620px) { .saas-onboarding-card { padding: .9rem; }.saas-onboarding-steps { grid-template-columns: 1fr; }.saas-onboarding-header p { max-width: 260px; } }
 #login-screen .login-close-button {
   position: absolute;
   top: 18px;

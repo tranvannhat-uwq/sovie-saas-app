@@ -1,11 +1,11 @@
 import { state, resetTenantBusinessState } from '../state.js';
 import { showToast, safeCreateIcons, isSameUser, getCompanyNameById } from '../utils.js';
-import { dbSaveUser, dbDeleteUser, isCloudActive, supabaseClient, fetchCloudData, clearSupabaseAuthStorage, getMaintenanceStatus, loadSaasContext, clearTenantStorageContext, transferSaasOrganizationOwnership } from '../services/supabase.js?v=20260817-saas-platform-v6';
-import { startRealtimeSync, stopRealtimeSync } from '../services/realtime.js?v=20260817-saas-platform-v6';
-import { renderAll, switchTab } from '../main.js?v=20260817-saas-platform-v6';
-import { populateManagedByDropdown } from './customers.js?v=20260817-saas-platform-v6';
-import { openWorkspaceOnboarding, renderWorkspaceSwitcher, renderSubscriptionAccessNotice } from './workspaces.js?v=20260817-saas-platform-v6';
-import { clearPlatformAdminState, hydratePlatformAdmin } from './platform-admin.js?v=20260817-saas-platform-v6';
+import { dbSaveUser, dbDeleteUser, isCloudActive, supabaseClient, fetchCloudData, clearSupabaseAuthStorage, getMaintenanceStatus, loadSaasContext, clearTenantStorageContext, transferSaasOrganizationOwnership } from '../services/supabase.js?v=20260829-onboarding-v1';
+import { startRealtimeSync, stopRealtimeSync } from '../services/realtime.js?v=20260829-onboarding-v1';
+import { renderAll, switchTab } from '../main.js?v=20260829-onboarding-v1';
+import { populateManagedByDropdown } from './customers.js?v=20260829-onboarding-v1';
+import { openWorkspaceOnboarding, renderWorkspaceSwitcher, renderSubscriptionAccessNotice } from './workspaces.js?v=20260829-onboarding-v1';
+import { clearPlatformAdminState, hydratePlatformAdmin } from './platform-admin.js?v=20260829-onboarding-v1';
 import {
   LOGIN_ERROR,
   classifySupabaseError,
@@ -232,6 +232,43 @@ export function openInvitationPasswordSetup(flowType = 'invite') {
   modal?.classList.add('active');
   safeCreateIcons();
   document.getElementById('invitation-new-password')?.focus();
+}
+
+export async function requestPasswordReset() {
+  const usernameInput = document.getElementById('login-username');
+  const email = String(usernameInput?.value || '').trim().toLowerCase();
+  if (!email || !email.includes('@')) {
+    showToast('Nhập email đã đăng ký để nhận liên kết đặt lại mật khẩu.', 'warning');
+    if (usernameInput) {
+      usernameInput.placeholder = 'Email đã đăng ký';
+      usernameInput.focus();
+    }
+    return;
+  }
+  if (!isCloudActive || !supabaseClient) {
+    showToast('Chưa kết nối được dịch vụ xác thực. Vui lòng thử lại sau.', 'danger');
+    return;
+  }
+
+  const button = document.getElementById('btn-forgot-password');
+  if (button) button.disabled = true;
+  try {
+    const redirectUrl = new URL(window.location.origin);
+    redirectUrl.pathname = window.location.pathname || '/';
+    redirectUrl.searchParams.set('type', 'recovery');
+    const { error } = await supabaseClient.auth.resetPasswordForEmail(email, {
+      redirectTo: redirectUrl.toString()
+    });
+    if (error) throw error;
+    showToast('Nếu email tồn tại, SoVie đã gửi liên kết đặt lại mật khẩu. Hãy kiểm tra cả thư rác.', 'success');
+  } catch (error) {
+    const code = classifySupabaseError(error);
+    showToast(code === LOGIN_ERROR.NETWORK
+      ? loginErrorMessage(LOGIN_ERROR.NETWORK)
+      : 'Chưa thể gửi email đặt lại mật khẩu. Vui lòng thử lại sau.', 'danger');
+  } finally {
+    if (button) button.disabled = false;
+  }
 }
 
 async function completeInvitationPassword(event) {
@@ -1003,6 +1040,7 @@ export function setupUserManagement() {
   document.getElementById('btn-cancel-change-password')?.addEventListener('click', closeOwnPasswordModal);
   document.getElementById('change-password-form')?.addEventListener('submit', changeOwnPassword);
   document.getElementById('invitation-password-form')?.addEventListener('submit', completeInvitationPassword);
+  document.getElementById('btn-forgot-password')?.addEventListener('click', requestPasswordReset);
   
   if (isExternalSelect) {
     isExternalSelect.addEventListener('change', () => {

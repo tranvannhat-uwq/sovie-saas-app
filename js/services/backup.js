@@ -1,7 +1,7 @@
 import { state } from '../state.js';
 import { showToast } from '../utils.js';
-import { deserializeBackupRows, serializeBackupRows } from './backup-serialization.js?v=20260817-saas-platform-v6';
-import { mapWithConcurrency } from '../domain/async-pool.js?v=20260817-saas-platform-v6';
+import { deserializeBackupRows, serializeBackupRows } from './backup-serialization.js?v=20260829-onboarding-v1';
+import { mapWithConcurrency } from '../domain/async-pool.js?v=20260829-onboarding-v1';
 import { tenantStorage } from './tenant-storage.js';
 import { 
   supabaseClient, 
@@ -24,7 +24,7 @@ import {
   tableBrandsName,
   fetchCloudData,
   getSaasBackupInventory
-} from './supabase.js?v=20260817-saas-platform-v6';
+} from './supabase.js?v=20260829-onboarding-v1';
 
 async function deleteAllRows(tableName, key = 'id') {
   const { error } = await supabaseClient

@@ -228,6 +228,9 @@
 }
 
 #landing-page .landing-hero h1 em {
+  display: inline-block;
+  padding: .13em .08em .12em .02em;
+  margin: -.13em -.08em -.12em -.02em;
   color: transparent;
   background: linear-gradient(105deg, var(--lp-blue-700) 8%, var(--lp-blue-500) 58%, var(--lp-cyan-500));
   -webkit-background-clip: text;

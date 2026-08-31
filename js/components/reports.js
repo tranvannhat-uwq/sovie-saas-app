@@ -1,7 +1,7 @@
 import { state } from '../state.js';
 import { formatCurrency, safeCreateIcons, formatDateTime, getUserDisplayName, getManagerDisplayName, getCustomerName, getProvinceNameByCode } from '../utils.js';
-import { dbFetchPhase5Report } from '../services/supabase.js';
-import { buildCustomerDebtDisplayHistory, getCustomerDebtPostingDate } from '../domain/customer-debt.js?v=20260814-invoice-discount-label-v19';
+import { dbFetchPhase5Report } from '../services/supabase.js?v=20260829-onboarding-v1';
+import { buildCustomerDebtDisplayHistory, getCustomerDebtPostingDate } from '../domain/customer-debt.js?v=20260829-onboarding-v1';
 
 const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
 

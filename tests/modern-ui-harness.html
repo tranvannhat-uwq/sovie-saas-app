@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>SoVie Modern UI Harness</title>
+  <link rel="stylesheet" href="../style.css">
+  <link rel="stylesheet" href="../ui-system.css">
+</head>
+<body>
+  <div class="app-container" id="app-layout" data-ui-role="platform" data-nav-layout="horizontal">
+    <aside class="sidebar">
+      <div class="brand"><div class="brand-project-logo"><img src="../sovie-logo.png" alt="SoVie"></div></div>
+      <nav class="app-navigation" aria-label="Điều hướng nghiệp vụ">
+        <ul class="nav-menu">
+          <li class="nav-item"><a class="nav-link active"><svg viewBox="0 0 24 24"><path d="M4 13h6V4H4zM14 20h6V11h-6zM14 4v3h6V4zM4 20h6v-3H4z" fill="none" stroke="currentColor" stroke-width="2"/></svg>Tổng quan</a></li>
+          <li class="nav-item"><a class="nav-link"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M5 20c0-4 3-7 7-7s7 3 7 7" fill="none" stroke="currentColor" stroke-width="2"/></svg>Khách hàng SaaS</a></li>
+          <li class="nav-item"><a class="nav-link"><svg viewBox="0 0 24 24"><path d="M5 3h14v18H5zM8 8h8M8 12h8M8 16h5" fill="none" stroke="currentColor" stroke-width="2"/></svg>Đơn hàng</a></li>
+          <li class="nav-item"><a class="nav-link"><svg viewBox="0 0 24 24"><path d="M4 19V8l8-5 8 5v11H4zM9 19v-6h6v6" fill="none" stroke="currentColor" stroke-width="2"/></svg>Kho hàng</a></li>
+          <li class="nav-item"><a class="nav-link"><svg viewBox="0 0 24 24"><path d="M4 18V9M10 18V5M16 18v-7M22 18V3" fill="none" stroke="currentColor" stroke-width="2"/></svg>Báo cáo</a></li>
+        </ul>
+      </nav>
+      <div class="sidebar-actions"><button class="activity-header-button" aria-label="Thông báo">●</button><button class="btn-settings-toggle" aria-label="Cài đặt">⚙</button></div>
+    </aside>
+
+    <main class="main-content">
+      <header class="top-header">
+        <div class="page-heading-block"><div class="page-heading-row"><h1 class="page-title">Quản trị khách hàng SaaS</h1><span class="header-role-chip">Nền tảng</span></div><div class="page-context-row">Hôm nay: 29/8/2026 · <span class="db-status-badge">Đám mây sẵn sàng</span></div></div>
+      </header>
+      <section class="panel active platform-console-panel">
+        <div class="platform-console-hero">
+          <div><span class="platform-console-kicker">QUẢN TRỊ NỀN TẢNG SOVIE</span><h2>Trung tâm khách hàng SaaS</h2><p>Theo dõi tài khoản doanh nghiệp, chủ workspace, gói dịch vụ và tình trạng vận hành trên toàn hệ thống.</p></div>
+          <div class="platform-hero-actions"><button class="btn btn-secondary">Thanh toán</button><button class="btn btn-secondary">Bảng giá</button><button class="btn btn-primary">Thêm khách hàng</button></div>
+        </div>
+        <div class="platform-summary-grid">
+          <article class="platform-summary-card is-total"><span>▦</span><div><small>Tổng doanh nghiệp</small><strong>128</strong><p>Tài khoản khách hàng đã tạo</p></div></article>
+          <article class="platform-summary-card is-active"><span>✓</span><div><small>Đang hoạt động</small><strong>116</strong><p>Workspace vận hành bình thường</p></div></article>
+          <article class="platform-summary-card is-trial"><span>✦</span><div><small>Đang dùng thử</small><strong>9</strong><p>Khách hàng trong thời gian trial</p></div></article>
+          <article class="platform-summary-card is-attention"><span>!</span><div><small>Cần xử lý</small><strong>3</strong><p>Thanh toán hoặc trạng thái bất thường</p></div></article>
+        </div>
+        <div class="platform-console-layout">
+          <section class="platform-accounts-card">
+            <div class="platform-accounts-toolbar"><div><h3>Danh sách doanh nghiệp</h3><p>128 doanh nghiệp</p></div><div class="platform-account-filters"><div class="platform-search"><input placeholder="Tìm doanh nghiệp, chủ tài khoản..."></div><select class="form-control"><option>Tất cả trạng thái</option></select></div></div>
+            <div class="table-responsive"><table class="table"><thead><tr><th>Doanh nghiệp</th><th>Chủ tài khoản</th><th>Gói dịch vụ</th><th>Nhân sự</th><th>Tên miền</th><th>Khởi tạo</th></tr></thead><tbody><tr class="platform-account-row is-selected"><td><strong>SoVie E2E</strong><small>e2e.sovie.vn</small></td><td><strong>Codex E2E Quản lý</strong><small>owner@sovie.vn</small></td><td><span class="platform-status is-active">Pro · Hoạt động</span></td><td>12</td><td>e2e.sovie.vn</td><td>Hôm nay</td></tr><tr><td><strong>EMP Hoa Kỳ</strong><small>emp.sovie.vn</small></td><td><strong>Trần Văn Nhất</strong><small>admin@sovie.vn</small></td><td><span class="platform-status is-trialing">Business · Dùng thử</span></td><td>8</td><td>emp.sovie.vn</td><td>17/8/2026</td></tr></tbody></table></div>
+          </section>
+          <aside class="platform-account-detail"><div class="platform-detail-heading"><span class="platform-account-avatar">S</span><div><span>Hồ sơ doanh nghiệp</span><h3>SoVie E2E</h3><p>e2e.sovie.vn</p></div></div><div class="platform-detail-grid"><div><span>Chủ tài khoản</span><strong>Codex E2E Quản lý</strong></div><div><span>Gói dịch vụ</span><strong>Pro · Đang hoạt động</strong></div><div><span>Sử dụng</span><strong>12 / 30 nhân sự</strong></div></div></aside>
+        </div>
+      </section>
+    </main>
+  </div>
+</body>
+</html>

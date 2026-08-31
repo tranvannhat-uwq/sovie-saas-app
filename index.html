@@ -26,12 +26,12 @@
       }, true);
     }());
   </script>
-  <title>SoVie | Hệ thống Quản lý Sản phẩm & Lên đơn hàng</title>
+  <title>SoVie | Quản lý bán hàng thông minh, vận hành nhẹ nhàng</title>
   <link rel="icon" type="image/png" href="sovie-favicon.png?v=20260815-sovie-icon-v1">
-  <!-- Google Fonts: Inter & Lexend -->
+  <!-- Typography: one consistent Inter family across marketing and product UI -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Lexend:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
   <!-- Lucide Icons via CDN -->
   <script src="https://unpkg.com/lucide@latest"></script>
   <!-- SheetJS CDN -->
@@ -41,9 +41,154 @@
   <!-- Chart.js CDN -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <!-- Style CSS -->
-  <link rel="stylesheet" href="style.css?v=20260814-processing-print-v2">
+  <link rel="stylesheet" href="style.css?v=20260829-login-center-v1">
+  <link rel="stylesheet" href="landing.css?v=20260817-saas-platform-v1">
+  <link rel="stylesheet" href="ui-system.css?v=20260829-modern-light-v1">
+  <link rel="stylesheet" href="landing-premium.css?v=20260829-auth-flow-v1">
 </head>
 <body>
+
+  <div class="landing-page" id="landing-page">
+    <div class="landing-topbar">
+      <div class="landing-topbar-inner">
+        <span class="landing-topbar-company"><i data-lucide="building-2"></i> Đơn vị quản lý: <strong>CÔNG TY CỔ PHẦN EMP HOA KỲ</strong></span>
+        <span class="landing-topbar-brand"><i data-lucide="globe-2"></i> SoVie · sovie.vn</span>
+        <span class="landing-topbar-phone"><i data-lucide="phone"></i> SĐT: <strong>0325.855.222</strong></span>
+      </div>
+    </div>
+    <header class="landing-header" data-motion-header>
+      <a class="landing-brand" href="#top" aria-label="SoVie - Trang chủ">
+        <img src="sovie-logo.png?v=20260815-sovie-v2" alt="SoVie">
+      </a>
+      <nav class="landing-nav" aria-label="Điều hướng trang giới thiệu">
+        <a href="#features">Tính năng</a>
+        <a href="#solutions">Giải pháp</a>
+        <a href="#benefits">Lợi ích</a>
+      </nav>
+      <button type="button" class="landing-login-button js-open-login">
+        <i data-lucide="log-in"></i>
+        Đăng nhập
+      </button>
+    </header>
+
+    <main id="top">
+      <section class="landing-hero">
+        <div class="landing-hero-copy">
+          <div class="landing-eyebrow" data-hero-item="badge"><span></span> Nền tảng quản lý bán hàng dành cho doanh nghiệp Việt</div>
+          <h1><span class="hero-title-line" data-hero-line>Quản lý bán hàng</span><span class="hero-title-line" data-hero-line><em>gọn hơn mỗi ngày.</em></span></h1>
+          <p data-hero-item="description">SoVie giúp bạn quản lý sản phẩm, đơn hàng, khách hàng và dòng tiền trên một hệ thống duy nhất — trực quan, chính xác và dễ sử dụng.</p>
+          <div class="landing-hero-actions" data-hero-item="actions">
+            <button type="button" class="landing-primary-button js-open-login">Bắt đầu quản lý <i data-lucide="arrow-right"></i></button>
+            <a href="#features" class="landing-text-link">Khám phá tính năng <i data-lucide="arrow-down"></i></a>
+          </div>
+          <div class="landing-trust-row" data-hero-item="stats">
+            <div><strong data-count="1" data-count-pad="2">01</strong><span>Nền tảng<br>vận hành</span></div>
+            <div><strong data-count="24" data-count-suffix="/7">24/7</strong><span>Dữ liệu<br>sẵn sàng</span></div>
+            <div><strong data-count="100" data-count-suffix="%">100%</strong><span>Đồng bộ<br>đám mây</span></div>
+          </div>
+        </div>
+
+        <div class="landing-hero-visual" aria-label="Giao diện tổng quan SoVie">
+          <div class="hero-orbit orbit-one"></div>
+          <div class="hero-orbit orbit-two"></div>
+          <div class="hero-float-card hero-float-sales"><span class="float-icon"><i data-lucide="trending-up"></i></span><span>Doanh thu hôm nay<small>+18,6%</small></span></div>
+          <div class="hero-float-card hero-float-stock"><span class="float-icon green"><i data-lucide="package-check"></i></span><span>Kho hàng ổn định<small>1.248 sản phẩm</small></span></div>
+          <div class="product-preview" data-hero-dashboard>
+            <div class="preview-topbar">
+              <div class="preview-brandmark">S</div>
+              <span>Tổng quan kinh doanh</span>
+              <div class="preview-avatar"></div>
+            </div>
+            <div class="preview-body">
+              <aside class="preview-sidebar">
+                <span class="active"></span><span></span><span></span><span></span><span></span>
+              </aside>
+              <div class="preview-content">
+                <div class="preview-heading"><b>Xin chào!</b><span>Tháng này</span></div>
+                <div class="preview-stats">
+                  <div><small>Doanh thu</small><strong>2,48 tỷ</strong><i data-lucide="wallet-cards"></i></div>
+                  <div><small>Đơn hàng</small><strong>1.286</strong><i data-lucide="shopping-bag"></i></div>
+                  <div><small>Khách hàng</small><strong>842</strong><i data-lucide="users"></i></div>
+                </div>
+                <div class="preview-chart-card">
+                  <div class="chart-card-head"><span>Hiệu quả kinh doanh</span><small>7 ngày gần nhất</small></div>
+                  <div class="preview-chart">
+                    <div class="chart-grid"></div>
+                    <div class="chart-bars"><i style="--h:36%"></i><i style="--h:55%"></i><i style="--h:44%"></i><i style="--h:72%"></i><i style="--h:61%"></i><i style="--h:88%"></i><i style="--h:76%"></i></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="landing-feature-section" id="features">
+        <div class="section-kicker" data-reveal="up">Tất cả trong một</div>
+        <div class="section-heading-row" data-reveal="up" data-reveal-delay="70">
+          <h2>Mọi công cụ bạn cần<br>để bán hàng hiệu quả.</h2>
+          <p>Từ kho hàng đến công nợ, SoVie kết nối mọi nghiệp vụ và biến dữ liệu thành quyết định rõ ràng.</p>
+        </div>
+        <div class="feature-grid">
+          <article class="feature-card" data-reveal="scale" data-reveal-delay="0" tabindex="0">
+            <span class="feature-number">01</span><div class="feature-icon"><i data-lucide="receipt-text"></i></div>
+            <h3>Đơn hàng nhanh chóng</h3><p>Tạo đơn, áp dụng bảng giá và theo dõi trạng thái thanh toán chỉ trong vài thao tác.</p>
+            <div class="mini-order"><span><i></i> Đơn hàng #SV-2486</span><strong>12.680.000đ</strong><small>Đã thanh toán</small></div>
+          </article>
+          <article class="feature-card" data-reveal="scale" data-reveal-delay="70" tabindex="0">
+            <span class="feature-number">02</span><div class="feature-icon"><i data-lucide="boxes"></i></div>
+            <h3>Kho hàng chính xác</h3><p>Quản lý sản phẩm, biến thể, bảng giá và số lượng tồn kho theo thời gian thực.</p>
+          </article>
+          <article class="feature-card" data-reveal="scale" data-reveal-delay="140" tabindex="0">
+            <span class="feature-number">03</span><div class="feature-icon"><i data-lucide="hand-coins"></i></div>
+            <h3>Công nợ minh bạch</h3><p>Nắm rõ khoản phải thu, lịch sử thanh toán và dòng tiền của từng khách hàng.</p>
+          </article>
+          <article class="feature-card feature-card-wide" data-reveal="scale" data-reveal-delay="210" tabindex="0">
+            <div><span class="feature-number">04</span><div class="feature-icon"><i data-lucide="chart-no-axes-combined"></i></div><h3>Báo cáo trực quan</h3><p>Theo dõi doanh thu, hiệu suất bán hàng và sức khỏe kinh doanh bằng dữ liệu dễ hiểu.</p></div>
+            <div class="mini-report"><span style="--v:42%"></span><span style="--v:68%"></span><span style="--v:51%"></span><span style="--v:83%"></span><span style="--v:70%"></span><span style="--v:92%"></span></div>
+          </article>
+        </div>
+      </section>
+
+      <section class="landing-solutions" id="solutions">
+        <div class="solution-panel">
+          <div class="solution-copy" data-reveal="left"><span class="section-kicker">Vận hành liền mạch</span><h2>Một Sổ Việt.<br>Nhiều quyết định tốt.</h2><p><strong>SoVie — Sổ Việt của doanh nghiệp.</strong> Mọi dữ liệu được tổ chức đồng bộ, bảo mật và luôn sẵn sàng để đội ngũ phối hợp hiệu quả ở bất cứ đâu.</p><ul><li><i data-lucide="check"></i> Phân quyền theo vai trò</li><li><i data-lucide="check"></i> Đồng bộ dữ liệu Cloud</li><li><i data-lucide="check"></i> Lịch sử hoạt động rõ ràng</li></ul></div>
+          <div class="solution-rings" data-reveal="right" data-reveal-delay="90">
+            <div class="solution-grid-glow" aria-hidden="true"></div>
+            <div class="ring ring-a"><span><i data-lucide="shopping-cart"></i> Bán hàng</span></div>
+            <div class="ring ring-b"><span><i data-lucide="database"></i> <b>SỔ VIỆT</b><small>SoVie · Trung tâm vận hành</small></span></div>
+            <div class="ring ring-c"><span><i data-lucide="users"></i> Khách hàng</span></div>
+            <div class="solution-data-node node-stock"><i data-lucide="package-check"></i><span>Kho hàng<small>Đang đồng bộ</small></span></div>
+            <div class="solution-data-node node-report"><i data-lucide="chart-spline"></i><span>Báo cáo<small>Cập nhật trực tiếp</small></span></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="landing-benefits" id="benefits">
+        <div data-reveal="up"><span class="section-kicker">Đơn giản để bắt đầu</span><h2>Sẵn sàng nâng cấp cách<br>bạn vận hành?</h2></div>
+        <button type="button" class="landing-primary-button js-open-login" data-reveal="scale" data-reveal-delay="120">Dùng thử ngay <i data-lucide="arrow-up-right"></i></button>
+      </section>
+    </main>
+
+    <footer class="landing-footer" data-reveal="up">
+      <div class="landing-footer-main">
+        <div class="landing-footer-brand">
+          <img src="sovie-logo.png?v=20260815-sovie-v2" alt="SoVie">
+          <p>Quản lý bán hàng thông minh,<br>vận hành nhẹ nhàng.</p>
+        </div>
+        <div class="landing-footer-company">
+          <span class="landing-footer-label">Đơn vị quản lý</span>
+          <strong>CÔNG TY CỔ PHẦN EMP HOA KỲ</strong>
+          <p><i data-lucide="phone"></i> 0325.855.222 <span aria-hidden="true">·</span> 0985.769.689</p>
+        </div>
+        <div class="landing-footer-meta">
+          <div><span class="landing-footer-label">Thương hiệu</span><strong>SoVie — Sổ Việt</strong></div>
+          <div><span class="landing-footer-label">Website</span><strong>sovie.vn</strong></div>
+        </div>
+      </div>
+      <div class="landing-footer-bottom"><span>© 2026 SoVie. All rights reserved.</span><span>Một sản phẩm của EMP Hoa Kỳ</span></div>
+    </footer>
+  </div>
 
   <div class="app-container auth-hidden" id="app-layout">
     <!-- Sidebar -->
@@ -54,11 +199,18 @@
         </div>
       </div>
 
-      <nav class="nav-menu">
+      <nav class="app-navigation" aria-label="Điều hướng nghiệp vụ">
+        <ul class="nav-menu">
         <li class="nav-item">
           <a class="nav-link active" data-target="dashboard-panel">
             <i data-lucide="layout-dashboard"></i>
             Tổng quan
+          </a>
+        </li>
+        <li class="nav-item platform-admin-nav" id="platform-admin-nav" style="display: none;">
+          <a class="nav-link" data-target="platform-admin-panel">
+            <i data-lucide="shield-check"></i>
+            Khách hàng SaaS
           </a>
         </li>
         <li class="nav-item">
@@ -141,6 +293,7 @@
             </div>
           </div>
         </li>
+        </ul>
       </nav>
 
       <div class="sidebar-actions">
@@ -163,23 +316,29 @@
               <i data-lucide="user" style="width: 16px; height: 16px; color: var(--color-primary);"></i>
               <span id="header-user-display" style="font-weight: 600; color: var(--text-primary);"></span>
             </div>
-            <div class="nav-color-settings" id="nav-color-settings">
+            <div class="workspace-switcher">
+              <div class="workspace-switcher-heading">
+                <i data-lucide="building-2"></i>
+                <div><strong id="workspace-current-name">Doanh nghiệp</strong><small id="workspace-current-domain"></small><small id="workspace-plan-usage"></small></div>
+              </div>
+              <select class="form-control" id="workspace-select" aria-label="Chọn doanh nghiệp"></select>
+              <div class="workspace-switcher-actions">
+                <button type="button" id="btn-switch-workspace" class="btn btn-secondary btn-xs">Chuyển</button>
+                <button type="button" id="btn-create-workspace" class="btn btn-primary btn-xs"><i data-lucide="plus"></i> Tạo mới</button>
+              </div>
+            </div>
+            <div class="nav-layout-settings" id="nav-layout-settings">
               <div class="nav-color-settings-title">
-                <i data-lucide="paintbrush"></i>
-                <span>Màu thanh điều hướng</span>
+                <i data-lucide="panel-left"></i>
+                <span>Vị trí thanh điều hướng</span>
               </div>
-              <div class="nav-color-swatches" role="group" aria-label="Màu thanh điều hướng gợi ý">
-                <button type="button" class="nav-color-swatch" data-nav-color="#22c55e" style="--swatch-color: #22c55e;" aria-label="Màu xanh lá"></button>
-                <button type="button" class="nav-color-swatch" data-nav-color="#0e59f2" style="--swatch-color: #0e59f2;" aria-label="Màu xanh dương"></button>
-                <button type="button" class="nav-color-swatch" data-nav-color="#4f46e5" style="--swatch-color: #4f46e5;" aria-label="Màu chàm"></button>
-                <button type="button" class="nav-color-swatch" data-nav-color="#7c3aed" style="--swatch-color: #7c3aed;" aria-label="Màu tím"></button>
-                <button type="button" class="nav-color-swatch" data-nav-color="#0f766e" style="--swatch-color: #0f766e;" aria-label="Màu xanh ngọc"></button>
-                <button type="button" class="nav-color-swatch" data-nav-color="#334155" style="--swatch-color: #334155;" aria-label="Màu xám đậm"></button>
-              </div>
-              <div class="nav-color-custom-row">
-                <label for="nav-color-picker">Màu tùy chọn</label>
-                <input type="color" id="nav-color-picker" value="#22c55e" aria-label="Chọn màu thanh điều hướng tùy ý">
-                <button type="button" id="btn-reset-nav-color">Mặc định</button>
+              <div class="nav-layout-options" role="group" aria-label="Vị trí thanh điều hướng">
+                <button type="button" class="nav-layout-option" data-nav-layout="vertical" aria-pressed="true">
+                  <i data-lucide="panel-left"></i><span>Dọc bên trái</span>
+                </button>
+                <button type="button" class="nav-layout-option" data-nav-layout="horizontal" aria-pressed="false">
+                  <i data-lucide="panel-top"></i><span>Ngang phía trên</span>
+                </button>
               </div>
             </div>
             <!-- Dropdown Nav Links -->
@@ -217,25 +376,196 @@
     <main class="main-content">
       <!-- Top Header -->
       <header class="top-header">
-        <div>
-          <h1 class="page-title" id="page-title-heading">Tổng quan hệ thống</h1>
-          <div style="display: flex; align-items: center; gap: 0.5rem; margin-top: 0.25rem;">
+        <div class="page-heading-block">
+          <div class="page-heading-row">
+            <h1 class="page-title" id="page-title-heading">Tổng quan hệ thống</h1>
+            <span class="header-role-chip" id="header-role-chip"><i data-lucide="shield-check"></i><span>Quản lý</span></span>
+          </div>
+          <div class="page-context-row">
             <p style="color: var(--text-secondary); font-size: 0.85rem; margin: 0;">Hôm nay: <span id="current-date-lbl">23/06/2026</span></p>
             <span class="db-status-badge status-local" id="db-status-badge">Cục bộ (LocalStorage)</span>
           </div>
         </div>
       </header>
+      <div id="subscription-access-notice" class="subscription-access-notice" role="alert" style="display: none;"></div>
+
+      <section id="platform-admin-panel" class="panel platform-console-panel">
+        <div class="platform-console-hero">
+          <div>
+            <span class="platform-console-kicker"><i data-lucide="shield-check"></i> Quản trị nền tảng SoVie</span>
+            <h2>Trung tâm khách hàng SaaS</h2>
+            <p>Theo dõi tài khoản doanh nghiệp, chủ workspace, gói dịch vụ và tình trạng vận hành trên toàn hệ thống.</p>
+          </div>
+          <div class="platform-hero-actions">
+            <button type="button" class="btn btn-secondary" id="btn-manage-platform-billing"><i data-lucide="wallet-cards"></i> Thanh toán</button>
+            <button type="button" class="btn btn-secondary" id="btn-manage-platform-plans"><i data-lucide="badge-dollar-sign"></i> Bảng giá</button>
+            <button type="button" class="btn btn-primary" id="btn-create-platform-customer"><i data-lucide="building-2"></i> Thêm khách hàng</button>
+            <button type="button" class="btn btn-secondary" id="btn-refresh-platform-accounts"><i data-lucide="refresh-cw"></i> Làm mới</button>
+          </div>
+        </div>
+
+        <div class="platform-summary-grid">
+          <article class="platform-summary-card is-total"><span><i data-lucide="building-2"></i></span><div><small>Tổng doanh nghiệp</small><strong id="platform-total-organizations">0</strong><p>Tài khoản khách hàng đã tạo</p></div></article>
+          <article class="platform-summary-card is-active"><span><i data-lucide="circle-check-big"></i></span><div><small>Đang hoạt động</small><strong id="platform-active-organizations">0</strong><p>Workspace vận hành bình thường</p></div></article>
+          <article class="platform-summary-card is-trial"><span><i data-lucide="sparkles"></i></span><div><small>Đang dùng thử</small><strong id="platform-trial-organizations">0</strong><p>Khách hàng trong thời gian trial</p></div></article>
+          <article class="platform-summary-card is-attention"><span><i data-lucide="triangle-alert"></i></span><div><small>Cần xử lý</small><strong id="platform-attention-organizations">0</strong><p>Thanh toán hoặc trạng thái bất thường</p></div></article>
+        </div>
+
+        <div class="platform-console-layout">
+          <div class="platform-accounts-card">
+            <div class="platform-accounts-toolbar">
+              <div><h3>Danh sách doanh nghiệp</h3><p id="platform-account-result-count">0 doanh nghiệp</p></div>
+              <div class="platform-account-filters">
+                <label class="platform-search"><i data-lucide="search"></i><input id="platform-account-search" type="search" placeholder="Tên doanh nghiệp, chủ tài khoản, tên miền..."></label>
+                <select id="platform-account-status" class="form-control" aria-label="Lọc trạng thái doanh nghiệp">
+                  <option value="all">Tất cả trạng thái</option>
+                  <option value="active">Đang hoạt động</option>
+                  <option value="trialing">Dùng thử</option>
+                  <option value="past_due">Chậm thanh toán</option>
+                  <option value="suspended">Tạm ngưng</option>
+                  <option value="cancelled">Đã hủy</option>
+                </select>
+              </div>
+            </div>
+            <div class="table-container platform-table-container">
+              <table class="data-table platform-accounts-table">
+                <thead><tr><th>Doanh nghiệp</th><th>Chủ tài khoản</th><th>Gói dịch vụ</th><th>Nhân sự</th><th>Tên miền</th><th>Khởi tạo</th></tr></thead>
+                <tbody id="platform-accounts-table-body"><tr><td colspan="6" class="platform-empty-state">Đang tải dữ liệu khách hàng...</td></tr></tbody>
+              </table>
+            </div>
+          </div>
+          <aside class="platform-account-detail" id="platform-account-detail">
+            <div class="platform-empty-state">Chọn một doanh nghiệp để xem hồ sơ.</div>
+          </aside>
+        </div>
+      </section>
+
+      <div class="modal-overlay" id="platform-customer-modal" aria-hidden="true">
+        <div class="modal-content platform-customer-modal-content" role="dialog" aria-modal="true" aria-labelledby="platform-customer-modal-title">
+          <div class="modal-header">
+            <div><span class="platform-modal-kicker">Khởi tạo tenant mới</span><h3 class="modal-title" id="platform-customer-modal-title">Thêm khách hàng SaaS</h3></div>
+            <button type="button" class="modal-close" id="btn-close-platform-customer" aria-label="Đóng"><i data-lucide="x"></i></button>
+          </div>
+          <form id="platform-customer-form">
+            <div class="modal-body platform-customer-form-grid">
+              <div class="platform-form-section platform-form-span-2"><strong>Thông tin doanh nghiệp</strong><small>Tạo workspace và tên miền con riêng trên sovie.vn.</small></div>
+              <div class="form-group"><label for="platform-customer-name">Tên doanh nghiệp *</label><input class="form-control" id="platform-customer-name" name="name" required minlength="2" maxlength="120" placeholder="Công ty TNHH Minh Anh"></div>
+              <div class="form-group"><label for="platform-customer-slug">Tên miền con *</label><div class="platform-slug-input"><input class="form-control" id="platform-customer-slug" name="slug" required minlength="3" maxlength="64" pattern="[a-z0-9][a-z0-9-]{1,62}[a-z0-9]" placeholder="minh-anh"><span>.sovie.vn</span></div><small id="platform-customer-slug-status" class="platform-field-status">Dùng chữ thường, số và dấu gạch ngang.</small></div>
+              <div class="form-group"><label for="platform-customer-business-type">Mô hình kinh doanh</label><select class="form-control" id="platform-customer-business-type" name="businessType"><option value="general_trade">Thương mại tổng hợp</option><option value="retail">Bán lẻ</option><option value="wholesale">Bán buôn</option><option value="distribution">Phân phối</option><option value="services">Dịch vụ</option><option value="manufacturing">Sản xuất</option></select></div>
+              <div class="form-group"><label for="platform-customer-industry">Ngành nghề</label><input class="form-control" id="platform-customer-industry" name="industryKey" value="general" pattern="[a-z0-9][a-z0-9_-]{1,62}" placeholder="paint_distribution"></div>
+              <div class="platform-form-section platform-form-span-2"><strong>Tài khoản Owner</strong><small>Owner nhận email thiết lập mật khẩu và chỉ thuộc workspace vừa tạo.</small></div>
+              <div class="form-group"><label for="platform-customer-owner-name">Họ tên Owner *</label><input class="form-control" id="platform-customer-owner-name" name="ownerName" required minlength="2" placeholder="Nguyễn Văn Minh"></div>
+              <div class="form-group"><label for="platform-customer-owner-email">Email đăng nhập *</label><input class="form-control" id="platform-customer-owner-email" name="ownerEmail" required type="email" placeholder="owner@doanhnghiep.vn"></div>
+              <div class="platform-form-section platform-form-span-2"><strong>Gói dịch vụ</strong><small>Workspace bắt đầu ở trạng thái dùng thử.</small></div>
+              <div class="form-group"><label for="platform-customer-plan">Gói khởi tạo *</label><select class="form-control" id="platform-customer-plan" name="planId" required><option value="starter">Starter</option></select><small id="platform-customer-plan-note" class="platform-field-status"></small></div>
+              <div class="form-group"><label for="platform-customer-trial-days">Thời gian dùng thử *</label><div class="platform-trial-input"><input class="form-control" id="platform-customer-trial-days" name="trialDays" required type="number" min="1" max="60" value="14"><span>ngày</span></div></div>
+            </div>
+            <div class="modal-footer"><button type="button" class="btn btn-secondary" id="btn-cancel-platform-customer">Hủy</button><button type="submit" class="btn btn-primary" id="btn-submit-platform-customer"><i data-lucide="send"></i> Tạo và gửi lời mời</button></div>
+          </form>
+        </div>
+      </div>
+
+      <div class="modal-overlay" id="platform-lifecycle-modal" aria-hidden="true">
+        <div class="modal-content platform-lifecycle-modal-content" role="dialog" aria-modal="true" aria-labelledby="platform-lifecycle-modal-title">
+          <div class="modal-header">
+            <div><span class="platform-modal-kicker">Quản lý vòng đời khách hàng</span><h3 class="modal-title" id="platform-lifecycle-modal-title">Cập nhật khách hàng SaaS</h3></div>
+            <button type="button" class="modal-close" id="btn-close-platform-lifecycle" aria-label="Đóng"><i data-lucide="x"></i></button>
+          </div>
+          <form id="platform-lifecycle-form">
+            <input type="hidden" id="platform-lifecycle-organization-id" name="organizationId">
+            <input type="hidden" id="platform-lifecycle-action" name="action">
+            <div class="modal-body platform-lifecycle-form-body">
+              <div class="platform-lifecycle-customer" id="platform-lifecycle-customer-summary"></div>
+              <div class="form-group" id="platform-lifecycle-plan-group" hidden><label for="platform-lifecycle-plan">Gói dịch vụ mới *</label><select class="form-control" id="platform-lifecycle-plan" name="planId"></select><small class="platform-field-status">Quota mới được áp dụng ngay sau khi xác nhận.</small></div>
+              <div class="form-group" id="platform-lifecycle-trial-group" hidden><label for="platform-lifecycle-trial-days">Số ngày gia hạn *</label><div class="platform-trial-input"><input class="form-control" id="platform-lifecycle-trial-days" name="trialDays" type="number" min="1" max="60" value="7"><span>ngày</span></div><small class="platform-field-status">Cộng tiếp từ ngày hết hạn hiện tại, tối đa 60 ngày mỗi lần.</small></div>
+              <div class="form-group" id="platform-lifecycle-reason-group"><label for="platform-lifecycle-reason">Lý do <span id="platform-lifecycle-reason-required"></span></label><textarea class="form-control" id="platform-lifecycle-reason" name="reason" rows="3" maxlength="500" placeholder="Ghi chú cho nhật ký quản trị..."></textarea></div>
+              <div class="form-group platform-confirmation-group" id="platform-lifecycle-confirmation-group" hidden><label for="platform-lifecycle-confirmation">Nhập chính xác tên miền con để xác nhận *</label><input class="form-control" id="platform-lifecycle-confirmation" name="confirmationSlug" autocomplete="off"><small class="platform-field-status" id="platform-lifecycle-confirmation-help"></small></div>
+              <div class="platform-lifecycle-warning" id="platform-lifecycle-warning"></div>
+            </div>
+            <div class="modal-footer"><button type="button" class="btn btn-secondary" id="btn-cancel-platform-lifecycle">Đóng</button><button type="submit" class="btn btn-primary" id="btn-submit-platform-lifecycle"><i data-lucide="check"></i> Xác nhận</button></div>
+          </form>
+        </div>
+      </div>
+
+      <div class="modal-overlay" id="platform-plan-modal" aria-hidden="true">
+        <div class="modal-content platform-plan-modal-content" role="dialog" aria-modal="true" aria-labelledby="platform-plan-modal-title">
+          <div class="modal-header">
+            <div><span class="platform-modal-kicker">Danh mục thương mại</span><h3 class="modal-title" id="platform-plan-modal-title">Cấu hình bảng giá SaaS</h3></div>
+            <button type="button" class="modal-close" id="btn-close-platform-plan" aria-label="Đóng"><i data-lucide="x"></i></button>
+          </div>
+          <form id="platform-plan-form">
+            <div class="modal-body platform-plan-form-grid">
+              <div class="platform-form-section platform-form-span-2"><strong>Chọn gói cần chỉnh sửa</strong><small>Giá bằng 0 được xem là chưa chốt và chưa nên công khai cho khách hàng.</small></div>
+              <div class="form-group platform-form-span-2"><label for="platform-plan-id">Gói dịch vụ *</label><select class="form-control" id="platform-plan-id" name="planId" required></select></div>
+              <div class="form-group"><label for="platform-plan-name">Tên hiển thị *</label><input class="form-control" id="platform-plan-name" name="name" required minlength="2" maxlength="80"></div>
+              <div class="form-group"><label for="platform-plan-currency">Tiền tệ *</label><input class="form-control" id="platform-plan-currency" name="currency" value="VND" required minlength="3" maxlength="3" pattern="[A-Za-z]{3}"></div>
+              <div class="form-group platform-form-span-2"><label for="platform-plan-description">Mô tả</label><textarea class="form-control" id="platform-plan-description" name="description" maxlength="500" rows="2"></textarea></div>
+              <div class="form-group"><label for="platform-plan-price-monthly">Giá theo tháng *</label><input class="form-control" id="platform-plan-price-monthly" name="priceMonthly" type="number" min="0" max="1000000000" step="1000" required></div>
+              <div class="form-group"><label for="platform-plan-price-yearly">Giá theo năm *</label><input class="form-control" id="platform-plan-price-yearly" name="priceYearly" type="number" min="0" max="12000000000" step="1000" required></div>
+              <div class="platform-form-section platform-form-span-2"><strong>Quota gói dịch vụ</strong><small>Quota được cưỡng chế tại database, thay đổi áp dụng ngay cho khách hàng đang dùng gói.</small></div>
+              <div class="platform-plan-limit-grid platform-form-span-2">
+                <div class="form-group"><label for="platform-plan-users">Người dùng</label><input class="form-control" id="platform-plan-users" name="users" type="number" min="1" required></div>
+                <div class="form-group"><label for="platform-plan-branches">Chi nhánh</label><input class="form-control" id="platform-plan-branches" name="branches" type="number" min="1" required></div>
+                <div class="form-group"><label for="platform-plan-warehouses">Kho</label><input class="form-control" id="platform-plan-warehouses" name="warehouses" type="number" min="1" required></div>
+                <div class="form-group"><label for="platform-plan-orders">Đơn/tháng</label><input class="form-control" id="platform-plan-orders" name="monthlyOrders" type="number" min="1" required></div>
+                <div class="form-group"><label for="platform-plan-domains">Custom domain</label><input class="form-control" id="platform-plan-domains" name="customDomains" type="number" min="0" max="100" required></div>
+                <div class="form-group"><label for="platform-plan-sort-order">Thứ tự</label><input class="form-control" id="platform-plan-sort-order" name="sortOrder" type="number" min="0" max="10000" required></div>
+              </div>
+              <div class="platform-plan-switches platform-form-span-2">
+                <label><input type="checkbox" id="platform-plan-active" name="isActive"> Cho phép sử dụng gói</label>
+                <label><input type="checkbox" id="platform-plan-public" name="isPublic"> Công khai cho khách hàng đăng ký</label>
+              </div>
+              <div class="platform-lifecycle-warning platform-form-span-2" id="platform-plan-price-warning">Chưa có giá bán chính thức. Chỉ bật công khai sau khi đã chốt giá và chính sách thuế.</div>
+            </div>
+            <div class="modal-footer"><button type="button" class="btn btn-secondary" id="btn-cancel-platform-plan">Đóng</button><button type="submit" class="btn btn-primary" id="btn-submit-platform-plan"><i data-lucide="save"></i> Lưu bảng giá</button></div>
+          </form>
+        </div>
+      </div>
+
+      <div class="modal-overlay" id="platform-billing-modal" aria-hidden="true">
+        <div class="modal-content platform-billing-modal-content" role="dialog" aria-modal="true" aria-labelledby="platform-billing-modal-title">
+          <div class="modal-header">
+            <div><span class="platform-modal-kicker">Cổng thanh toán</span><h3 class="modal-title" id="platform-billing-modal-title">Cấu hình MoMo và thuế</h3></div>
+            <button type="button" class="modal-close" id="btn-close-platform-billing" aria-label="Đóng"><i data-lucide="x"></i></button>
+          </div>
+          <form id="platform-billing-form">
+            <div class="modal-body platform-billing-form-body">
+              <div class="platform-billing-provider"><span><i data-lucide="wallet-cards"></i></span><div><strong>MoMo Payment Gateway</strong><small>Thanh toán ví MoMo bằng API captureWallet và xác nhận server-to-server qua IPN.</small></div></div>
+              <div class="form-group"><label for="platform-billing-tax-mode">Chính sách VAT *</label><select class="form-control" id="platform-billing-tax-mode" name="taxMode" required><option value="exclusive">Giá chưa gồm VAT — cộng thuế khi thanh toán</option><option value="not_subject">Dịch vụ không thuộc đối tượng chịu VAT</option></select></div>
+              <div class="form-group" id="platform-billing-vat-rate-group"><label for="platform-billing-vat-rate">Thuế suất VAT (%) *</label><input class="form-control" id="platform-billing-vat-rate" name="vatRate" type="number" min="0.01" max="100" step="0.01" placeholder="Cần kế toán xác nhận"></div>
+              <div class="form-group"><label for="platform-billing-issuer-name">Đơn vị phát hành hóa đơn *</label><input class="form-control" id="platform-billing-issuer-name" name="issuerName" required minlength="2" maxlength="160" placeholder="CÔNG TY CỔ PHẦN EMP HOA KỲ"></div>
+              <div class="form-group"><label for="platform-billing-tax-code">Mã số thuế *</label><input class="form-control" id="platform-billing-tax-code" name="issuerTaxCode" required minlength="8" maxlength="20" pattern="[0-9A-Za-z-]{8,20}"></div>
+              <label class="platform-billing-enable"><input type="checkbox" id="platform-billing-enabled" name="billingEnabled"><span><strong>Mở thanh toán MoMo cho khách hàng</strong><small>Chỉ bật sau khi giá, chính sách thuế và Supabase secrets MoMo đã sẵn sàng.</small></span></label>
+              <div class="platform-billing-readiness" id="platform-billing-readiness"></div>
+              <div class="platform-lifecycle-warning">Thông tin `partnerCode`, `accessKey` và `secretKey` chỉ lưu trong Supabase Edge Function secrets, không nhập trên trình duyệt.</div>
+            </div>
+            <div class="modal-footer"><button type="button" class="btn btn-secondary" id="btn-cancel-platform-billing">Đóng</button><button type="submit" class="btn btn-primary" id="btn-submit-platform-billing"><i data-lucide="save"></i> Lưu cấu hình</button></div>
+          </form>
+        </div>
+      </div>
 
       <!-- Dashboard Panel -->
       <section id="dashboard-panel" class="panel active">
+        <section class="saas-onboarding-card" id="saas-onboarding-checklist" aria-labelledby="saas-onboarding-title" style="display: none;">
+          <div class="saas-onboarding-header">
+            <div>
+              <span class="saas-onboarding-kicker"><i data-lucide="sparkles"></i> Bắt đầu với SoVie</span>
+              <h2 id="saas-onboarding-title">Hoàn thiện thiết lập doanh nghiệp</h2>
+              <p id="saas-onboarding-summary">Thực hiện các bước nền tảng trước khi vận hành đơn hàng đầu tiên.</p>
+            </div>
+            <strong class="saas-onboarding-progress-label" id="saas-onboarding-progress-label">0/5</strong>
+          </div>
+          <div class="saas-onboarding-progress" aria-hidden="true"><span id="saas-onboarding-progress-bar"></span></div>
+          <div class="saas-onboarding-steps" id="saas-onboarding-steps"></div>
+        </section>
         <!-- Dashboard Filter Toolbar -->
-        <div class="dashboard-toolbar glass-panel" style="display: flex; flex-direction: column; gap: 0.75rem; padding: 1rem; margin-bottom: 1.25rem; position: relative; z-index: 100; overflow: visible;">
+        <div class="dashboard-toolbar glass-panel">
           <!-- Row 1: Primary Filters & Action Buttons -->
           <div class="filter-row-1" style="display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center; justify-content: space-between; width: 100%;">
             <div style="display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center; flex: 1;">
               <div class="filter-group" style="display: flex; align-items: center; gap: 0.4rem;">
                 <label class="filter-label" style="font-size: 0.85rem; font-weight: 500; margin: 0; white-space: nowrap;"><i data-lucide="calendar"></i> Thời gian:</label>
-                <select class="form-control" id="dashboard-time-filter" style="width: auto; height: 38px; min-width: 120px; border-radius: 6px; cursor: pointer;">
+                <select class="form-control dashboard-filter-control" id="dashboard-time-filter">
                   <option value="month" selected>Tháng này</option>
                   <option value="day">Hôm nay</option>
                   <option value="week">Tuần này</option>
@@ -245,28 +575,28 @@
               </div>
               
               <div id="dashboard-custom-dates" style="display: none; align-items: center; gap: 0.4rem;">
-                <input type="date" class="form-control" id="dashboard-start-date" style="width: auto; height: 38px; border-radius: 6px; padding: 0 0.5rem;">
+                <input type="date" class="form-control dashboard-filter-control" id="dashboard-start-date">
                 <span style="color: var(--text-secondary); font-size: 0.85rem;">đến</span>
-                <input type="date" class="form-control" id="dashboard-end-date" style="width: auto; height: 38px; border-radius: 6px; padding: 0 0.5rem;">
+                <input type="date" class="form-control dashboard-filter-control" id="dashboard-end-date">
               </div>
 
               <div class="filter-group" id="dashboard-company-filter-group" style="display: flex; align-items: center; gap: 0.4rem;">
                 <label class="filter-label" style="font-size: 0.85rem; font-weight: 500; margin: 0; white-space: nowrap;"><i data-lucide="building-2"></i> Công ty:</label>
-                <select class="form-control" id="dashboard-company-filter" style="width: auto; height: 38px; min-width: 160px; border-radius: 6px; cursor: pointer;">
+                <select class="form-control dashboard-filter-control dashboard-filter-control-wide" id="dashboard-company-filter">
                   <option value="all" selected>-- Tất cả công ty --</option>
                 </select>
               </div>
 
               <div class="filter-group" style="display: flex; align-items: center; gap: 0.4rem;">
                 <label class="filter-label" style="font-size: 0.85rem; font-weight: 500; margin: 0; white-space: nowrap;"><i data-lucide="award"></i> Nhãn:</label>
-                <select class="form-control" id="dashboard-brand-filter" style="width: auto; height: 38px; min-width: 130px; border-radius: 6px; cursor: pointer;">
+                <select class="form-control dashboard-filter-control" id="dashboard-brand-filter">
                   <option value="all" selected>-- Tất cả --</option>
                 </select>
               </div>
 
               <div class="filter-group" style="display: flex; align-items: center; gap: 0.4rem;">
                 <label class="filter-label" style="font-size: 0.85rem; font-weight: 500; margin: 0; white-space: nowrap;"><i data-lucide="calculator"></i> Chế độ:</label>
-                <select class="form-control" id="dashboard-sales-mode-filter" style="width: auto; height: 38px; min-width: 160px; border-radius: 6px; cursor: pointer;">
+                <select class="form-control dashboard-filter-control dashboard-filter-control-wide" id="dashboard-sales-mode-filter">
                   <option value="net" selected>Doanh số ròng (Sau trả)</option>
                   <option value="gross">Doanh số gốc (Chưa trừ trả)</option>
                 </select>
@@ -275,10 +605,10 @@
 
             <!-- Action Buttons Right Aligned -->
             <div style="display: flex; align-items: center; gap: 0.5rem; margin-left: auto;">
-              <button class="btn btn-secondary btn-sm" id="btn-reset-dashboard-filters" title="Đặt lại bộ lọc về mặc định" style="height: 38px; padding: 0 0.85rem; border-radius: 6px; display: flex; align-items: center; gap: 0.35rem; font-size: 0.85rem;">
+              <button class="btn btn-secondary btn-sm dashboard-filter-action" id="btn-reset-dashboard-filters" title="Đặt lại bộ lọc về mặc định">
                 <i data-lucide="rotate-ccw" style="width: 14px; height: 14px;"></i> Đặt lại
               </button>
-              <button class="btn btn-primary btn-sm" id="btn-refresh-dashboard-data" title="Làm mới dữ liệu" style="height: 38px; padding: 0 0.85rem; border-radius: 6px; display: flex; align-items: center; gap: 0.35rem; font-size: 0.85rem;">
+              <button class="btn btn-primary btn-sm dashboard-filter-action" id="btn-refresh-dashboard-data" title="Làm mới dữ liệu">
                 <i data-lucide="refresh-cw" style="width: 14px; height: 14px;"></i> Làm mới
               </button>
             </div>
@@ -290,7 +620,7 @@
             <div class="filter-group" id="dashboard-sale-filter-group" style="position: relative; flex: 1; min-width: 220px; display: flex; align-items: center; gap: 0.4rem;">
               <label class="filter-label" style="font-size: 0.85rem; font-weight: 500; margin: 0; white-space: nowrap;"><i data-lucide="users"></i> Sale:</label>
               <div style="position: relative; flex: 1; display: flex; align-items: center;">
-                <input type="text" class="form-control" id="dashboard-sale-search-input" placeholder="-- Tất cả nhân viên --" style="width: 100%; height: 38px; border-radius: 6px; padding-right: 28px;">
+                <input type="text" class="form-control dashboard-filter-control" id="dashboard-sale-search-input" placeholder="-- Tất cả nhân viên --" style="width: 100%; padding-right: 28px;">
                 <button type="button" id="btn-clear-sale-search" style="display: none; position: absolute; right: 8px; background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 1rem;">✕</button>
                 <ul class="suggestions-list" id="dashboard-sale-suggestions" style="display: none; position: absolute; top: 42px; left: 0; right: 0; z-index: 1050; max-height: 220px; overflow-y: auto; background: #ffffff; border: 1px solid var(--border-color); border-radius: 6px; padding: 0.25rem 0; margin: 0; box-shadow: 0 10px 25px rgba(0,0,0,0.15);"></ul>
               </div>
@@ -861,7 +1191,7 @@
                   <colgroup>
                     <col style="width: 110px;">  <!-- Kéo thả + Mã SP -->
                     <col style="width: auto;">   <!-- Tên SP (flexible, includes màu sắc) -->
-                    <col style="width: 90px;">   <!-- Mã màu -->
+                    <col id="invoice-color-col" style="width: 90px;">   <!-- Extension ngành sơn -->
                     <col style="width: 190px;">  <!-- Quy cách -->
                     <col style="width: 70px;">   <!-- SL -->
                     <col style="width: 105px;">  <!-- Đơn giá sau chiết khấu -->
@@ -874,10 +1204,10 @@
                     <tr>
                       <th>Mã SP</th>
                       <th>Tên sản phẩm</th>
-                      <th style="text-align: center;">Mã màu</th>
+                      <th id="invoice-color-header" style="text-align: center;">Mã màu</th>
                       <th>Quy cách</th>
                       <th style="text-align: center;">SL</th>
-                      <th style="text-align: right;">Đơn giá</th>
+                      <th id="invoice-adjustment-header" style="text-align: right;">Đơn giá</th>
                       <th id="invoice-discount-header" style="text-align: center; display: none;">Chiết khấu (%)</th>
                       <th style="text-align: center;">Ghi chú</th>
                       <th style="text-align: right;">Thành tiền</th>
@@ -1868,10 +2198,10 @@
       <section id="users-panel" class="panel">
         <div class="glass-panel">
           <div class="panel-header">
-            <h2 class="panel-title"><i data-lucide="user-cog"></i> Danh sách tài khoản người dùng</h2>
+            <h2 class="panel-title"><i data-lucide="user-cog"></i> Thành viên & danh bạ nhân sự</h2>
             <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
               <button class="btn btn-primary btn-sm" id="btn-open-add-user-modal">
-                <i data-lucide="user-plus"></i> Thêm tài khoản
+                <i data-lucide="user-plus"></i> Thêm thành viên
               </button>
             </div>
           </div>
@@ -1879,25 +2209,29 @@
           <div class="controls-row">
             <div class="search-wrapper" style="flex: 1;">
               <i data-lucide="search" class="search-icon"></i>
-              <input type="text" class="form-control-search" id="user-search-input" placeholder="Tìm kiếm tài khoản theo tên đăng nhập, tên hiển thị...">
+              <input type="text" class="form-control-search" id="user-search-input" placeholder="Tìm theo tài khoản, mã nhân sự hoặc tên hiển thị...">
             </div>
           </div>
 
           <div class="table-responsive">
-            <table class="table" style="table-layout: fixed; min-width: 800px;">
+            <table class="table" style="table-layout: fixed; min-width: 940px;">
               <colgroup>
                 <col style="width: 60px;">   <!-- STT -->
                 <col style="width: 240px;">  <!-- Tên đăng nhập -->
                 <col style="width: auto;">   <!-- Tên hiển thị -->
                 <col style="width: 150px;">  <!-- Quyền hạn -->
+                <col style="width: 120px;">  <!-- Trạng thái -->
+                <col style="width: 180px;">  <!-- Công ty -->
                 <col style="width: 150px;">  <!-- Thao tác -->
               </colgroup>
               <thead>
                 <tr>
                   <th style="text-align: center;">STT</th>
-                  <th>Tên đăng nhập</th>
+                  <th>Tài khoản / Mã nhân sự</th>
                   <th>Tên hiển thị</th>
                   <th>Quyền hạn</th>
+                  <th>Trạng thái</th>
+                  <th>Đơn vị</th>
                   <th style="text-align: center;">Thao tác</th>
                 </tr>
               </thead>
@@ -1934,6 +2268,61 @@
             <label class="form-label" for="maintenance-message">Thông báo cho nhân viên</label>
             <textarea id="maintenance-message" class="form-control" rows="2" maxlength="240" style="width: 100%; resize: vertical;">Hệ thống đang bảo trì. Vui lòng quay lại sau.</textarea>
             <button type="button" class="btn btn-danger" id="btn-toggle-maintenance" style="margin-top: 0.85rem;">Bật chế độ bảo trì</button>
+          </div>
+          <div id="custom-domain-section" style="display: none; border: 1px solid var(--border-color); border-radius: 12px; padding: 1rem;">
+            <h2 class="panel-title" style="margin-bottom: 0.4rem;"><i data-lucide="globe-2"></i> Tên miền doanh nghiệp</h2>
+            <p style="color: var(--text-secondary); font-size: 0.82rem; line-height: 1.5;">Custom domain chỉ hoạt động sau khi xác minh bản ghi TXT và SSL. Subdomain sovie.vn luôn được giữ làm đường truy cập dự phòng.</p>
+            <div id="custom-domain-list" class="custom-domain-list"></div>
+            <form id="custom-domain-form" style="display: flex; gap: 0.5rem; margin-top: 0.8rem;">
+              <input id="custom-domain-hostname" class="form-control" type="text" placeholder="Ví dụ: app.doanhnghiep.vn" autocomplete="off" style="flex: 1;">
+              <button id="btn-request-custom-domain" class="btn btn-primary btn-sm" type="submit">Đăng ký</button>
+            </form>
+            <pre id="custom-domain-verification-output" style="display: none; margin-top: 0.8rem; padding: 0.8rem; white-space: pre-wrap; overflow-wrap: anywhere; border-radius: 8px; background: rgba(15,23,42,0.65); color: #bfdbfe; font-size: 0.76rem;"></pre>
+          </div>
+          <div id="billing-management-section" style="display: none; border: 1px solid var(--border-color); border-radius: 12px; padding: 1rem;">
+            <h2 class="panel-title" style="margin-bottom: 0.4rem;"><i data-lucide="credit-card"></i> Gói dịch vụ & hóa đơn</h2>
+            <p style="color: var(--text-secondary); font-size: 0.82rem; line-height: 1.5;">Chỉ Owner xem và yêu cầu đổi gói. Trạng thái thanh toán do webhook phía máy chủ cập nhật.</p>
+            <div id="billing-management-content"></div>
+          </div>
+          <div id="location-management-section" style="display: none; border: 1px solid var(--border-color); border-radius: 12px; padding: 1rem;">
+            <h2 class="panel-title" style="margin-bottom: 0.4rem;"><i data-lucide="warehouse"></i> Chi nhánh & kho</h2>
+            <p style="color: var(--text-secondary); font-size: 0.82rem; line-height: 1.5;">Owner và Admin quản lý địa điểm trong hạn mức của gói. Chi nhánh/kho mặc định phải luôn hoạt động.</p>
+            <div class="location-management-grid">
+              <div class="location-card">
+                <h3>Chi nhánh <span id="branch-management-count" class="location-count"></span></h3>
+                <div id="branch-management-list" class="location-list"></div>
+                <form id="branch-management-form" class="location-form">
+                  <input type="hidden" name="branch_id">
+                  <input class="form-control" name="branch_code" maxlength="32" placeholder="Mã chi nhánh" required>
+                  <input class="form-control" name="branch_name" maxlength="120" placeholder="Tên chi nhánh" required>
+                  <input class="form-control" name="branch_address" maxlength="500" placeholder="Địa chỉ">
+                  <button class="btn btn-primary btn-sm" type="submit">Thêm chi nhánh</button>
+                </form>
+              </div>
+              <div class="location-card">
+                <h3>Kho <span id="warehouse-management-count" class="location-count"></span></h3>
+                <div id="warehouse-management-list" class="location-list"></div>
+                <form id="warehouse-management-form" class="location-form">
+                  <input type="hidden" name="warehouse_id">
+                  <select class="form-control" name="warehouse_branch_id" aria-label="Chi nhánh của kho"></select>
+                  <input class="form-control" name="warehouse_code" maxlength="32" placeholder="Mã kho" required>
+                  <input class="form-control" name="warehouse_name" maxlength="120" placeholder="Tên kho" required>
+                  <input class="form-control" name="warehouse_address" maxlength="500" placeholder="Địa chỉ">
+                  <button class="btn btn-primary btn-sm" type="submit">Thêm kho</button>
+                </form>
+              </div>
+            </div>
+          </div>
+          <div id="organization-archive-section" style="display: none; border: 1px solid rgba(239,68,68,0.35); border-radius: 12px; padding: 1rem; background: rgba(239,68,68,0.04);">
+            <h2 class="panel-title" style="margin-bottom: 0.4rem;"><i data-lucide="archive"></i> Lưu trữ workspace</h2>
+            <p id="organization-archive-status" style="color: var(--text-secondary); font-size: 0.82rem; line-height: 1.5;"></p>
+            <form id="organization-archive-form" class="location-form">
+              <input class="form-control" name="archive_confirmation_slug" placeholder="Nhập chính xác slug workspace" required>
+              <input class="form-control" name="archive_backup_reference" minlength="8" maxlength="240" placeholder="Tên file/mã backup đã kiểm tra" required>
+              <textarea class="form-control" name="archive_reason" maxlength="500" rows="2" placeholder="Lý do lưu trữ"></textarea>
+              <button class="btn btn-danger btn-sm" type="submit" disabled>Gửi yêu cầu lưu trữ</button>
+            </form>
+            <small style="display:block;margin-top:.55rem;color:var(--text-secondary);">Back-office chỉ soft-archive và khóa truy cập; không xóa vật lý dữ liệu.</small>
           </div>
           <div>
             <h2 class="panel-title" style="margin-bottom: 0.5rem;"><i data-lucide="cloud-lightning"></i> Cấu hình kết nối đám mây (Supabase)</h2>
@@ -1995,7 +2384,7 @@
               <i data-lucide="database"></i> Sao lưu & Khôi phục dữ liệu
             </h3>
             <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 1.25rem;">
-              Excel là bản xuất kiểm tra có version và thống kê các phân hệ đang sử dụng. Khôi phục toàn bộ database chỉ thực hiện trên staging mới bằng công cụ quản trị, không ghi đè trực tiếp database đang chạy.
+              Excel là bản xuất riêng cho workspace hiện tại, có version, tenant ID và manifest đối chiếu số dòng. Khôi phục toàn bộ database chỉ thực hiện trên staging mới bằng công cụ quản trị, không ghi đè trực tiếp database đang chạy.
             </p>
             <div style="display: flex; flex-direction: column; gap: 1rem;">
               <div style="display: flex; gap: 0.75rem;">
@@ -2010,7 +2399,7 @@
                   <button type="button" class="btn btn-secondary btn-sm" id="btn-browse-backup">Chọn file sao lưu (.xlsx)</button>
                   <span id="backup-file-name" style="font-size: 0.8rem; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 250px;">Chưa chọn file</span>
                 </div>
-                <p style="margin-top: 0.75rem; font-size: 0.8rem; color: var(--text-secondary);">Dry-run chỉ đọc file, kiểm tra version, sheet, số dòng và dữ liệu trùng. Không ghi hoặc xóa dữ liệu Cloud.</p>
+                <p style="margin-top: 0.75rem; font-size: 0.8rem; color: var(--text-secondary);">Dry-run chỉ đọc file, kiểm tra đúng workspace, version, manifest, số dòng và dữ liệu trùng. Không ghi hoặc xóa dữ liệu Cloud.</p>
                 <button type="button" class="btn btn-danger btn-sm" id="btn-restore-backup" style="margin-top: 0.75rem; width: 100%; display: none;">
                   <i data-lucide="shield-check"></i> Kiểm tra file (Dry-run)
                 </button>
@@ -3092,8 +3481,8 @@
           <div class="form-group" style="margin-bottom: 0;">
             <label class="form-label" for="user-is-external">Loại tài khoản *</label>
             <select class="form-control" id="user-is-external" required style="width: 100%;">
-              <option value="false">Tài khoản phần mềm (Đăng nhập)</option>
-              <option value="true">Kinh doanh ngoài hoặc Công ty (Không đăng nhập, chỉ dùng gắn quản lý)</option>
+              <option value="false">Tài khoản phần mềm (có đăng nhập)</option>
+              <option value="true">Nhân sự không đăng nhập</option>
             </select>
           </div>
           <div class="form-group" style="margin-bottom: 0;">
@@ -3104,10 +3493,26 @@
             <label class="form-label" for="user-displayname">Tên hiển thị *</label>
             <input type="text" class="form-control" id="user-displayname" required placeholder="Ví dụ: Nguyễn Văn C" style="width: 100%;">
           </div>
+          <div class="form-group external-person-field" style="margin-bottom: 0; display: none;">
+            <label class="form-label" for="user-phone">Số điện thoại</label>
+            <input type="tel" class="form-control" id="user-phone" placeholder="Ví dụ: 0901 234 567" style="width: 100%;">
+          </div>
+          <div class="form-group external-person-field" style="margin-bottom: 0; display: none;">
+            <label class="form-label" for="user-job-title">Chức danh / Vai trò nghiệp vụ</label>
+            <input type="text" class="form-control" id="user-job-title" placeholder="Ví dụ: Cộng tác viên bán hàng" style="width: 100%;">
+          </div>
+          <div class="form-group external-person-field" style="margin-bottom: 0; display: none;">
+            <label class="form-label" for="user-employment-type">Quan hệ làm việc</label>
+            <select class="form-control" id="user-employment-type" style="width: 100%;">
+              <option value="employee">Nhân viên</option>
+              <option value="contractor">Cộng tác viên / Hợp đồng</option>
+              <option value="external">Đối tác kinh doanh ngoài</option>
+            </select>
+          </div>
           <div class="form-group" style="margin-bottom: 0;">
-            <label class="form-label" for="user-password">Mật khẩu khởi tạo *</label>
+            <label class="form-label" for="user-password">Mật khẩu khởi tạo (không bắt buộc)</label>
             <input type="password" class="form-control" id="user-password" minlength="8" autocomplete="new-password" placeholder="Ít nhất 8 ký tự" style="width: 100%;">
-            <small id="user-password-help" style="color: var(--text-muted); font-size: 0.75rem;">Dùng một lần để tạo tài khoản Supabase Auth; mật khẩu không được lưu trong profile hoặc trình duyệt.</small>
+            <small id="user-password-help" style="color: var(--text-muted); font-size: 0.75rem;">Để trống để gửi email mời. Nếu nhập, mật khẩu phải có ít nhất 8 ký tự và không được lưu trong profile hoặc trình duyệt.</small>
           </div>
           <div class="form-group" style="margin-bottom: 0;">
             <label class="form-label" for="user-role">Quyền hạn / Vai trò *</label>
@@ -3115,6 +3520,13 @@
               <option value="sale">Nhân viên Sale (Chỉ lập đơn & xem KH được giao)</option>
               <option value="accounting">Kế toán (Lập đơn, xem tất cả đơn, SP, KH, bảng giá)</option>
               <option value="admin">Admin (Toàn quyền hệ thống)</option>
+            </select>
+          </div>
+          <div class="form-group" id="user-membership-status-group" style="margin-bottom: 0; display: none;">
+            <label class="form-label" for="user-membership-status">Trạng thái trong workspace *</label>
+            <select class="form-control" id="user-membership-status" style="width: 100%;">
+              <option value="active">Đang hoạt động</option>
+              <option value="suspended">Đã khóa</option>
             </select>
           </div>
           <div class="form-group" style="margin-bottom: 0;">
@@ -3648,28 +4060,139 @@
   </div>
 
   <!-- Login Screen Overlay -->
-  <div id="login-screen" class="login-overlay">
-    <div class="login-card">
-      <div class="login-header">
-        <div class="login-brand-lockup">
+  <div id="login-screen" class="login-overlay" style="display: none;" role="dialog" aria-modal="true" aria-labelledby="login-title">
+    <div class="login-shell">
+      <section class="login-story" aria-label="Giới thiệu SoVie">
+        <div class="login-story-glow" aria-hidden="true"></div>
+        <a class="login-story-brand" href="#top" aria-label="Về trang giới thiệu SoVie">
           <img src="sovie-logo.png?v=20260815-sovie-v2" alt="SoVie">
+        </a>
+        <div class="login-story-copy">
+          <span class="login-story-kicker"><i data-lucide="sparkles"></i> Một Sổ Việt, mọi dữ liệu vận hành</span>
+          <h2>Quản lý bán hàng<br><em>gọn hơn mỗi ngày.</em></h2>
+          <p>Đăng nhập để tiếp tục với workspace riêng của doanh nghiệp, dữ liệu Cloud được phân tách và cập nhật theo thời gian thực.</p>
+          <ul class="login-story-points">
+            <li><i data-lucide="shield-check"></i><span><strong>An toàn theo doanh nghiệp</strong><small>Dữ liệu được giới hạn theo workspace và vai trò.</small></span></li>
+            <li><i data-lucide="refresh-cw"></i><span><strong>Đồng bộ trực tiếp</strong><small>Trạng thái đọc dữ liệu được kiểm tra độc lập với Realtime.</small></span></li>
+            <li><i data-lucide="chart-no-axes-combined"></i><span><strong>Tổng quan rõ ràng</strong><small>Bán hàng, công nợ và dòng tiền trên một hệ thống.</small></span></li>
+          </ul>
         </div>
-        <h2 style="font-size: 1.25rem; font-weight: 700; color: #fff; text-align: center; margin-bottom: 0.25rem;">HỆ THỐNG ĐĂNG NHẬP</h2>
-        <p style="font-size: 0.85rem; color: var(--text-secondary); text-align: center; margin-bottom: 1.5rem;">Phần mềm Quản lý Bán hàng & Hóa đơn</p>
+        <p class="login-story-footer">SoVie · Nền tảng quản lý dành cho doanh nghiệp Việt</p>
+      </section>
+      <section class="login-card">
+        <button type="button" class="login-close-button" id="btn-close-login" aria-label="Đóng cửa sổ đăng nhập"><i data-lucide="x"></i></button>
+        <div class="login-header">
+          <div class="login-brand-lockup">
+            <img src="sovie-logo.png?v=20260815-sovie-v2" alt="SoVie">
+          </div>
+          <span class="login-eyebrow">Chào mừng trở lại</span>
+          <h1 id="login-title">Đăng nhập hệ thống</h1>
+          <p>Nhập tài khoản được cấp cho workspace của bạn.</p>
+        </div>
+        <form id="login-form" class="login-form">
+          <div id="login-maintenance-notice" class="login-maintenance-notice" role="alert" style="display: none;"></div>
+          <div class="form-group">
+            <label class="form-label" for="login-username">Tên đăng nhập</label>
+            <div class="login-input-wrap"><i data-lucide="user-round"></i><input type="text" class="form-control" id="login-username" placeholder="Tên đăng nhập hoặc email" required autocomplete="username"></div>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="login-password">Mật khẩu</label>
+            <div class="login-input-wrap"><i data-lucide="lock-keyhole"></i><input type="password" class="form-control" id="login-password" placeholder="Nhập mật khẩu" required autocomplete="current-password"></div>
+          </div>
+          <div class="login-help-row">
+            <span>Dùng đúng một tài khoản cho mọi doanh nghiệp bạn tham gia.</span>
+            <button type="button" id="btn-forgot-password" class="login-forgot-button">Quên mật khẩu?</button>
+          </div>
+          <button type="submit" id="btn-login-submit" class="btn btn-primary login-submit-button">
+            <span>Đăng nhập</span><i data-lucide="arrow-right"></i>
+          </button>
+          <p class="login-security-note"><i data-lucide="shield-check"></i> Phiên đăng nhập được xác thực trực tiếp với Supabase.</p>
+        </form>
+      </section>
+    </div>
+  </div>
+
+  <div class="modal-overlay workspace-onboarding-overlay" id="invitation-password-modal" role="dialog" aria-modal="true" aria-labelledby="invitation-password-title">
+    <div class="modal-content" style="max-width: 440px;">
+      <div class="modal-header">
+        <div>
+          <h3 class="modal-title" id="invitation-password-title">Hoàn tất lời mời SoVie</h3>
+          <p class="workspace-onboarding-intro" id="invitation-password-intro">Thiết lập mật khẩu để dùng cho những lần đăng nhập tiếp theo.</p>
+        </div>
       </div>
-      <form id="login-form" style="display: flex; flex-direction: column; gap: 1rem;">
-        <div id="login-maintenance-notice" role="alert" style="display: none; padding: 0.8rem; border-radius: 8px; border: 1px solid rgba(245, 158, 11, 0.45); background: rgba(245, 158, 11, 0.12); color: #fbbf24; font-size: 0.85rem; line-height: 1.5; text-align: center;"></div>
-        <div class="form-group">
-          <label class="form-label" for="login-username">Tên đăng nhập</label>
-          <input type="text" class="form-control" id="login-username" placeholder="Nhập tài khoản" required autocomplete="username" style="width: 100%;">
+      <form id="invitation-password-form">
+        <div class="modal-body" style="display: flex; flex-direction: column; gap: 1rem;">
+          <div class="form-group">
+            <label class="form-label" for="invitation-new-password">Mật khẩu mới</label>
+            <input type="password" class="form-control" id="invitation-new-password" minlength="8" autocomplete="new-password" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="invitation-confirm-password">Nhập lại mật khẩu</label>
+            <input type="password" class="form-control" id="invitation-confirm-password" minlength="8" autocomplete="new-password" required>
+          </div>
         </div>
-        <div class="form-group">
-          <label class="form-label" for="login-password">Mật khẩu</label>
-          <input type="password" class="form-control" id="login-password" placeholder="Nhập mật khẩu" required autocomplete="current-password" style="width: 100%;">
+        <div class="modal-footer workspace-onboarding-footer">
+          <button type="submit" class="btn btn-primary" id="btn-complete-invitation"><i data-lucide="check-circle"></i> Hoàn tất tài khoản</button>
         </div>
-        <button type="submit" id="btn-login-submit" class="btn btn-primary" style="padding: 0.75rem; margin-top: 0.5rem; width: 100%; font-weight: 600;">
-          <i data-lucide="log-in"></i> ĐĂNG NHẬP
-        </button>
+      </form>
+    </div>
+  </div>
+
+  <div class="modal-overlay workspace-onboarding-overlay" id="workspace-onboarding-modal" role="dialog" aria-modal="true" aria-labelledby="workspace-onboarding-title">
+    <div class="modal-content workspace-onboarding-content">
+      <div class="modal-header">
+        <div>
+          <h3 class="modal-title" id="workspace-onboarding-title">Thiết lập doanh nghiệp</h3>
+          <p id="workspace-onboarding-intro" class="workspace-onboarding-intro"></p>
+        </div>
+        <button type="button" class="modal-close" id="btn-close-workspace-onboarding" aria-label="Đóng">&times;</button>
+      </div>
+      <form id="workspace-onboarding-form">
+        <div class="modal-body workspace-onboarding-body">
+          <div class="form-group">
+            <label class="form-label" for="workspace-name">Tên doanh nghiệp</label>
+            <input type="text" class="form-control" id="workspace-name" minlength="2" maxlength="120" placeholder="Ví dụ: Công ty Minh Anh" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="workspace-slug">Tên miền workspace</label>
+            <div class="workspace-domain-input">
+              <input type="text" class="form-control" id="workspace-slug" minlength="3" maxlength="64" pattern="[a-z0-9][a-z0-9-]{1,62}[a-z0-9]" placeholder="minh-anh" required>
+              <span>.sovie.vn</span>
+            </div>
+            <small id="workspace-slug-status" class="workspace-field-status"></small>
+          </div>
+          <div class="workspace-onboarding-grid">
+            <div class="form-group">
+              <label class="form-label" for="workspace-business-type">Mô hình kinh doanh</label>
+              <select class="form-control" id="workspace-business-type" required>
+                <option value="general_trade">Thương mại tổng hợp</option>
+                <option value="retail">Bán lẻ</option>
+                <option value="wholesale">Bán buôn</option>
+                <option value="distribution">Phân phối</option>
+                <option value="services">Dịch vụ</option>
+                <option value="manufacturing">Sản xuất</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="workspace-industry">Ngành nghề</label>
+              <select class="form-control" id="workspace-industry" required>
+                <option value="general">Tổng hợp</option>
+                <option value="retail">Bán lẻ</option>
+                <option value="food_beverage">Thực phẩm & đồ uống</option>
+                <option value="fashion">Thời trang</option>
+                <option value="construction">Xây dựng & vật liệu</option>
+                <option value="consulting">Tư vấn & dịch vụ</option>
+                <option value="manufacturing">Sản xuất</option>
+                <option value="paint_distribution">Sơn & phân phối</option>
+              </select>
+            </div>
+          </div>
+          <div class="workspace-trial-note"><i data-lucide="sparkles"></i><span>Gói Starter dùng thử 14 ngày, dữ liệu được tách riêng theo doanh nghiệp.</span></div>
+        </div>
+        <div class="modal-footer workspace-onboarding-footer">
+          <button type="button" class="btn btn-secondary btn-sm" id="btn-cancel-workspace-onboarding">Hủy</button>
+          <button type="submit" class="btn btn-primary btn-sm"><i data-lucide="rocket"></i> Tạo workspace</button>
+        </div>
       </form>
     </div>
   </div>
@@ -4247,6 +4770,7 @@
   </div>
 
   <!-- App logic -->
-  <script type="module" src="js/main.js?v=20260814-invoice-discount-label-v19"></script>
+  <script type="module" src="js/landing-motion.js?v=20260817-saas-platform-v1"></script>
+  <script type="module" src="js/main.js?v=20260829-onboarding-v1"></script>
 </body>
 </html>

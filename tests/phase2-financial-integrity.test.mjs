@@ -45,7 +45,7 @@ test('cashbook and opening balances use reviewed RPCs before local cache', () =>
   assert.match(service, /rpc_set_cashbook_starred/);
   const saveBalances = cashbook.slice(cashbook.indexOf('export async function saveStartingBalances'), cashbook.indexOf('// Global active filters'));
   assert.match(saveBalances, /await dbSaveStartingBalances/);
-  assert.ok(saveBalances.indexOf('await dbSaveStartingBalances') < saveBalances.indexOf('localStorage.setItem'));
+  assert.ok(saveBalances.indexOf('await dbSaveStartingBalances') < saveBalances.indexOf('tenantStorage.setItem'));
   const legacySync = service.slice(service.indexOf('export async function syncLocalToCloud'), service.indexOf('// --- Thao tác CSDL chi tiết (Sản phẩm)'));
   assert.doesNotMatch(legacySync, /from\(tableCashbookTransactionsName\)\s*\.upsert/);
   assert.doesNotMatch(legacySync, /from\(tableStartingBalancesName\)\s*\.upsert/);

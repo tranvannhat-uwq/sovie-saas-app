@@ -1,18 +1,19 @@
 import { state } from '../state.js';
 import { showToast, formatCurrency, formatNumber, safeCreateIcons, formatDateTime, isSameUser, getManagerDisplayName, getCustomerName, getUserById, getUserDisplayName, getCompanyName, normalizeCompanyId, getCompanyIdByBrand, getCanonicalBrandName } from '../utils.js';
-import { dbDeleteOrder, dbDeleteAllOrders, dbRecordSalesReturn, dbCancelSalesReturn, dbCancelOrder, dbRefreshCustomerFinancialState, dbUpdateOrderNotes, dbLoadOrdersForHistoryRange, cacheOrdersLocally } from '../services/supabase.js?v=20260814-invoice-discount-label-v19';
-import { ensurePanelCloudData, renderAll } from '../main.js?v=20260814-invoice-discount-label-v19';
-import { openPrintTypeModal, resetInvoiceBuilder, syncInvoiceBusinessDateControl } from './invoice.js?v=20260814-invoice-discount-label-v19';
-import { openHistoryOrderExportModal } from './customers.js?v=20260814-invoice-discount-label-v19';
+import { dbDeleteOrder, dbDeleteAllOrders, dbRecordSalesReturn, dbCancelSalesReturn, dbCancelOrder, dbRefreshCustomerFinancialState, dbUpdateOrderNotes, dbLoadOrdersForHistoryRange, cacheOrdersLocally } from '../services/supabase.js?v=20260829-onboarding-v1';
+import { ensurePanelCloudData, renderAll } from '../main.js?v=20260829-onboarding-v1';
+import { tenantStorage } from '../services/tenant-storage.js';
+import { openPrintTypeModal, resetInvoiceBuilder, syncInvoiceBusinessDateControl } from './invoice.js?v=20260829-onboarding-v1';
+import { openHistoryOrderExportModal } from './customers.js?v=20260829-onboarding-v1';
 import {
   getOrderFinancialBreakdown,
   isOrderIncludedInFinancialSummary
-} from '../domain/order-financials.js?v=20260814-invoice-discount-label-v19';
+} from '../domain/order-financials.js?v=20260829-onboarding-v1';
 import { getOrderDisplayCode } from '../domain/order-display.js';
 import { matchesHistoryOrderStatuses } from '../domain/order-status.js';
 import { currentBusinessDateInputValue, orderDateToInputValue } from '../domain/order-business-date.js';
 import { normalizeOrderItemsForEditing, resolveOrderCustomerForEditing } from '../domain/order-edit.js';
-import { getApplicablePriceList, normalizePriceListType, PRICE_LIST_TYPES } from '../domain/pricing.js?v=20260814-invoice-discount-label-v19';
+import { getApplicablePriceList, normalizePriceListType, PRICE_LIST_TYPES } from '../domain/pricing.js?v=20260829-onboarding-v1';
 
 const selectedHistoryOrderIdsForExport = new Set();
 let pendingSalesReturnKey = '';
@@ -523,14 +524,14 @@ export function setupHistoryPanel() {
   if (btnCard) {
     btnCard.addEventListener('click', () => {
       state.historyViewMode = 'card';
-      localStorage.setItem('historyViewMode', 'card');
+      tenantStorage.setItem('historyViewMode', 'card');
       renderHistoryOrders({ reuseFiltered: true });
     });
   }
   if (btnDetails) {
     btnDetails.addEventListener('click', () => {
       state.historyViewMode = 'details';
-      localStorage.setItem('historyViewMode', 'details');
+      tenantStorage.setItem('historyViewMode', 'details');
       renderHistoryOrders({ reuseFiltered: true });
     });
   }
@@ -870,12 +871,20 @@ export function renderHistoryOrders({ reuseFiltered = false } = {}) {
       let plName = 'Nhập tay';
       let debtText = '0 ₫';
       let managerName = 'Chưa phân công';
+      const orderPriceListId = order.pricelistId || '';
+      const orderPriceList = orderPriceListId
+        ? lookups.pricelistById.get(String(orderPriceListId))
+        : null;
+      const orderPriceListSnapshot = order.priceListNameSnapshot
+        || order.items?.find(item => item.priceListNameSnapshot)?.priceListNameSnapshot
+        || '';
       
       if (cust) {
         const managerValue = cust.managedBy || cust.managed_by || '';
         managerName = managerValue ? getManagerDisplayName(managerValue, state.users) : managerName;
         const pl = lookups.pricelistById.get(String(cust.pricelistId));
-        plName = pl ? pl.name : (cust.pricelistId === 'custom' ? 'Chiết khấu riêng' : (cust.pricelistId === 'retail' ? 'Nhập tay' : 'Chưa xác định'));
+        plName = orderPriceList?.name || orderPriceListSnapshot
+          || (pl ? pl.name : (cust.pricelistId === 'custom' ? 'Chiết khấu riêng' : (cust.pricelistId === 'retail' ? 'Nhập tay' : 'Chưa xác định')));
         debtText = formatCurrency(cust.debt || 0);
       } else {
         const orderPlId = order.pricelistId || 'retail';
@@ -1049,12 +1058,20 @@ export function renderHistoryOrders({ reuseFiltered = false } = {}) {
       let managerName = 'Chưa phân công';
       let plName = 'Nhập tay';
       let debtText = '0 ₫';
+      const orderPriceListId = order.pricelistId || '';
+      const orderPriceList = orderPriceListId
+        ? lookups.pricelistById.get(String(orderPriceListId))
+        : null;
+      const orderPriceListSnapshot = order.priceListNameSnapshot
+        || order.items?.find(item => item.priceListNameSnapshot)?.priceListNameSnapshot
+        || '';
       
       if (cust) {
         managerName = cust.managedBy ? getManagerDisplayName(cust.managedBy, state.users) : 'Chưa phân công';
         
         const pl = lookups.pricelistById.get(String(cust.pricelistId));
-        plName = pl ? pl.name : (cust.pricelistId === 'custom' ? 'Chiết khấu riêng' : (cust.pricelistId === 'retail' ? 'Nhập tay' : 'Chưa xác định'));
+        plName = orderPriceList?.name || orderPriceListSnapshot
+          || (pl ? pl.name : (cust.pricelistId === 'custom' ? 'Chiết khấu riêng' : (cust.pricelistId === 'retail' ? 'Nhập tay' : 'Chưa xác định')));
         
         debtText = formatCurrency(cust.debt || 0);
       } else {
@@ -1818,7 +1835,7 @@ export async function processSalesReturnSubmit(e) {
   order.status = returnResult.order_status;
   order.returnedAmount = Number(returnResult.order_returned_amount || 0);
   order.netRevenue = Number(returnResult.order_net_revenue || 0);
-  localStorage.setItem('billing_system_sales_returns', JSON.stringify(state.salesReturns));
+  tenantStorage.setItem('billing_system_sales_returns', JSON.stringify(state.salesReturns));
   cacheOrdersLocally(state.savedOrders);
 
   // 4. Update Customer Debt, Total Return & Net Revenue
@@ -1843,7 +1860,7 @@ export async function processSalesReturnSubmit(e) {
       }
     }
   }
-  localStorage.setItem('billing_system_customers', JSON.stringify(state.customers));
+  tenantStorage.setItem('billing_system_customers', JSON.stringify(state.customers));
 
   document.getElementById('sales-return-modal').classList.remove('active');
   pendingSalesReturnKey = '';
@@ -1900,9 +1917,9 @@ export async function cancelSalesReturn(returnId) {
     order.returnedAmount = Number(cancelResult.order_returned_amount || 0);
     order.netRevenue = Number(cancelResult.order_net_revenue || 0);
   }
-  localStorage.setItem('billing_system_sales_returns', JSON.stringify(state.salesReturns));
+  tenantStorage.setItem('billing_system_sales_returns', JSON.stringify(state.salesReturns));
   cacheOrdersLocally(state.savedOrders);
-  localStorage.setItem('billing_system_customers', JSON.stringify(state.customers));
+  tenantStorage.setItem('billing_system_customers', JSON.stringify(state.customers));
   renderAll();
   showToast(`Đã hủy phiếu trả hàng ${returnId} thành công!`, 'warning');
 }

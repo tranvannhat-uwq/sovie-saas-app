@@ -1,9 +1,11 @@
-import { state } from '../state.js';
+import { state, resetTenantBusinessState } from '../state.js';
 import { showToast, safeCreateIcons, isSameUser, getCompanyNameById } from '../utils.js';
-import { dbSaveUser, dbDeleteUser, isCloudActive, supabaseClient, fetchCloudData, clearSupabaseAuthStorage, getMaintenanceStatus } from '../services/supabase.js?v=20260814-invoice-discount-label-v19';
-import { startRealtimeSync, stopRealtimeSync } from '../services/realtime.js?v=20260814-invoice-discount-label-v19';
-import { renderAll, switchTab } from '../main.js?v=20260814-invoice-discount-label-v19';
-import { populateManagedByDropdown } from './customers.js?v=20260814-invoice-discount-label-v19';
+import { dbSaveUser, dbDeleteUser, isCloudActive, supabaseClient, fetchCloudData, clearSupabaseAuthStorage, getMaintenanceStatus, loadSaasContext, clearTenantStorageContext, transferSaasOrganizationOwnership } from '../services/supabase.js?v=20260829-onboarding-v1';
+import { startRealtimeSync, stopRealtimeSync } from '../services/realtime.js?v=20260829-onboarding-v1';
+import { renderAll, switchTab } from '../main.js?v=20260829-onboarding-v1';
+import { populateManagedByDropdown } from './customers.js?v=20260829-onboarding-v1';
+import { openWorkspaceOnboarding, renderWorkspaceSwitcher, renderSubscriptionAccessNotice } from './workspaces.js?v=20260829-onboarding-v1';
+import { clearPlatformAdminState, hydratePlatformAdmin } from './platform-admin.js?v=20260829-onboarding-v1';
 import {
   LOGIN_ERROR,
   classifySupabaseError,
@@ -28,7 +30,7 @@ export function renderUsersTable() {
   if (filtered.length === 0) {
     tableBody.innerHTML = `
       <tr>
-        <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 2rem;">
+        <td colspan="7" style="text-align: center; color: var(--text-muted); padding: 2rem;">
           Không tìm thấy tài khoản người dùng nào
         </td>
       </tr>
@@ -37,15 +39,22 @@ export function renderUsersTable() {
   }
   
   tableBody.innerHTML = filtered.map((u, index) => {
-    const roleText = u.isExternal ? 'Kinh doanh ngoài' : 
-                     (u.role === 'admin' ? 'Admin (Toàn quyền)' : 
+    const roleText = u.isExternal ? (u.jobTitle || (u.employmentType === 'contractor' ? 'Cộng tác viên' : u.employmentType === 'external' ? 'Đối tác ngoài' : 'Nhân sự')) :
+                     (u.role === 'owner' ? 'Owner' : u.role === 'admin' ? 'Admin (Toàn quyền)' :
                       u.role === 'accounting' ? 'Kế toán' : 'Sale (Kinh doanh)');
     const roleColor = u.isExternal ? '#a0aec0' : 
-                      (u.role === 'admin' ? 'var(--color-danger)' : 
+                      (u.role === 'owner' ? '#f59e0b' : u.role === 'admin' ? 'var(--color-danger)' :
                        u.role === 'accounting' ? 'var(--color-secondary)' : 'var(--color-primary)');
                       
     const compName = getCompanyNameById(u.companyId || u.company_id, state.companies);
     const dName = u.displayName || u.display_name || u.name || u.username;
+    const membershipStatus = u.membershipStatus || (u.isActive === false ? (u.isExternal ? 'inactive' : 'suspended') : 'active');
+    const active = membershipStatus === 'active';
+    const statusText = membershipStatus === 'invited' ? 'Đã gửi lời mời' : active ? 'Hoạt động' : u.isExternal ? 'Ngừng hoạt động' : 'Đã khóa';
+    const statusClass = membershipStatus === 'invited' ? 'status-pending' : active ? 'status-completed' : 'status-cancelled';
+    const protectedOwner = u.role === 'owner';
+    const canTransferOwner = state.currentUser?.organizationRole === 'owner'
+      && active && !protectedOwner && Boolean(u.authUserId);
     return `
       <tr>
         <td style="text-align: center; color: var(--text-muted);">${index + 1}</td>
@@ -54,14 +63,18 @@ export function renderUsersTable() {
         <td>
           <span style="color: ${roleColor}; font-weight: 500;">${roleText}</span>
         </td>
+        <td><span class="status-badge ${statusClass}">${statusText}</span></td>
         <td style="font-size: 0.8rem; color: var(--text-secondary);">${compName}</td>
         <td style="text-align: center;">
           <div style="display: inline-flex; gap: 0.5rem; justify-content: center;">
-            <button class="btn btn-secondary btn-sm btn-circle edit-user-btn" data-id="${u.id}" title="Sửa">
+            <button class="btn btn-secondary btn-sm btn-circle edit-user-btn" data-id="${u.id}" title="Sửa" ${protectedOwner || membershipStatus === 'invited' ? 'disabled' : ''}>
               <i data-lucide="edit-2" style="width: 13px; height: 13px;"></i>
             </button>
-            <button class="btn btn-danger btn-sm btn-circle delete-user-btn" data-id="${u.id}" title="Xóa">
-              <i data-lucide="trash-2" style="width: 13px; height: 13px;"></i>
+            <button class="btn btn-danger btn-sm btn-circle delete-user-btn" data-id="${u.id}" title="Khóa khỏi workspace" ${protectedOwner || !active ? 'disabled' : ''}>
+              <i data-lucide="user-x" style="width: 13px; height: 13px;"></i>
+            </button>
+            <button class="btn btn-warning btn-sm btn-circle transfer-owner-btn" data-id="${u.id}" title="Chuyển quyền Owner" ${!u.isExternal && canTransferOwner ? '' : 'disabled'}>
+              <i data-lucide="crown" style="width: 13px; height: 13px;"></i>
             </button>
           </div>
         </td>
@@ -82,8 +95,29 @@ export function renderUsersTable() {
       deleteUser(id);
     });
   });
+  document.querySelectorAll('.transfer-owner-btn').forEach(btn => {
+    btn.addEventListener('click', () => transferWorkspaceOwner(btn.getAttribute('data-id')));
+  });
   
   safeCreateIcons();
+}
+
+function syncUserTypeFields(isExternal) {
+  document.querySelectorAll('.external-person-field').forEach(field => {
+    field.style.display = isExternal ? 'block' : 'none';
+  });
+  const passwordGroup = document.getElementById('user-password')?.closest('.form-group');
+  const roleGroup = document.getElementById('user-role')?.closest('.form-group');
+  const statusSelect = document.getElementById('user-membership-status');
+  if (passwordGroup) passwordGroup.style.display = isExternal ? 'none' : 'block';
+  if (roleGroup) roleGroup.style.display = isExternal ? 'none' : 'block';
+  if (statusSelect) {
+    const wasInactive = ['inactive', 'suspended'].includes(statusSelect.value);
+    statusSelect.innerHTML = isExternal
+      ? '<option value="active">Đang hoạt động</option><option value="inactive">Ngừng hoạt động</option>'
+      : '<option value="active">Đang hoạt động</option><option value="suspended">Đã khóa</option>';
+    statusSelect.value = wasInactive ? (isExternal ? 'inactive' : 'suspended') : 'active';
+  }
 }
 
 export function openUserModal(userId = '') {
@@ -95,6 +129,8 @@ export function openUserModal(userId = '') {
   const passwordHelp = document.getElementById('user-password-help');
   const isExternalSelect = document.getElementById('user-is-external');
   const roleSelect = document.getElementById('user-role');
+  const statusSelect = document.getElementById('user-membership-status');
+  const statusGroup = document.getElementById('user-membership-status-group');
   
   if (!modal) return;
   modal.classList.add('active');
@@ -109,12 +145,15 @@ export function openUserModal(userId = '') {
     title.innerText = 'Thêm tài khoản mới';
     document.getElementById('user-edit-id').value = '';
     usernameInput.removeAttribute('disabled');
-    passwordInput.setAttribute('required', '');
+    passwordInput.removeAttribute('required');
     passwordHelp.style.display = 'block';
     
     if (isExternalSelect) isExternalSelect.value = 'false';
+    syncUserTypeFields(false);
     passwordInput.disabled = false;
     if (roleSelect) roleSelect.disabled = false;
+    if (statusSelect) statusSelect.value = 'active';
+    if (statusGroup) statusGroup.style.display = 'none';
     if (compSelect) compSelect.value = 'ABS_NORTH';
   } else {
     title.innerText = 'Chỉnh sửa tài khoản';
@@ -123,13 +162,21 @@ export function openUserModal(userId = '') {
     const user = state.users.find(u => u.id === userId);
     if (user) {
       usernameInput.value = user.username;
-      usernameInput.removeAttribute('disabled');
+      usernameInput.setAttribute('disabled', '');
       document.getElementById('user-displayname').value = user.displayName;
       if (roleSelect) roleSelect.value = user.role;
+      if (statusSelect) statusSelect.value = user.membershipStatus || (user.isActive === false ? 'suspended' : 'active');
+      if (statusGroup) statusGroup.style.display = 'block';
       if (compSelect) compSelect.value = user.companyId || user.company_id || 'ABS_NORTH';
       
       const isExt = user.isExternal || false;
       if (isExternalSelect) isExternalSelect.value = isExt ? 'true' : 'false';
+      syncUserTypeFields(isExt);
+      if (statusSelect) statusSelect.value = user.membershipStatus || (user.isActive === false ? (isExt ? 'inactive' : 'suspended') : 'active');
+      document.getElementById('user-phone').value = user.phone || '';
+      document.getElementById('user-job-title').value = user.jobTitle || '';
+      document.getElementById('user-employment-type').value = user.employmentType || 'employee';
+      if (isExt) usernameInput.removeAttribute('disabled');
       
       passwordInput.value = '';
       passwordInput.removeAttribute('required');
@@ -165,6 +212,97 @@ function openOwnPasswordModal() {
 
 function closeOwnPasswordModal() {
   document.getElementById('change-password-modal')?.classList.remove('active');
+}
+
+export function openInvitationPasswordSetup(flowType = 'invite') {
+  const modal = document.getElementById('invitation-password-modal');
+  const isRecovery = flowType === 'recovery';
+  const title = document.getElementById('invitation-password-title');
+  const intro = document.getElementById('invitation-password-intro');
+  const submit = document.getElementById('btn-complete-invitation');
+  if (title) title.textContent = isRecovery ? 'Đặt lại mật khẩu SoVie' : 'Hoàn tất lời mời SoVie';
+  if (intro) intro.textContent = isRecovery
+    ? 'Nhập mật khẩu mới cho tài khoản của bạn.'
+    : 'Thiết lập mật khẩu để dùng cho những lần đăng nhập tiếp theo.';
+  if (submit) submit.innerHTML = isRecovery
+    ? '<i data-lucide="key-round"></i> Lưu mật khẩu mới'
+    : '<i data-lucide="check-circle"></i> Hoàn tất tài khoản';
+  if (modal) modal.dataset.authFlowType = flowType;
+  document.getElementById('invitation-password-form')?.reset();
+  modal?.classList.add('active');
+  safeCreateIcons();
+  document.getElementById('invitation-new-password')?.focus();
+}
+
+export async function requestPasswordReset() {
+  const usernameInput = document.getElementById('login-username');
+  const email = String(usernameInput?.value || '').trim().toLowerCase();
+  if (!email || !email.includes('@')) {
+    showToast('Nhập email đã đăng ký để nhận liên kết đặt lại mật khẩu.', 'warning');
+    if (usernameInput) {
+      usernameInput.placeholder = 'Email đã đăng ký';
+      usernameInput.focus();
+    }
+    return;
+  }
+  if (!isCloudActive || !supabaseClient) {
+    showToast('Chưa kết nối được dịch vụ xác thực. Vui lòng thử lại sau.', 'danger');
+    return;
+  }
+
+  const button = document.getElementById('btn-forgot-password');
+  if (button) button.disabled = true;
+  try {
+    const redirectUrl = new URL(window.location.origin);
+    redirectUrl.pathname = window.location.pathname || '/';
+    redirectUrl.searchParams.set('type', 'recovery');
+    const { error } = await supabaseClient.auth.resetPasswordForEmail(email, {
+      redirectTo: redirectUrl.toString()
+    });
+    if (error) throw error;
+    showToast('Nếu email tồn tại, SoVie đã gửi liên kết đặt lại mật khẩu. Hãy kiểm tra cả thư rác.', 'success');
+  } catch (error) {
+    const code = classifySupabaseError(error);
+    showToast(code === LOGIN_ERROR.NETWORK
+      ? loginErrorMessage(LOGIN_ERROR.NETWORK)
+      : 'Chưa thể gửi email đặt lại mật khẩu. Vui lòng thử lại sau.', 'danger');
+  } finally {
+    if (button) button.disabled = false;
+  }
+}
+
+async function completeInvitationPassword(event) {
+  event.preventDefault();
+  const password = document.getElementById('invitation-new-password')?.value || '';
+  const confirmation = document.getElementById('invitation-confirm-password')?.value || '';
+  if (password.length < 8) {
+    showToast('Mật khẩu cần ít nhất 8 ký tự.', 'warning');
+    return;
+  }
+  if (password !== confirmation) {
+    showToast('Hai lần nhập mật khẩu không khớp.', 'warning');
+    return;
+  }
+  const button = document.getElementById('btn-complete-invitation');
+  if (button) button.disabled = true;
+  try {
+    const { error } = await supabaseClient.auth.updateUser({ password });
+    if (error) throw error;
+    const modal = document.getElementById('invitation-password-modal');
+    const isRecovery = modal?.dataset.authFlowType === 'recovery';
+    modal?.classList.remove('active');
+    const cleanUrl = new URL(window.location.href);
+    cleanUrl.hash = '';
+    cleanUrl.searchParams.delete('type');
+    history.replaceState(null, '', `${cleanUrl.pathname}${cleanUrl.search}`);
+    showToast(isRecovery
+      ? 'Đã đặt lại mật khẩu. Bạn có thể dùng mật khẩu mới từ bây giờ.'
+      : 'Đã thiết lập mật khẩu. Tài khoản của bạn đã sẵn sàng.', 'success');
+  } catch (error) {
+    showToast(error?.message || 'Không thể thiết lập mật khẩu.', 'danger');
+  } finally {
+    if (button) button.disabled = false;
+  }
 }
 
 async function changeOwnPassword(event) {
@@ -212,11 +350,12 @@ export async function saveUser() {
   const isExternal = isExternalSelect ? isExternalSelect.value === 'true' : false;
   
   let username = document.getElementById('user-username').value.trim().toLowerCase();
-  if (username && !username.includes('@')) {
+  if (!isExternal && username && !username.includes('@')) {
     username = `${username}@lendon.com`;
   }
   const displayName = document.getElementById('user-displayname').value.trim();
   const role = document.getElementById('user-role').value;
+  const membershipStatus = document.getElementById('user-membership-status')?.value || 'active';
   const initialPassword = document.getElementById('user-password')?.value || '';
   
   if (!username || !displayName) {
@@ -231,8 +370,8 @@ export async function saveUser() {
       showToast('Tên đăng nhập đã tồn tại trong hệ thống!', 'danger');
       return;
     }
-    if (!isExternal && initialPassword.length < 8) {
-      showToast('Mật khẩu khởi tạo phải có ít nhất 8 ký tự.', 'warning');
+    if (!isExternal && initialPassword.length > 0 && initialPassword.length < 8) {
+      showToast('Mật khẩu khởi tạo phải có ít nhất 8 ký tự, hoặc để trống để gửi email mời.', 'warning');
       return;
     }
     
@@ -243,7 +382,12 @@ export async function saveUser() {
       displayName,
       role: isExternal ? 'sale' : role,
       isExternal,
-      companyId
+      isActive: true,
+      membershipStatus: 'active',
+      companyId,
+      phone: isExternal ? document.getElementById('user-phone')?.value.trim() || '' : '',
+      jobTitle: isExternal ? document.getElementById('user-job-title')?.value.trim() || '' : '',
+      employmentType: isExternal ? document.getElementById('user-employment-type')?.value || 'employee' : ''
     };
   } else {
     const existingUser = state.users.find(u => u.id === editId);
@@ -262,7 +406,12 @@ export async function saveUser() {
       displayName,
       role: isExternal ? 'sale' : role,
       isExternal,
-      companyId
+      isActive: membershipStatus === 'active',
+      membershipStatus,
+      companyId,
+      phone: isExternal ? document.getElementById('user-phone')?.value.trim() || '' : '',
+      jobTitle: isExternal ? document.getElementById('user-job-title')?.value.trim() || '' : '',
+      employmentType: isExternal ? document.getElementById('user-employment-type')?.value || 'employee' : ''
     };
   }
   
@@ -285,7 +434,30 @@ export async function saveUser() {
     
     closeUserModal();
     renderAll();
-    showToast('Lưu thông tin tài khoản thành công!', 'success');
+    showToast(
+      user.isExternal ? 'Đã lưu nhân sự vào danh bạ workspace, không tạo tài khoản đăng nhập.'
+        : user.invitationSent ? 'Đã gửi email mời tham gia workspace.'
+        : user.existingAccount ? 'Đã thêm tài khoản Supabase hiện có vào workspace.'
+          : 'Lưu thông tin thành viên thành công!',
+      'success'
+    );
+  }
+}
+
+async function transferWorkspaceOwner(userId) {
+  const user = state.users.find(item => item.id === userId);
+  if (!user?.authUserId || state.currentUser?.organizationRole !== 'owner') return;
+  const confirmed = confirm(
+    `Chuyển toàn bộ quyền Owner workspace cho "${user.displayName}"? `
+    + 'Sau thao tác này, tài khoản của bạn sẽ trở thành Admin.'
+  );
+  if (!confirmed) return;
+  try {
+    await transferSaasOrganizationOwnership(user.authUserId);
+    showToast('Đã chuyển quyền Owner. Đang tải lại quyền workspace...', 'success');
+    window.location.reload();
+  } catch (error) {
+    showToast(error?.message || 'Không thể chuyển quyền Owner.', 'danger');
   }
 }
 
@@ -294,23 +466,29 @@ export async function deleteUser(userId) {
   if (!user) return;
   
   if (state.currentUser && state.currentUser.id === userId) {
-    showToast('Không thể tự xóa tài khoản của chính bạn đang đăng nhập!', 'danger');
+    showToast('Không thể tự khóa membership đang đăng nhập!', 'danger');
     return;
   }
   
-  if (user.username === 'admin' || user.username === 'nhat') {
-    if (state.users.filter(u => u.role === 'admin').length <= 1) {
-      showToast('Phải giữ lại ít nhất một tài khoản Admin hệ thống!', 'danger');
-      return;
-    }
+  if (user.role === 'owner') {
+    showToast('Owner không thể bị khóa từ màn hình quản trị thành viên.', 'danger');
+    return;
   }
   
-  if (confirm(`Bạn có chắc chắn muốn xóa tài khoản "${user.displayName}" (${user.username})?`)) {
+  const question = user.isExternal
+    ? `Chuyển nhân sự "${user.displayName}" sang trạng thái ngừng hoạt động?`
+    : `Khóa thành viên "${user.displayName}" khỏi workspace hiện tại? Tài khoản ở doanh nghiệp khác không bị ảnh hưởng.`;
+  if (confirm(question)) {
     const deleted = await dbDeleteUser(userId);
     if (deleted) {
-      state.users = state.users.filter(u => u.id !== userId);
+      if (user.isExternal) {
+        user.isActive = false;
+        user.membershipStatus = 'inactive';
+      } else {
+        state.users = state.users.filter(u => u.id !== userId);
+      }
       renderAll();
-      showToast('Xóa tài khoản thành công!', 'warning');
+      showToast(user.isExternal ? 'Đã ngừng hoạt động nhân sự.' : 'Đã khóa thành viên khỏi workspace hiện tại.', 'warning');
     }
   }
 }
@@ -387,12 +565,13 @@ function createLoginFlowError(code) {
 }
 
 export function clearAuthenticatedSessionState() {
+  clearPlatformAdminState();
+  clearTenantStorageContext();
+  resetTenantBusinessState();
   state.currentUser = null;
-  state.users = [];
-  state.pricelists = [];
-  state.allPricelists = [];
-  state.priceListItems = [];
-  state.allPriceListItems = [];
+  state.saasContext = null;
+  state.businessCapabilities = null;
+  state.activeOrganizationId = '';
   state.pricingSnapshotActorId = '';
   state.pricingSnapshotRole = '';
   state.pricingSnapshotSource = '';
@@ -428,6 +607,23 @@ export async function loadAuthenticatedProfile(authUserId) {
   const validation = validateProfileRows(profileRows || []);
   if (!validation.ok) throw createLoginFlowError(validation.code);
   return validation.profile;
+}
+
+export function createPlatformOnlyUser(profile) {
+  return {
+    id: profile.id,
+    authUserId: profile.auth_user_id,
+    username: profile.username,
+    displayName: profile.display_name,
+    role: 'platform',
+    organizationRole: '',
+    organizationId: '',
+    organizationName: '',
+    organizationSlug: '',
+    companyId: profile.company_id || '',
+    isExternal: false,
+    isActive: profile.is_active !== false
+  };
 }
 
 export async function handleLogin(e) {
@@ -494,17 +690,67 @@ export async function handleLogin(e) {
     }
 
     const profile = await loadAuthenticatedProfile(authUser.id);
+    const tenantContext = await loadSaasContext({ allowMissingOrganization: true });
+    if (!tenantContext) {
+      const platformRole = await hydratePlatformAdmin();
+      if (platformRole) {
+        state.currentUser = createPlatformOnlyUser(profile);
+        state.saasContext = null;
+        state.businessCapabilities = null;
+        state.activeOrganizationId = '';
+
+        document.getElementById('login-screen').style.display = 'none';
+        const landingPage = document.getElementById('landing-page');
+        if (landingPage) landingPage.style.display = 'none';
+        document.getElementById('app-layout').classList.remove('auth-hidden');
+        const userInfoHeader = document.getElementById('user-info-header');
+        if (userInfoHeader) userInfoHeader.style.display = 'flex';
+        const logoutBtn = document.getElementById('btn-logout');
+        if (logoutBtn) logoutBtn.style.display = 'inline-flex';
+        const userDisplay = document.getElementById('header-user-display');
+        if (userDisplay) userDisplay.innerText = `${state.currentUser.displayName} (Quản trị nền tảng)`;
+        applyUserPermissions(state.currentUser);
+        setMaintenanceNotice('', false);
+        switchTab('platform-admin-panel');
+        showToast(`Đăng nhập thành công! Chào mừng ${state.currentUser.displayName}!`, 'success');
+        return;
+      }
+      state.currentUser = {
+        id: profile.id,
+        authUserId: profile.auth_user_id,
+        username: profile.username,
+        displayName: profile.display_name,
+        role: 'admin',
+        organizationRole: 'owner',
+        organizationId: '',
+        organizationName: '',
+        organizationSlug: '',
+        companyId: profile.company_id || 'ABS_NORTH',
+        isExternal: profile.is_external === true,
+        isActive: profile.is_active !== false
+      };
+      openWorkspaceOnboarding({ required: true });
+      showToast('Tài khoản chưa có doanh nghiệp. Hãy tạo workspace đầu tiên.', 'warning');
+      return;
+    }
 
     const user = {
       id: profile.id,
       authUserId: profile.auth_user_id,
       username: profile.username,
       displayName: profile.display_name,
-      role: profile.role,
+      role: tenantContext.applicationRole,
+      organizationRole: tenantContext.organizationRole,
+      organizationId: tenantContext.organizationId,
+      organizationName: tenantContext.organizationName,
+      organizationSlug: tenantContext.organizationSlug,
       companyId: profile.company_id || 'ABS_NORTH',
       isExternal: profile.is_external === true,
       isActive: profile.is_active !== false
     };
+    state.saasContext = tenantContext;
+    state.businessCapabilities = tenantContext.capabilities;
+    state.activeOrganizationId = tenantContext.organizationId;
     const maintenance = await getMaintenanceStatus();
     if (maintenance.enabled && user.role !== 'admin') {
       const error = createLoginFlowError(LOGIN_ERROR.MAINTENANCE);
@@ -517,9 +763,21 @@ export async function handleLogin(e) {
       hydrateCustomerHistory: false,
       leanBootstrap: true
     });
-    state.currentUser = state.users.find(item => item.authUserId === authUser.id || item.id === profile.id) || user;
+    const loadedUser = state.users.find(item => item.authUserId === authUser.id || item.id === profile.id);
+    state.currentUser = loadedUser ? {
+      ...user,
+      ...loadedUser,
+      role: user.role,
+      organizationRole: user.organizationRole,
+      organizationId: user.organizationId,
+      organizationName: user.organizationName,
+      organizationSlug: user.organizationSlug
+    } : user;
+    await hydratePlatformAdmin();
 
     document.getElementById('login-screen').style.display = 'none';
+    const landingPage = document.getElementById('landing-page');
+    if (landingPage) landingPage.style.display = 'none';
     document.getElementById('app-layout').classList.remove('auth-hidden');
     const userInfoHeader = document.getElementById('user-info-header');
     if (userInfoHeader) userInfoHeader.style.display = 'flex';
@@ -527,12 +785,14 @@ export async function handleLogin(e) {
     if (logoutBtn) logoutBtn.style.display = 'inline-flex';
     const userDisplay = document.getElementById('header-user-display');
     if (userDisplay) {
-      const roleLabel = state.currentUser.role === 'admin' ? 'Admin' : state.currentUser.role === 'accounting' ? 'Kế toán' : 'Sale';
+      const roleLabel = state.platformRole ? 'Quản trị nền tảng' : state.currentUser.role === 'admin' ? 'Admin' : state.currentUser.role === 'accounting' ? 'Kế toán' : 'Sale';
       userDisplay.innerText = `${state.currentUser.displayName} (${roleLabel})`;
     }
     applyUserPermissions(state.currentUser);
+    renderWorkspaceSwitcher();
+    renderSubscriptionAccessNotice();
     setMaintenanceNotice('', false);
-    switchTab(state.currentUser.role === 'sale' ? 'invoice-panel' : 'dashboard-panel');
+    switchTab(state.platformRole ? 'platform-admin-panel' : state.currentUser.role === 'sale' ? 'invoice-panel' : 'dashboard-panel');
     void startRealtimeSync(renderAll);
     startMaintenanceMonitor();
     showToast(`Đăng nhập thành công! Chào mừng ${state.currentUser.displayName}!`, 'success');
@@ -588,9 +848,14 @@ export function showLoginGate() {
   const appLayout = document.getElementById('app-layout');
   const userInfoHeader = document.getElementById('user-info-header');
   const logoutBtn = document.getElementById('btn-logout');
+  const landingPage = document.getElementById('landing-page');
 
-  if (loginScreen) loginScreen.style.display = 'flex';
-  if (appLayout) appLayout.classList.add('auth-hidden');
+  if (landingPage) landingPage.style.display = 'block';
+  if (loginScreen) loginScreen.style.display = 'none';
+  if (appLayout) {
+    appLayout.classList.add('auth-hidden');
+    delete appLayout.dataset.uiRole;
+  }
   if (userInfoHeader) userInfoHeader.style.display = 'none';
   if (logoutBtn) logoutBtn.style.display = 'none';
 }
@@ -598,8 +863,18 @@ export function showLoginGate() {
 export function applyUserPermissions(user) {
   if (!user) return;
   const role = user.role;
+  const platformOnly = Boolean(state.platformRole && !user.organizationId);
+  const appLayout = document.getElementById('app-layout');
+  const visualRole = platformOnly ? 'platform' : ['admin', 'accounting', 'sale'].includes(role) ? role : 'admin';
+  if (appLayout) appLayout.dataset.uiRole = visualRole;
+  const roleChip = document.getElementById('header-role-chip');
+  if (roleChip) {
+    const labels = { platform: 'Nền tảng', admin: 'Quản lý', accounting: 'Kế toán', sale: 'Bán hàng' };
+    roleChip.querySelector('span').textContent = labels[visualRole];
+    roleChip.setAttribute('aria-label', `Không gian ${labels[visualRole]}`);
+  }
   const activityButton = document.getElementById('btn-activity-log');
-  if (activityButton) activityButton.closest('.activity-header-wrap').style.display = ['admin', 'accounting'].includes(role) ? 'block' : 'none';
+  if (activityButton) activityButton.closest('.activity-header-wrap').style.display = !platformOnly && ['admin', 'accounting'].includes(role) ? 'block' : 'none';
 
   const invoiceDateGroup = document.getElementById('invoice-business-date-group');
   const invoiceDateInput = document.getElementById('invoice-business-date');
@@ -612,6 +887,14 @@ export function applyUserPermissions(user) {
     const target = link.getAttribute('data-target');
     const navItem = link.parentElement;
     if (!target) return;
+    if (platformOnly) {
+      navItem.style.display = target === 'platform-admin-panel' ? 'block' : 'none';
+      return;
+    }
+    if (target === 'platform-admin-panel') {
+      navItem.style.display = state.platformRole ? 'block' : 'none';
+      return;
+    }
     
     if (role === 'sale') {
       if (target === 'invoice-panel' || target === 'customers-panel' || target === 'history-panel' || target === 'brands-panel') {
@@ -632,17 +915,24 @@ export function applyUserPermissions(user) {
 
   const purchaseNavItem = document.querySelector('.purchase-nav-item');
   if (purchaseNavItem) {
-    purchaseNavItem.style.display = role === 'sale' ? 'none' : 'block';
+    purchaseNavItem.style.display = platformOnly || role === 'sale' ? 'none' : 'block';
   }
   const staffNavItem = document.querySelector('.staff-nav-item');
   if (staffNavItem) {
-    staffNavItem.style.display = role === 'sale' ? 'none' : 'block';
+    staffNavItem.style.display = platformOnly || role === 'sale' ? 'none' : 'block';
   }
+
+  const workspaceSwitcher = document.querySelector('.workspace-switcher');
+  if (workspaceSwitcher) workspaceSwitcher.style.display = platformOnly ? 'none' : '';
 
   // Hiding dropdown items based on role
   const dropdownNavLinks = document.querySelectorAll('.dropdown-nav-link');
   dropdownNavLinks.forEach(link => {
     const target = link.getAttribute('data-target');
+    if (platformOnly) {
+      link.style.display = 'none';
+      return;
+    }
     if (role === 'sale' || role === 'accounting') {
       if (target === 'users-panel' || target === 'settings-panel') {
         link.style.display = 'none';
@@ -749,10 +1039,13 @@ export function setupUserManagement() {
   document.getElementById('btn-close-change-password')?.addEventListener('click', closeOwnPasswordModal);
   document.getElementById('btn-cancel-change-password')?.addEventListener('click', closeOwnPasswordModal);
   document.getElementById('change-password-form')?.addEventListener('submit', changeOwnPassword);
+  document.getElementById('invitation-password-form')?.addEventListener('submit', completeInvitationPassword);
+  document.getElementById('btn-forgot-password')?.addEventListener('click', requestPasswordReset);
   
   if (isExternalSelect) {
     isExternalSelect.addEventListener('change', () => {
       const isExt = isExternalSelect.value === 'true';
+      syncUserTypeFields(isExt);
       if (isExt) {
         if (passwordInput) {
           passwordInput.removeAttribute('required');
@@ -766,8 +1059,7 @@ export function setupUserManagement() {
       } else {
         if (passwordInput) {
           const isNew = !document.getElementById('user-edit-id')?.value;
-          if (isNew) passwordInput.setAttribute('required', '');
-          else passwordInput.removeAttribute('required');
+          passwordInput.removeAttribute('required');
           passwordInput.value = '';
           passwordInput.disabled = !isNew;
         }

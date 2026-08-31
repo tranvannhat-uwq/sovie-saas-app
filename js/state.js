@@ -27,6 +27,13 @@ export const state = {
   selectedPriceListIds: [],
   users: [],
   currentUser: null,
+  saasContext: null,
+  businessCapabilities: null,
+  platformRole: '',
+  platformOrganizations: [],
+  platformSummary: null,
+  platformPlans: [],
+  activeOrganizationId: '',
   activeCustomerId: '',
   activeCustomerBrand: 'Tất cả',
   currentTab: 'dashboard-panel',
@@ -57,3 +64,29 @@ export const state = {
   dashboardSalesMode: 'net', // 'net' (after returns) or 'gross' (original)
   historyViewMode: localStorage.getItem('historyViewMode') || 'card' // 'card' or 'details'
 };
+
+export function resetTenantBusinessState() {
+  state.products = [];
+  state.brands = [];
+  state.companies = [];
+  state.invoiceItems = [];
+  state.savedOrders = [];
+  state.cashbookOpeningNetByMethod = null;
+  state.cashbookOpeningStartIso = '';
+  state.customers = [];
+  state.pricelists = [];
+  state.allPricelists = [];
+  state.priceListItems = [];
+  state.allPriceListItems = [];
+  state.users = [];
+  state.suppliers = [];
+  state.purchases = [];
+  state.rawMaterials = [];
+  state.semiFinished = [];
+  state.recipes = [];
+  state.productionLogs = [];
+  state.finishedGoodsStock = [];
+  state.salesReturns = [];
+  state.activeCustomerId = '';
+  state.activeCustomerBrand = 'Tất cả';
+}

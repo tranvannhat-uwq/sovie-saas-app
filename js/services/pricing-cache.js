@@ -6,7 +6,10 @@ const SNAPSHOT_VERSION = 1;
 function normalizeActor(user) {
   const actorId = String(user?.authUserId || user?.auth_user_id || user?.id || '').trim();
   const role = String(user?.role || '').trim().toLowerCase();
-  return actorId && role ? { actorId, role, key: `${actorId}::${role}` } : null;
+  const organizationId = String(user?.organizationId || user?.organization_id || '').trim();
+  return actorId && role && organizationId
+    ? { actorId, role, organizationId, key: `${organizationId}::${actorId}::${role}` }
+    : null;
 }
 
 function openDatabase() {
@@ -54,11 +57,13 @@ export async function loadAuthorizedPricingCache(user) {
     if (!database) return null;
     const snapshot = await runTransaction(database, 'readonly', store => store.get(actor.key));
     if (!snapshot || snapshot.version !== SNAPSHOT_VERSION) return null;
-    if (snapshot.actorId !== actor.actorId || snapshot.role !== actor.role) return null;
+    if (snapshot.actorId !== actor.actorId || snapshot.role !== actor.role ||
+        snapshot.organizationId !== actor.organizationId) return null;
     if (!Array.isArray(snapshot.priceLists) || !Array.isArray(snapshot.priceListItems)) return null;
     return {
       actorId: snapshot.actorId,
       role: snapshot.role,
+      organizationId: snapshot.organizationId,
       cachedAt: snapshot.cachedAt || '',
       priceLists: snapshot.priceLists,
       priceListItems: snapshot.priceListItems
@@ -83,6 +88,7 @@ export async function saveAuthorizedPricingCache(user, priceLists, priceListItem
       version: SNAPSHOT_VERSION,
       actorId: actor.actorId,
       role: actor.role,
+      organizationId: actor.organizationId,
       cachedAt: new Date().toISOString(),
       priceLists,
       priceListItems

@@ -5,12 +5,16 @@
 - Supabase/PostgreSQL is authoritative. Browser cache is read-only fallback.
 - Offline business writes are disabled until an idempotent outbox, row versions
   and conflict resolution exist.
-- Excel export is a versioned inspection/export artifact. It is not replayed
-  into the live database.
+- Excel export is a versioned, single-tenant inspection/export artifact. It is
+  bound to the active organization and is not replayed into the live database.
 - A full restore is allowed only into a new, empty staging database.
 - Inventory, production, KPI and payroll are outside this phase.
 
 ## Create a full database backup
+
+The current Supabase staging project is on Free, which does not include
+scheduled project backups. Keep the application tenant export available now;
+enable scheduled backups (or PITR where required) before production traffic.
 
 Set `P0_DATABASE_URL` only in the current PowerShell process, then run:
 
@@ -45,8 +49,9 @@ In the Admin settings screen:
 3. Run dry-run.
 4. Review version, missing sheets, row counts and duplicate keys.
 
-Dry-run never writes to Supabase. Use the database restore procedure above for
-disaster recovery.
+Dry-run verifies tenant identity, version, required sheets, manifest row counts
+and duplicate keys, and never writes to Supabase. Use the database restore
+procedure above for disaster recovery.
 
 ## Stabilization checks
 
@@ -57,4 +62,3 @@ disaster recovery.
    reversal ledger histories.
 5. Compare source and restored row counts and financial totals before any later
    production rollout is approved.
-

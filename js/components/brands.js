@@ -1,7 +1,8 @@
 import { state } from '../state.js';
 import { showToast, safeCreateIcons, getBrandById } from '../utils.js';
-import { dbSaveBrand, dbDeleteBrand, dbRenameBrandProducts } from '../services/supabase.js?v=20260814-invoice-discount-label-v19';
-import { renderAll } from '../main.js?v=20260814-invoice-discount-label-v19';
+import { dbSaveBrand, dbDeleteBrand, dbRenameBrandProducts } from '../services/supabase.js?v=20260829-onboarding-v1';
+import { renderAll } from '../main.js?v=20260829-onboarding-v1';
+import { tenantStorage } from '../services/tenant-storage.js';
 
 export function renderBrandsTable() {
   const tableBody = document.getElementById('brands-table-body');
@@ -219,7 +220,7 @@ async function saveBrand() {
             p.brandId = id;
           }
         });
-        localStorage.setItem('billing_system_products', JSON.stringify(state.products));
+        tenantStorage.setItem('billing_system_products', JSON.stringify(state.products));
         await dbRenameBrandProducts(id, oldName, name);
 
         // Cập nhật Khách hàng
@@ -230,7 +231,7 @@ async function saveBrand() {
             delete c.brandDiscounts[oldName];
           }
         });
-        localStorage.setItem('billing_system_customers', JSON.stringify(state.customers));
+        tenantStorage.setItem('billing_system_customers', JSON.stringify(state.customers));
 
         // Cập nhật Bảng giá
         (state.pricelists || []).forEach(pl => {
@@ -255,7 +256,7 @@ async function saveBrand() {
     }
     
     // Đồng bộ lại local storage
-    localStorage.setItem('billing_system_brands', JSON.stringify(state.brands));
+    tenantStorage.setItem('billing_system_brands', JSON.stringify(state.brands));
     
     closeBrandModal();
     renderAll();
@@ -267,7 +268,7 @@ async function deleteBrand(name) {
     const success = await dbDeleteBrand(name);
     if (success) {
       state.brands = state.brands.filter(b => b.name !== name);
-      localStorage.setItem('billing_system_brands', JSON.stringify(state.brands));
+      tenantStorage.setItem('billing_system_brands', JSON.stringify(state.brands));
       showToast(`Đã xóa hãng sơn "${name}"!`);
       renderAll();
     }

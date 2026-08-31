@@ -1,11 +1,12 @@
 import { state } from '../state.js';
 import { showToast, formatCurrency, safeCreateIcons, formatPhoneNumber, isSameUser, getProvinceNameByCode, getManagerDisplayName, PROVINCES, makeSelectSearchable, getCompanyIdByBrand, normalizeCompanyId, formatDateOnly } from '../utils.js';
-import { dbSaveCustomer, dbDeleteCustomer, dbDeleteCustomersBulk, dbSaveCustomersBulk, dbImportCustomerFinancialBaselines, dbFetchCustomers, dbFetchCustomerById, dbRefreshCustomerFinancialState, dbRefreshOrderById, dbFetchCashbookTransactionById, dbRecordCustomerPayment, dbAdjustCustomerDebt, dbFetchCustomerOrderHistory, dbFetchCustomersOrderHistory } from '../services/supabase.js?v=20260814-invoice-discount-label-v19';
-import { renderAll } from '../main.js?v=20260814-invoice-discount-label-v19';
-import { applyActivePriceListToInvoice, resetInvoiceCustomer } from './invoice.js?v=20260814-invoice-discount-label-v19';
-import { addCashbookTransaction } from './so_quy.js?v=20260814-invoice-discount-label-v19';
-import { getOrderFinancialBreakdown } from '../domain/order-financials.js?v=20260814-invoice-discount-label-v19';
-import { buildCustomerDebtDisplayHistory, collectCustomerDebt, getCustomerDebtPostingDate } from '../domain/customer-debt.js?v=20260814-invoice-discount-label-v19';
+import { dbSaveCustomer, dbDeleteCustomer, dbDeleteCustomersBulk, dbSaveCustomersBulk, dbImportCustomerFinancialBaselines, dbFetchCustomers, dbFetchCustomerById, dbRefreshCustomerFinancialState, dbRefreshOrderById, dbFetchCashbookTransactionById, dbRecordCustomerPayment, dbAdjustCustomerDebt, dbFetchCustomerOrderHistory, dbFetchCustomersOrderHistory } from '../services/supabase.js?v=20260829-onboarding-v1';
+import { renderAll } from '../main.js?v=20260829-onboarding-v1';
+import { tenantStorage } from '../services/tenant-storage.js';
+import { applyActivePriceListToInvoice, resetInvoiceCustomer } from './invoice.js?v=20260829-onboarding-v1';
+import { addCashbookTransaction } from './so_quy.js?v=20260829-onboarding-v1';
+import { getOrderFinancialBreakdown } from '../domain/order-financials.js?v=20260829-onboarding-v1';
+import { buildCustomerDebtDisplayHistory, collectCustomerDebt, getCustomerDebtPostingDate } from '../domain/customer-debt.js?v=20260829-onboarding-v1';
 import { businessDateKey, parseExcelDate } from '../domain/import-date.js';
 import { buildCustomerImportColumnMap, normalizeExcelHeader, normalizeExcelSheetName } from '../domain/customer-import-columns.js';
 import { customerDateKey, customerDaysSince, finiteCustomerNumber, normalizeCustomerSearch, queryCustomerRows } from '../domain/customer-query.js';
@@ -75,7 +76,7 @@ const CUSTOMER_COLUMN_DEFINITIONS = [
 function getVisibleCustomerColumns() {
   const allKeys = CUSTOMER_COLUMN_DEFINITIONS.map(column => column.key);
   try {
-    const saved = JSON.parse(localStorage.getItem(CUSTOMER_COLUMN_STORAGE_KEY) || 'null');
+    const saved = JSON.parse(tenantStorage.getItem(CUSTOMER_COLUMN_STORAGE_KEY) || 'null');
     if (Array.isArray(saved)) {
       return new Set(saved.filter(key => allKeys.includes(key)));
     }
@@ -86,7 +87,7 @@ function getVisibleCustomerColumns() {
 }
 
 function saveVisibleCustomerColumns(visibleColumns) {
-  localStorage.setItem(
+  tenantStorage.setItem(
     CUSTOMER_COLUMN_STORAGE_KEY,
     JSON.stringify(CUSTOMER_COLUMN_DEFINITIONS.map(column => column.key).filter(key => visibleColumns.has(key)))
   );
@@ -175,7 +176,7 @@ function setupCustomerColumnPicker() {
   });
 
   resetButton?.addEventListener('click', () => {
-    localStorage.removeItem(CUSTOMER_COLUMN_STORAGE_KEY);
+    tenantStorage.removeItem(CUSTOMER_COLUMN_STORAGE_KEY);
     applyCustomerColumnVisibility();
   });
 
@@ -1326,7 +1327,11 @@ export async function saveCustomer() {
   const debtHistory = oldCust ? [...(oldCust.debtHistory || [])] : [];
   
   const matchedCustBrand = (state.brands || []).find(b => b.name.toLowerCase() === (assignedBrand || '').toLowerCase() || b.id === assignedBrand);
-  const assignedBrandId = matchedCustBrand ? matchedCustBrand.id : (assignedBrand === 'Tất cả' ? 'Tất cả' : ('brand_' + String(assignedBrand).toLowerCase().replace(/[^a-z0-9]/g, '')));
+  // "Tất cả" is a legacy UI sentinel, not a row in public.brands. Persisting
+  // it as an id violates the customer -> brand foreign key in cloud mode.
+  const assignedBrandId = assignedBrand === 'Tất cả'
+    ? null
+    : (matchedCustBrand ? matchedCustBrand.id : null);
 
   const customerData = {
     id: customerId,
@@ -1392,7 +1397,7 @@ export async function saveCustomer() {
     // Cập nhật State local
     const idx = state.customers.findIndex(c => c.id === customerId);
     if (idx === -1) state.customers.push(customerData);
-    localStorage.setItem('billing_system_customers', JSON.stringify(state.customers));
+    tenantStorage.setItem('billing_system_customers', JSON.stringify(state.customers));
     
     closeCustomerModal();
     renderAll();
@@ -1413,7 +1418,7 @@ export async function deleteCustomer(index) {
         resetInvoiceCustomer();
       }
       state.customers = state.customers.filter(c => c.id !== cust.id);
-      localStorage.setItem('billing_system_customers', JSON.stringify(state.customers));
+      tenantStorage.setItem('billing_system_customers', JSON.stringify(state.customers));
       renderAll();
       showToast('Xóa khách hàng thành công!', 'warning');
     }
@@ -1501,7 +1506,7 @@ export async function handlePayDebtSubmit(e) {
     });
   }
   
-  localStorage.setItem('billing_system_customers', JSON.stringify(state.customers));
+  tenantStorage.setItem('billing_system_customers', JSON.stringify(state.customers));
   addCashbookTransaction({
       type: 'thu',
       category: 'Thu tiền khách hàng / Trả trước',
@@ -1585,7 +1590,7 @@ export async function handleCustomerDebtAdjustSubmit(event) {
     const debtInput = document.getElementById('cust-debt');
     if (debtInput) debtInput.value = Number(refreshed.debt || 0);
   }
-  localStorage.setItem('billing_system_customers', JSON.stringify(state.customers));
+  tenantStorage.setItem('billing_system_customers', JSON.stringify(state.customers));
   closeCustomerDebtAdjustModal();
   renderAll();
   const refreshNote = refreshedFromCloud ? '' : ' Hãy tải lại trang để đồng bộ đầy đủ lịch sử.';
@@ -2351,7 +2356,7 @@ function buildHistoryOrderExportRow(order, customer) {
 
 function getSavedCustomerOrderExportColumns() {
   try {
-    const parsed = JSON.parse(localStorage.getItem(CUSTOMER_ORDER_EXPORT_COLUMNS_STORAGE_KEY) || '[]');
+    const parsed = JSON.parse(tenantStorage.getItem(CUSTOMER_ORDER_EXPORT_COLUMNS_STORAGE_KEY) || '[]');
     const allowed = new Set(DEFAULT_CUSTOMER_ORDER_EXPORT_COLUMNS);
     const valid = parsed.filter(col => allowed.has(col));
     return valid.length > 0 ? valid : DEFAULT_CUSTOMER_ORDER_EXPORT_COLUMNS;
@@ -2714,7 +2719,7 @@ async function exportCustomerOrderHistoryExcel() {
     showToast('Vui lòng chọn ít nhất một cột để xuất.', 'warning');
     return;
   }
-  localStorage.setItem(CUSTOMER_ORDER_EXPORT_COLUMNS_STORAGE_KEY, JSON.stringify(selectedColumns));
+  tenantStorage.setItem(CUSTOMER_ORDER_EXPORT_COLUMNS_STORAGE_KEY, JSON.stringify(selectedColumns));
 
   const submitBtn = document.getElementById('btn-submit-customer-order-export');
   if (submitBtn) {
@@ -2865,7 +2870,7 @@ function debtSourceMeta(label, value) {
 
 function getCachedCashbookTransactions() {
   try {
-    const parsed = JSON.parse(localStorage.getItem('billing_system_cashbook_transactions') || '[]');
+    const parsed = JSON.parse(tenantStorage.getItem('billing_system_cashbook_transactions') || '[]');
     return Array.isArray(parsed) ? parsed : [];
   } catch (_error) {
     return [];
@@ -3674,7 +3679,7 @@ async function processCustomerExcelImport() {
       if (!financialsSaved) return;
 
       const expectedTotals = calculateCustomerTotals(uniqueImportData);
-      localStorage.setItem('billing_system_customers', JSON.stringify(state.customers));
+      tenantStorage.setItem('billing_system_customers', JSON.stringify(state.customers));
       const refreshedFromCloud = await dbFetchCustomers();
       const persistedImportData = refreshedFromCloud
         ? state.customers.filter(customer => importedIds.has(customer.id))

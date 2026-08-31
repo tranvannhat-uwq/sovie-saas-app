@@ -4,48 +4,84 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="stylesheet" href="../style.css">
+  <link rel="stylesheet" href="../ui-system.css">
   <title>Navigation theme harness</title>
 </head>
 <body>
   <script>window.__app_initialized = true;</script>
-  <aside class="sidebar" style="position:relative;">
+  <div class="app-container" id="app-layout" data-ui-role="admin" data-nav-layout="vertical">
+  <aside class="sidebar">
     <div class="brand"><div class="brand-project-logo"><img src="../sovie-logo.png?v=20260815-sovie-v2" alt="SoVie"></div></div>
-    <nav class="nav-menu">
+    <nav class="app-navigation" aria-label="Điều hướng nghiệp vụ"><ul class="nav-menu">
       <li class="nav-item"><a class="nav-link active">Tổng quan</a></li>
       <li class="nav-item purchase-nav-item">
         <button type="button" class="nav-link purchase-menu-trigger">Mua hàng</button>
-        <div class="purchase-menu" style="display:grid">
+        <div class="purchase-menu">
           <div class="purchase-menu-section"><div class="purchase-menu-heading">Nhà cung cấp</div><a class="purchase-menu-link nav-link">Nhà cung cấp</a></div>
           <div class="purchase-menu-section"><div class="purchase-menu-heading">Mua hàng</div><a class="purchase-menu-link nav-link">Phiếu mua hàng</a></div>
         </div>
       </li>
       <li class="nav-item staff-nav-item">
         <button type="button" class="nav-link staff-menu-trigger">Quản lý nhân viên</button>
-        <div class="staff-menu" style="display:grid;position:absolute;top:45px;left:0">
+        <div class="staff-menu">
           <div class="staff-menu-item"><a class="staff-menu-link nav-link">Quản lý tài khoản</a></div>
           <div class="staff-menu-item"><a class="staff-menu-link nav-link">Báo cáo nghiệp vụ</a></div>
         </div>
       </li>
-    </nav>
+    </ul></nav>
     <div class="sidebar-actions">
       <div class="global-settings-dropdown" style="position:relative;">
         <button type="button" class="btn-settings-toggle" id="btn-settings-toggle">⚙</button>
-        <div class="global-settings-menu" id="global-settings-menu" style="display:block;position:absolute;right:0;top:45px;background:#fff;width:260px;padding:.5rem 0;">
+        <div class="global-settings-menu" id="global-settings-menu">
+          <div class="nav-layout-settings" id="nav-layout-settings">
+            <div class="nav-layout-options">
+              <button type="button" class="nav-layout-option" data-nav-layout="vertical">Dọc bên trái</button>
+              <button type="button" class="nav-layout-option" data-nav-layout="horizontal">Ngang phía trên</button>
+            </div>
+          </div>
           <div class="nav-color-settings" id="nav-color-settings">
             <div class="nav-color-settings-title"><span>Màu thanh điều hướng</span></div>
             <div class="nav-color-swatches">
-              <button type="button" class="nav-color-swatch" data-nav-color="#22c55e" style="--swatch-color:#22c55e"></button>
+              <button type="button" class="nav-color-swatch" data-nav-color="#0b365f" style="--swatch-color:#0b365f"></button>
               <button type="button" class="nav-color-swatch" data-nav-color="#0e59f2" style="--swatch-color:#0e59f2"></button>
             </div>
-            <div class="nav-color-custom-row"><label for="nav-color-picker">Màu tùy chọn</label><input type="color" id="nav-color-picker" value="#22c55e"><button type="button" id="btn-reset-nav-color">Mặc định</button></div>
+            <div class="nav-color-custom-row"><label for="nav-color-picker">Màu tùy chọn</label><input type="color" id="nav-color-picker" value="#0b365f"><button type="button" id="btn-reset-nav-color">Mặc định</button></div>
           </div>
         </div>
       </div>
     </div>
   </aside>
+  <main class="main-content">
+    <header class="top-header">
+      <div class="page-heading-block">
+        <div class="page-heading-row"><h1 class="page-title">Tổng quan hệ thống</h1><span class="header-role-chip">Quản lý</span></div>
+        <div class="page-context-row"><p>Hôm nay: 25/08/2026</p><span class="db-status-badge status-cloud">Cloud sẵn sàng</span></div>
+      </div>
+    </header>
+    <section id="dashboard-panel" class="panel active">
+      <div class="dashboard-toolbar glass-panel">
+        <div class="filter-row-1">
+          <div class="filter-group"><label class="filter-label">Khoảng thời gian</label><select class="dashboard-filter-control"><option>Tháng này</option></select></div>
+          <div class="filter-group"><label class="filter-label">Công ty</label><select class="dashboard-filter-control"><option>Tất cả công ty</option></select></div>
+          <div class="filter-group"><label class="filter-label">Nhân viên</label><select class="dashboard-filter-control"><option>Tất cả nhân viên</option></select></div>
+        </div>
+      </div>
+      <div class="widgets-grid">
+        <article class="widget-card"><div class="widget-info"><span class="widget-label">Doanh thu</span><strong class="widget-value">2,48 tỷ</strong></div><div class="widget-icon-wrapper widget-icon-emerald">₫</div></article>
+        <article class="widget-card"><div class="widget-info"><span class="widget-label">Đơn hàng</span><strong class="widget-value">1.286</strong></div><div class="widget-icon-wrapper widget-icon-indigo">#</div></article>
+        <article class="widget-card"><div class="widget-info"><span class="widget-label">Khách hàng</span><strong class="widget-value">842</strong></div><div class="widget-icon-wrapper widget-icon-danger">+</div></article>
+      </div>
+      <div class="glass-panel">
+        <div class="panel-header"><h2 class="panel-title">Đơn hàng gần đây</h2><button class="btn btn-primary">Tạo đơn hàng</button></div>
+        <div class="table-responsive"><table class="table"><thead><tr><th>Mã đơn</th><th>Khách hàng</th><th>Trạng thái</th><th>Tổng tiền</th></tr></thead><tbody><tr><td><strong>SV-2486</strong></td><td>Công ty Minh Anh</td><td><span class="status-badge status-completed">Hoàn tất</span></td><td><strong>12.680.000đ</strong></td></tr><tr><td><strong>SV-2485</strong></td><td>Đại lý Thành Công</td><td><span class="status-badge status-pending">Đang xử lý</span></td><td><strong>8.450.000đ</strong></td></tr></tbody></table></div>
+      </div>
+    </section>
+  </main>
+  </div>
   <script type="module">
-    import { setupNavigationColorSettings } from '../js/components/navigation-theme.js';
+    import { setupNavigationColorSettings, setupNavigationDropdowns } from '../js/components/navigation-theme.js';
     setupNavigationColorSettings();
+    setupNavigationDropdowns();
     document.body.dataset.ready = 'true';
   </script>
 </body>

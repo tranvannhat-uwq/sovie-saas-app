@@ -1,23 +1,25 @@
 import { state } from './state.js';
 import { COMPANY_SUPABASE_URL, COMPANY_SUPABASE_KEY, defaultProducts } from './config.js';
-import { connectSupabase, disconnectSupabase, retrySupabaseConnection, syncLocalToCloud, isCloudActive, supabaseClient, loadLocalStorageBackup, backfillMultiCompanyAndRevenueData, clearSupabaseAuthStorage, fetchCloudData, getMaintenanceStatus, setMaintenanceMode } from './services/supabase.js?v=20260814-invoice-discount-label-v19';
-import { setupBackupRestoreListeners } from './services/backup.js?v=20260814-invoice-discount-label-v19';
-import { updateDashboardStats, setupDashboardFilters, setupDashboardQuickActions } from './components/dashboard.js?v=20260814-invoice-discount-label-v19';
-import { renderProductsTable, setupExcelImportAndTemplate, setupProductManagement } from './components/products.js?v=20260814-invoice-discount-label-v19';
-import { renderCustomersTable, setupCustomerManagement, populateManagedByDropdown } from './components/customers.js?v=20260814-invoice-discount-label-v19';
-import { renderInvoiceTable, setupInvoiceCreator, resetInvoiceBuilder, resetInvoiceCustomer } from './components/invoice.js?v=20260814-invoice-discount-label-v19';
-import { renderPricelistsTable, setupPricelistManagement, populatePricelistsDropdowns } from './components/pricelists.js?v=20260814-invoice-discount-label-v19';
-import { renderUsersTable, setupUserManagement, handleLogin, handleLogout, showLoginGate, applyUserPermissions, populateCustomerEmployeeFilter, loadAuthenticatedProfile, clearAuthenticatedSessionState, startMaintenanceMonitor } from './components/users.js?v=20260814-invoice-discount-label-v19';
-import { setupHistoryPanel, renderHistoryOrders } from './components/history.js?v=20260814-invoice-discount-label-v19';
-import { renderBrandsTable, setupBrandsPanel } from './components/brands.js?v=20260814-invoice-discount-label-v19';
-import { setupSoQuyPanel, renderSoQuyTable } from './components/so_quy.js?v=20260814-invoice-discount-label-v19';
-import { renderSuppliersTable, setupSupplierManagement, populateSupplierDatalist } from './components/suppliers.js?v=20260814-invoice-discount-label-v19';
-import { renderGoodsPanel, setupGoodsPanel } from './components/goods.js?v=20260814-invoice-discount-label-v19';
-import { setupReportsPanel, renderDebtReport, renderReturnsReport } from './components/reports.js?v=20260814-invoice-discount-label-v19';
+import { connectSupabase, disconnectSupabase, retrySupabaseConnection, syncLocalToCloud, isCloudActive, supabaseClient, loadLocalStorageBackup, backfillMultiCompanyAndRevenueData, clearSupabaseAuthStorage, fetchCloudData, getMaintenanceStatus, setMaintenanceMode, loadSaasContext } from './services/supabase.js?v=20260829-onboarding-v1';
+import { setupBackupRestoreListeners } from './services/backup.js?v=20260829-onboarding-v1';
+import { updateDashboardStats, setupDashboardFilters, setupDashboardQuickActions } from './components/dashboard.js?v=20260829-onboarding-v1';
+import { renderProductsTable, setupExcelImportAndTemplate, setupProductManagement } from './components/products.js?v=20260829-onboarding-v1';
+import { renderCustomersTable, setupCustomerManagement, populateManagedByDropdown } from './components/customers.js?v=20260829-onboarding-v1';
+import { renderInvoiceTable, setupInvoiceCreator, resetInvoiceBuilder, resetInvoiceCustomer } from './components/invoice.js?v=20260829-onboarding-v1';
+import { renderPricelistsTable, setupPricelistManagement, populatePricelistsDropdowns } from './components/pricelists.js?v=20260829-onboarding-v1';
+import { renderUsersTable, setupUserManagement, handleLogin, handleLogout, showLoginGate, applyUserPermissions, populateCustomerEmployeeFilter, loadAuthenticatedProfile, createPlatformOnlyUser, clearAuthenticatedSessionState, startMaintenanceMonitor, openInvitationPasswordSetup } from './components/users.js?v=20260829-onboarding-v1';
+import { setupHistoryPanel, renderHistoryOrders } from './components/history.js?v=20260829-onboarding-v1';
+import { renderBrandsTable, setupBrandsPanel } from './components/brands.js?v=20260829-onboarding-v1';
+import { setupSoQuyPanel, renderSoQuyTable } from './components/so_quy.js?v=20260829-onboarding-v1';
+import { renderSuppliersTable, setupSupplierManagement, populateSupplierDatalist } from './components/suppliers.js?v=20260829-onboarding-v1';
+import { renderGoodsPanel, setupGoodsPanel } from './components/goods.js?v=20260829-onboarding-v1';
+import { setupReportsPanel, renderDebtReport, renderReturnsReport } from './components/reports.js?v=20260829-onboarding-v1';
 import { showToast, safeCreateIcons, updateDbStatusUI } from './utils.js';
-import { startRealtimeSync, stopRealtimeSync } from './services/realtime.js?v=20260814-invoice-discount-label-v19';
-import { setupActivityLog, renderActivityLog } from './components/activity-log.js?v=20260814-invoice-discount-label-v19';
-import { setupNavigationColorSettings } from './components/navigation-theme.js?v=20260814-invoice-discount-label-v19';
+import { startRealtimeSync, stopRealtimeSync } from './services/realtime.js?v=20260829-onboarding-v1';
+import { setupActivityLog, renderActivityLog } from './components/activity-log.js?v=20260829-onboarding-v1';
+import { setupNavigationColorSettings, setupNavigationDropdowns } from './components/navigation-theme.js?v=20260829-onboarding-v1';
+import { openWorkspaceOnboarding, renderWorkspaceSwitcher, renderSubscriptionAccessNotice, setupWorkspaceManagement } from './components/workspaces.js?v=20260829-onboarding-v1';
+import { hydratePlatformAdmin, renderPlatformAdmin, setupPlatformAdmin } from './components/platform-admin.js?v=20260829-onboarding-v1';
 
 const PANEL_CLOUD_DOMAINS = Object.freeze({
   'invoice-panel': ['pricelists'],
@@ -32,7 +34,9 @@ const loadedPanelDomains = new Set();
 const pendingPanelDomainLoads = new Map();
 
 function syncPanelCloudSession() {
-  const sessionId = String(state.currentUser?.authUserId || state.currentUser?.id || '');
+  const sessionId = `${String(state.currentUser?.organizationId || '')}::${String(
+    state.currentUser?.authUserId || state.currentUser?.id || ''
+  )}`;
   if (panelCloudSessionId !== sessionId) {
     panelCloudSessionId = sessionId;
     loadedPanelDomains.clear();
@@ -48,7 +52,9 @@ function panelNeedsCloudData(panelId) {
 
 function panelHasPricingSnapshot(panelId) {
   if (!['invoice-panel', 'pricelists-panel'].includes(panelId)) return false;
-  const actorId = String(state.currentUser?.authUserId || state.currentUser?.id || '');
+  const organizationId = String(state.currentUser?.organizationId || '').trim();
+  const userId = String(state.currentUser?.authUserId || state.currentUser?.id || '').trim();
+  const actorId = organizationId && userId ? `${organizationId}::${userId}` : '';
   return Boolean(
     actorId &&
     state.pricingSnapshotActorId === actorId &&
@@ -91,7 +97,9 @@ export async function ensurePanelCloudData(panelId, { force = false, domains: do
     onlyDomains: domains,
     hydrateCustomerHistory: false
   }).then(result => {
-    domains.forEach(domain => loadedPanelDomains.add(domain));
+    const failedDomains = new Set(result?.failedDomains || []);
+    domains.filter(domain => !failedDomains.has(domain))
+      .forEach(domain => loadedPanelDomains.add(domain));
     if (state.currentTab === panelId) renderAll();
     return result;
   }).finally(() => pendingPanelDomainLoads.delete(loadKey));
@@ -156,6 +164,9 @@ export function renderAll() {
     case 'activity-log-panel':
       renderActivityLog();
       break;
+    case 'platform-admin-panel':
+      renderPlatformAdmin();
+      break;
     case 'dashboard-panel':
     default:
       updateDashboardStats();
@@ -168,6 +179,10 @@ export function renderAll() {
 // Chuyển đổi giữa các phân hệ (Tab)
 export function switchTab(panelId) {
   if (panelId === 'payroll-panel') panelId = 'dashboard-panel';
+  if (panelId === 'platform-admin-panel' && !state.platformRole) panelId = 'dashboard-panel';
+  if (state.platformRole && !state.currentUser?.organizationId && panelId !== 'platform-admin-panel') {
+    panelId = 'platform-admin-panel';
+  }
   if (state.currentUser?.role === 'sale' && ['products-panel', 'pricelists-panel'].includes(panelId)) {
     panelId = 'invoice-panel';
   }
@@ -203,6 +218,7 @@ export function switchTab(panelId) {
 
   const heading = document.getElementById('page-title-heading');
   if (panelId === 'dashboard-panel') heading.innerText = 'Tổng quan hệ thống';
+  else if (panelId === 'platform-admin-panel') heading.innerText = 'Quản trị khách hàng SaaS';
   else if (panelId === 'products-panel') heading.innerText = 'Quản lý sản phẩm';
   else if (panelId === 'invoice-panel') heading.innerText = 'Lập hóa đơn bán hàng';
   else if (panelId === 'history-panel') heading.innerText = 'Lịch sử giao dịch';
@@ -312,29 +328,7 @@ function setupNavigation() {
     }
   });
 
-  const staffMenuTrigger = document.querySelector('.staff-menu-trigger');
-  const staffMenu = document.querySelector('.staff-menu');
-  const positionStaffMenu = () => {
-    if (!staffMenuTrigger || !staffMenu) return;
-    const triggerRect = staffMenuTrigger.getBoundingClientRect();
-    const menuWidth = staffMenu.offsetWidth || 230;
-    const left = Math.min(
-      Math.max(8, triggerRect.left),
-      Math.max(8, window.innerWidth - menuWidth - 8)
-    );
-    staffMenu.style.left = `${left}px`;
-    staffMenu.style.right = 'auto';
-    staffMenu.style.top = `${triggerRect.bottom + 4}px`;
-  };
-  const openAndPositionStaffMenu = () => {
-    positionStaffMenu();
-    requestAnimationFrame(positionStaffMenu);
-  };
-  ['pointerenter', 'focus', 'click'].forEach(eventName => {
-    staffMenuTrigger?.addEventListener(eventName, openAndPositionStaffMenu);
-  });
-  document.querySelector('.nav-menu')?.addEventListener('scroll', positionStaffMenu, { passive: true });
-  window.addEventListener('resize', positionStaffMenu);
+  setupNavigationDropdowns();
 
   // Toggle global settings dropdown
   const settingsMenu = document.getElementById('global-settings-menu');
@@ -408,15 +402,17 @@ function setupSupabaseSettings() {
   const syncBtn = document.getElementById('btn-sync-to-cloud');
   if (!form) return;
 
-  const savedUrl = localStorage.getItem('billing_supabase_url');
-  const savedKey = localStorage.getItem('billing_supabase_key');
-  if (savedUrl) {
-    document.getElementById('db-url').value = savedUrl;
+  const dbUrlInput = document.getElementById('db-url');
+  const dbKeyInput = document.getElementById('db-anon-key');
+  if (dbUrlInput) {
+    dbUrlInput.value = COMPANY_SUPABASE_URL;
+    dbUrlInput.readOnly = true;
   }
-  if (savedKey) {
-    document.getElementById('db-anon-key').value = savedKey;
+  if (dbKeyInput) {
+    dbKeyInput.value = COMPANY_SUPABASE_KEY;
+    dbKeyInput.readOnly = true;
   }
-  if (savedUrl && savedKey) {
+  if (COMPANY_SUPABASE_URL && COMPANY_SUPABASE_KEY) {
     disconnectBtn.style.display = 'inline-flex';
     document.getElementById('sync-section').style.display = 'block';
     if (document.getElementById('backup-section')) {
@@ -426,11 +422,9 @@ function setupSupabaseSettings() {
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const url = document.getElementById('db-url').value.trim();
-    const anonKey = document.getElementById('db-anon-key').value.trim();
-    
+
     updateDbStatusUI('connecting');
-    const success = await connectSupabase(url, anonKey, true);
+    const success = await connectSupabase(COMPANY_SUPABASE_URL, COMPANY_SUPABASE_KEY, true);
     if (success) {
       renderAll();
     } else {
@@ -452,6 +446,8 @@ function setupSupabaseSettings() {
 async function initApp() {
   if (window.__app_initialized) return;
   window.__app_initialized = true;
+  const authFlowMatch = window.location.href.match(/(?:#|[?&])type=(invite|recovery)(?:&|$)/);
+  const passwordSetupAuthFlow = authFlowMatch?.[1] || '';
 
   const today = new Date();
   const dateLbl = document.getElementById('current-date-lbl');
@@ -472,22 +468,26 @@ async function initApp() {
   setupSupabaseSettings();
   setupMaintenanceSettings();
   setupUserManagement();
+  setupWorkspaceManagement();
+  setupPlatformAdmin();
   setupBrandsPanel();
   setupGoodsPanel();
   setupReportsPanel();
   setupActivityLog();
   setupBackupRestoreListeners(renderAll);
 
-  let savedUrl = localStorage.getItem('billing_supabase_url');
-  let savedKey = localStorage.getItem('billing_supabase_key');
-  
-  // Nếu chưa có cấu hình trong LocalStorage, tự động dùng cấu hình đám mây mặc định của công ty
-  if (!savedUrl || !savedKey) {
-    savedUrl = COMPANY_SUPABASE_URL;
-    savedKey = COMPANY_SUPABASE_KEY;
-    localStorage.setItem('billing_supabase_url', savedUrl);
-    localStorage.setItem('billing_supabase_key', savedKey);
+  const previousUrl = localStorage.getItem('billing_supabase_url');
+  const previousKey = localStorage.getItem('billing_supabase_key');
+
+  // SaaS development is environment-locked. Discard any legacy production
+  // endpoint and its auth session before connecting to the staging clone.
+  if (previousUrl !== COMPANY_SUPABASE_URL || previousKey !== COMPANY_SUPABASE_KEY) {
+    clearSupabaseAuthStorage();
   }
+  const savedUrl = COMPANY_SUPABASE_URL;
+  const savedKey = COMPANY_SUPABASE_KEY;
+  localStorage.setItem('billing_supabase_url', savedUrl);
+  localStorage.setItem('billing_supabase_key', savedKey);
   
   if (savedUrl && savedKey) {
     let connected = false;
@@ -517,30 +517,53 @@ async function initApp() {
     loginForm.addEventListener('submit', handleLogin);
   }
 
+  if (isCloudActive && supabaseClient) {
+    supabaseClient.auth.onAuthStateChange((event) => {
+      if (event === 'PASSWORD_RECOVERY') {
+        queueMicrotask(() => openInvitationPasswordSetup('recovery'));
+      }
+    });
+  }
+
   const logoutBtn = document.getElementById('btn-logout');
   if (logoutBtn) {
     logoutBtn.addEventListener('click', handleLogout);
   }
 
   let activeUser = null;
+  let onboardingProfile = null;
   if (isCloudActive && supabaseClient) {
     try {
       const { data: { session } } = await supabaseClient.auth.getSession();
       if (session && session.user) {
         const profile = await loadAuthenticatedProfile(session.user.id);
-        activeUser = {
-          id: profile.id,
-          authUserId: profile.auth_user_id,
-          username: profile.username,
-          displayName: profile.display_name,
-          role: profile.role,
-          companyId: profile.company_id || 'ABS_NORTH',
-          isExternal: profile.is_external === true,
-          isActive: profile.is_active === true
-        };
-        const maintenance = await getMaintenanceStatus();
-        if (maintenance.enabled && activeUser.role !== 'admin') {
-          throw new Error(maintenance.message || 'Hệ thống đang bảo trì. Chỉ admin có thể truy cập.');
+        const tenantContext = await loadSaasContext({ allowMissingOrganization: true });
+        if (!tenantContext) {
+          const platformRole = await hydratePlatformAdmin();
+          if (platformRole) activeUser = createPlatformOnlyUser(profile);
+          else onboardingProfile = profile;
+        } else {
+          activeUser = {
+            id: profile.id,
+            authUserId: profile.auth_user_id,
+            username: profile.username,
+            displayName: profile.display_name,
+            role: tenantContext.applicationRole,
+            organizationRole: tenantContext.organizationRole,
+            organizationId: tenantContext.organizationId,
+            organizationName: tenantContext.organizationName,
+            organizationSlug: tenantContext.organizationSlug,
+            companyId: profile.company_id || 'ABS_NORTH',
+            isExternal: profile.is_external === true,
+            isActive: profile.is_active === true
+          };
+          state.saasContext = tenantContext;
+          state.businessCapabilities = tenantContext.capabilities;
+          state.activeOrganizationId = tenantContext.organizationId;
+          const maintenance = await getMaintenanceStatus();
+          if (maintenance.enabled && activeUser.role !== 'admin') {
+            throw new Error(maintenance.message || 'Hệ thống đang bảo trì. Chỉ admin có thể truy cập.');
+          }
         }
       }
     } catch (err) {
@@ -551,19 +574,47 @@ async function initApp() {
       if (err?.message) showToast(err.message, 'danger');
     }
   }
+
+  const landingPage = document.getElementById('landing-page');
+  const loginScreen = document.getElementById('login-screen');
+  document.querySelectorAll('.js-open-login').forEach(button => {
+    button.addEventListener('click', () => {
+      if (loginScreen) loginScreen.style.display = 'flex';
+      document.getElementById('login-username')?.focus();
+    });
+  });
+  document.getElementById('btn-close-login')?.addEventListener('click', () => {
+    if (loginScreen) loginScreen.style.display = 'none';
+  });
+  loginScreen?.addEventListener('click', event => {
+    if (event.target === loginScreen) loginScreen.style.display = 'none';
+  });
   
   let recoveredCloudLoad = null;
   if (activeUser) {
     state.currentUser = activeUser;
-    recoveredCloudLoad = await fetchCloudData({
-      deferSecondary: true,
-      hydrateCustomerHistory: false,
-      leanBootstrap: true
-    });
-    state.currentUser = state.users.find(item =>
-      item.authUserId === activeUser.authUserId || item.id === activeUser.id
-    ) || activeUser;
+    if (activeUser.organizationId) {
+      recoveredCloudLoad = await fetchCloudData({
+        deferSecondary: true,
+        hydrateCustomerHistory: false,
+        leanBootstrap: true
+      });
+      const recoveredUser = state.users.find(item =>
+        item.authUserId === activeUser.authUserId || item.id === activeUser.id
+      );
+      state.currentUser = recoveredUser ? {
+        ...activeUser,
+        ...recoveredUser,
+        role: activeUser.role,
+        organizationRole: activeUser.organizationRole,
+        organizationId: activeUser.organizationId,
+        organizationName: activeUser.organizationName,
+        organizationSlug: activeUser.organizationSlug
+      } : activeUser;
+    }
+    await hydratePlatformAdmin();
     document.getElementById('login-screen').style.display = 'none';
+    if (landingPage) landingPage.style.display = 'none';
     document.getElementById('app-layout').classList.remove('auth-hidden');
     const userInfoHeader = document.getElementById('user-info-header');
     if (userInfoHeader) userInfoHeader.style.display = 'flex';
@@ -571,10 +622,34 @@ async function initApp() {
     if (logoutBtn) logoutBtn.style.display = 'inline-flex';
     const userDisplay = document.getElementById('header-user-display');
     if (userDisplay) {
-      userDisplay.innerText = `${state.currentUser.displayName} (${state.currentUser.role === 'admin' ? 'Admin' : state.currentUser.role === 'accounting' ? 'Kế toán' : 'Sale'})`;
+      const roleLabel = state.platformRole ? 'Quản trị nền tảng' : state.currentUser.role === 'admin' ? 'Admin' : state.currentUser.role === 'accounting' ? 'Kế toán' : 'Sale';
+      userDisplay.innerText = `${state.currentUser.displayName} (${roleLabel})`;
     }
     applyUserPermissions(state.currentUser);
-    startMaintenanceMonitor();
+    if (activeUser.organizationId) {
+      renderWorkspaceSwitcher();
+      renderSubscriptionAccessNotice();
+      startMaintenanceMonitor();
+    }
+    if (passwordSetupAuthFlow) openInvitationPasswordSetup(passwordSetupAuthFlow);
+  } else if (onboardingProfile) {
+    if (landingPage) landingPage.style.display = 'none';
+    showLoginGate();
+    state.currentUser = {
+      id: onboardingProfile.id,
+      authUserId: onboardingProfile.auth_user_id,
+      username: onboardingProfile.username,
+      displayName: onboardingProfile.display_name,
+      role: 'admin',
+      organizationRole: 'owner',
+      organizationId: '',
+      organizationName: '',
+      organizationSlug: '',
+      companyId: onboardingProfile.company_id || 'ABS_NORTH',
+      isExternal: onboardingProfile.is_external === true,
+      isActive: onboardingProfile.is_active !== false
+    };
+    openWorkspaceOnboarding({ required: true });
   } else {
     showLoginGate();
   }
@@ -583,9 +658,9 @@ async function initApp() {
 
 
 
-  if (activeUser) switchTab(activeUser.role === 'sale' ? 'invoice-panel' : 'dashboard-panel');
-  else renderAll();
-  if (activeUser) {
+  if (activeUser) switchTab(state.platformRole ? 'platform-admin-panel' : activeUser.role === 'sale' ? 'invoice-panel' : 'dashboard-panel');
+  else if (!onboardingProfile) renderAll();
+  if (activeUser?.organizationId) {
     void startRealtimeSync(renderAll);
     const recoveredUserId = String(state.currentUser?.authUserId || state.currentUser?.id || '');
     if (recoveredCloudLoad?.background) {
@@ -605,17 +680,6 @@ document.addEventListener('click', async (e) => {
       renderAll();
       if (state.currentUser) void startRealtimeSync(renderAll);
     }
-  }
-});
-
-// Bắt và xử lý các lỗi Uncaught Promise Rejection từ extension hoặc script bên ngoài (như onboarding.js)
-window.addEventListener('unhandledrejection', (event) => {
-  const reason = event.reason || {};
-  const message = typeof reason === 'string' ? reason : reason.message || '';
-  const stack = reason.stack || '';
-  if (String(message).includes('getImageNode') || String(stack).includes('onboarding.js')) {
-    console.warn('Đã xử lý an toàn lỗi Uncaught Promise Rejection từ Extension/Script bên ngoài:', event.reason?.message || event.reason);
-    event.preventDefault(); // Ngăn chặn lỗi đỏ hiển thị ra Console
   }
 });
 

@@ -1,18 +1,20 @@
 import { state } from '../state.js';
-import { showToast, formatCurrency, formatNumber, formatPhoneNumber, safeCreateIcons, formatDateTime, getColorPercentFromCode, calculateColorMarkedUpPrice, isSameUser, getProvinceNameByCode, PROVINCES, makeSelectSearchable, docSoTienBangChu, getUserCompanyId, getRevenueAttributes, getBrandName, getCompanyName, getCustomerName, getUserById, getUserDisplayName, getPricelistName } from '../utils.js';
-import { dbSaveOrder, dbCreateQuickCustomer, dbConfirmOrder, dbAmendOrder, dbFetchOrderDebtSnapshot, dbLoadCustomerAssignedPricing, dbRefreshCustomerFinancialState, dbRefreshOrderById, cacheOrdersLocally, isCloudActive } from '../services/supabase.js?v=20260814-invoice-discount-label-v19';
-import { renderAll, switchTab } from '../main.js?v=20260814-invoice-discount-label-v19';
-import { populatePricelistsDropdowns } from './pricelists.js';
-import { generateUniqueCustomerCode } from './customers.js?v=20260814-invoice-discount-label-v19';
-import { addCashbookTransaction } from './so_quy.js?v=20260814-invoice-discount-label-v19';
-import { getApplicablePriceList, resolveCustomerProductPrice, normalizePriceListType, PRICE_LIST_TYPES, filterPriceListsForUser, canUserViewPriceList, canUserUsePriceListForCustomer, isDealerPrivatePriceList, isUsableResolvedPrice, shouldOverrideWithGlobalCustomerPriceList } from '../domain/pricing.js?v=20260814-invoice-discount-label-v19';
+import { showToast, formatCurrency, formatNumber, formatPhoneNumber, safeCreateIcons, formatDateTime, calculateColorMarkedUpPrice, isSameUser, getProvinceNameByCode, PROVINCES, makeSelectSearchable, docSoTienBangChu, getUserCompanyId, getRevenueAttributes, getBrandName, getCompanyName, getCustomerName, getUserById, getUserDisplayName, getPricelistName } from '../utils.js';
+import { dbSaveOrder, dbCreateQuickCustomer, dbConfirmOrder, dbAmendOrder, dbFetchOrderDebtSnapshot, dbLoadCustomerAssignedPricing, dbRefreshCustomerFinancialState, dbRefreshOrderById, cacheOrdersLocally, isCloudActive } from '../services/supabase.js?v=20260829-onboarding-v1';
+import { renderAll, switchTab } from '../main.js?v=20260829-onboarding-v1';
+import { tenantStorage } from '../services/tenant-storage.js';
+import { populatePricelistsDropdowns } from './pricelists.js?v=20260829-onboarding-v1';
+import { generateUniqueCustomerCode } from './customers.js?v=20260829-onboarding-v1';
+import { addCashbookTransaction } from './so_quy.js?v=20260829-onboarding-v1';
+import { getApplicablePriceList, resolveCustomerProductPrice, normalizePriceListType, PRICE_LIST_TYPES, filterPriceListsForUser, canUserViewPriceList, canUserUsePriceListForCustomer, isDealerPrivatePriceList, isUsableResolvedPrice, shouldOverrideWithGlobalCustomerPriceList } from '../domain/pricing.js?v=20260829-onboarding-v1';
 import { normalizeCustomerPhone } from '../domain/customer-query.js';
-import { isPrintOnlyPriceList, requiresOrderSaveApproval, supportsInvoiceLineDiscount } from '../domain/invoice-discount.js?v=20260814-invoice-discount-label-v19';
+import { isPrintOnlyPriceList, requiresOrderSaveApproval, supportsInvoiceLineDiscount } from '../domain/invoice-discount.js?v=20260829-onboarding-v1';
 import { buildProductFamilies, buildVariantSnapshot, searchProductFamilies, shouldAutoSelectVariant, variantSpecification } from '../domain/product-catalog.js';
-import { chargeCustomerDebt, getOrderDebtSnapshot, getOrderOutstandingAmount } from '../domain/customer-debt.js?v=20260814-invoice-discount-label-v19';
+import { chargeCustomerDebt, getOrderDebtSnapshot, getOrderOutstandingAmount } from '../domain/customer-debt.js?v=20260829-onboarding-v1';
 import { getOrderDisplayCode } from '../domain/order-display.js';
 import { canAdjustOrderBusinessDate, currentBusinessDateInputValue, parseOrderBusinessDateInput } from '../domain/order-business-date.js';
 import { reorderOrderItems } from '../domain/order-edit.js';
+import { catalogAdjustmentPercent, isCatalogExtensionEnabled } from '../domain/generic-catalog.js';
 
 let currentOrderToPrint = null;
 let lastFinalizedOrder = null;
@@ -240,12 +242,16 @@ function canPersistCurrentInvoicePricing(customerOverride = null) {
   if (isManualInvoicePriceMode() && canApproveManualInvoicePricing()) return true;
   if (isExplicitInvoicePriceListOverride()) {
     const selected = getSelectedInvoicePriceList();
+    const selectedType = normalizePriceListType(selected?.type, selected?.customerId);
+    const isApprovedSalesList = selectedType === PRICE_LIST_TYPES.SALES
+      && !isPrintOnlyPriceList(selected);
     const isApprovedRestrictedList = requiresOrderSaveApproval(selected)
       && selected?.isPrintOnly === false;
     return Boolean(
       selected
       && (
-        normalizePriceListType(selected.type, selected.customerId) === PRICE_LIST_TYPES.GENERAL
+        selectedType === PRICE_LIST_TYPES.GENERAL
+        || isApprovedSalesList
         || isApprovedRestrictedList
       )
       && !selected.customerId
@@ -457,17 +463,24 @@ export function renderInvoiceTable() {
 
   const manualPriceMode = isManualInvoicePriceMode();
   const showLineDiscount = activeInvoicePriceListSupportsDiscount();
+  const paintColorEnabled = isCatalogExtensionEnabled(
+    state.businessCapabilities?.catalog, 'paint_color'
+  );
+  const colorColumn = document.getElementById('invoice-color-col');
+  const colorHeader = document.getElementById('invoice-color-header');
+  if (colorColumn) colorColumn.style.display = paintColorEnabled ? '' : 'none';
+  if (colorHeader) colorHeader.style.display = paintColorEnabled ? '' : 'none';
   const discountColumn = document.getElementById('invoice-discount-col');
   const discountHeader = document.getElementById('invoice-discount-header');
   if (discountColumn) discountColumn.style.display = showLineDiscount ? '' : 'none';
   if (discountHeader) discountHeader.style.display = showLineDiscount ? '' : 'none';
-  const adjustmentHeader = document.querySelector('.invoice-items-table thead th:nth-child(6)');
+  const adjustmentHeader = document.getElementById('invoice-adjustment-header');
   if (adjustmentHeader) adjustmentHeader.innerText = showLineDiscount ? 'Giá thị trường' : 'Đơn giá';
   
   if (state.invoiceItems.length === 0) {
     tableBody.innerHTML = `
       <tr id="invoice-empty-row">
-        <td colspan="${showLineDiscount ? 10 : 9}" style="text-align: center; color: var(--text-muted); padding: 3rem;">
+        <td colspan="${(showLineDiscount ? 10 : 9) - (paintColorEnabled ? 0 : 1)}" style="text-align: center; color: var(--text-muted); padding: 3rem;">
           Chưa chọn sản phẩm nào. Tìm kiếm sản phẩm ở trên để thêm vào hóa đơn.
         </td>
       </tr>
@@ -495,10 +508,11 @@ export function renderInvoiceTable() {
         ? `<span class="invoice-market-unit-price" title="Giá trước chiết khấu">${formatNumber(item.price || 0)}</span>`
         : `<span class="invoice-effective-unit-price" title="Đơn giá sau chiết khấu">${formatNumber(effectiveUnitPrice)}</span>`;
 
-    // Kiểm tra sản phẩm sơn lót hoặc bột bả (loại trừ trường hợp sơn giả đá)
+    // Paint-specific behavior is active only through the tenant extension.
     const nameLower = productName.toLowerCase();
-    const isPrimerOrPutty = (nameLower.includes('lót') || nameLower.includes('bả')) && !nameLower.includes('giả đá');
-    if (isPrimerOrPutty) {
+    const isPrimerOrPutty = paintColorEnabled &&
+      (nameLower.includes('lót') || nameLower.includes('bả')) && !nameLower.includes('giả đá');
+    if (!paintColorEnabled || isPrimerOrPutty) {
       item.colorCode = '';
       item.colorPercent = 0;
     }
@@ -521,12 +535,12 @@ export function renderInvoiceTable() {
             </div>
           </div>
         </td>
-        <td style="text-align: center; position: relative;">
+        ${paintColorEnabled ? `<td style="text-align: center; position: relative;">
           <input type="text" class="form-control-inline item-color-code" value="${isPrimerOrPutty ? '' : item.colorCode}" placeholder="${isPrimerOrPutty ? 'Không dùng' : 'Nhập mã'}" style="width: 100%; text-align: center;" ${isReadOnly || isPrimerOrPutty ? 'disabled' : ''}>
           <div style="position: absolute; bottom: 2px; left: 0; right: 0; font-size: 0.65rem; color: var(--text-muted); font-weight: 600; text-align: center; line-height: 1; pointer-events: none;">
             ${isPrimerOrPutty ? '<span style="color: var(--text-muted); font-weight: normal;">N/A</span>' : `+<span class="item-color-percent-lbl" style="color: var(--color-primary); font-weight: 700;">${item.colorPercent}</span>% màu`}
           </div>
-        </td>
+        </td>` : ''}
         <td>
           <span class="invoice-variant-display">
             ${variantSpecification(p) || item.package}
@@ -588,7 +602,9 @@ export function renderInvoiceTable() {
       const colorCode = e.target.value.trim().toUpperCase();
       state.invoiceItems[idx].colorCode = colorCode;
       
-      const colorPct = getColorPercentFromCode(colorCode);
+      const colorPct = catalogAdjustmentPercent(
+        state.businessCapabilities?.catalog, 'paint_color', { colorCode }
+      );
       state.invoiceItems[idx].colorPercent = colorPct;
       
       // Cập nhật nhãn màu cộng thêm trên dòng
@@ -1258,7 +1274,7 @@ export async function saveActiveOrder(status = 'settled') {
         resolvedQuickCustomer = savedCustomer;
         state.activeCustomerId = savedCustomer.id;
         state.customers.push(savedCustomer);
-        localStorage.setItem('billing_system_customers', JSON.stringify(state.customers));
+        tenantStorage.setItem('billing_system_customers', JSON.stringify(state.customers));
       }
     }
 
@@ -1266,7 +1282,7 @@ export async function saveActiveOrder(status = 'settled') {
     if (!order) return null;
 
     if (!canPersistCurrentInvoicePricing(reusedExistingQuickCustomer ? resolvedQuickCustomer : null)) {
-      showToast('Chỉ Bảng giá chung được phép ghi đè bảng giá mặc định của khách hàng.', 'warning');
+      showToast('Bảng giá đã chọn không được phép lưu đơn cho khách hàng này.', 'warning');
       return null;
     }
 
@@ -1350,7 +1366,7 @@ export async function saveActiveOrder(status = 'settled') {
               cust.netRevenue = Math.round((cust.netRevenue || 0) + persistedOrder.totalPayable);
               cust.lastOrderAt = persistedOrder.date || new Date().toISOString();
             }
-            localStorage.setItem('billing_system_customers', JSON.stringify(state.customers));
+            tenantStorage.setItem('billing_system_customers', JSON.stringify(state.customers));
           }
         }
       }

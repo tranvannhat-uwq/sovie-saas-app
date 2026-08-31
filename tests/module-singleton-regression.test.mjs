@@ -22,7 +22,17 @@ test('stateful browser modules use one URL identity across the entire import gra
   });
 
   const versions = new Set(imports.map(item => item.version));
-  assert.deepEqual([...versions], ['20260814-invoice-discount-label-v19']);
+  assert.deepEqual([...versions], ['20260829-onboarding-v1']);
+
+  const allSources = listJavaScriptFiles(jsRoot).map(file => fs.readFileSync(file, 'utf8')).join('\n');
+  for (const moduleName of ['services/supabase.js', 'components/products.js', 'components/pricelists.js']) {
+    const escaped = moduleName.replaceAll('/', '\\/').replaceAll('.', '\\.');
+    assert.doesNotMatch(
+      allSources,
+      new RegExp(`from\\s+['\"][^'\"]*${escaped}['\"]`),
+      `${moduleName} must not also be imported without the shared version identity`
+    );
+  }
 
   for (const moduleName of ['main.js', 'services/supabase.js']) {
     const identities = new Set(imports

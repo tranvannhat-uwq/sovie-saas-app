@@ -32,7 +32,7 @@ test('login renders from core data while historical panels remain lazy', () => {
   assert.match(service, /const coreLoad = Promise\.all/);
   assert.match(service, /const secondaryLoad = Promise\.all/);
   assert.match(service, /leanBootstrap \? \[\] :/);
-  assert.match(service, /return \{ background \}/);
+  assert.match(service, /return \{ background, failedDomains: \[\.\.\.failedDomains\] \}/);
 });
 
 test('customer debt history is loaded on demand and successful login email is reused', () => {

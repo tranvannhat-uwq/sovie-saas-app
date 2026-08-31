@@ -1,8 +1,9 @@
 import { state } from '../state.js';
 import { showToast, formatCurrency, safeCreateIcons, formatDateTime } from '../utils.js';
-import { renderAll } from '../main.js?v=20260814-invoice-discount-label-v19';
-import { dbSaveCashbookTransaction, dbSaveStartingBalances, dbRecordCustomerPayment, dbCancelCashbookEntry, dbSetCashbookStarred, dbAmendCashbookTransaction, dbReconcileLegacyCustomerReceipt, dbRefreshCustomerFinancialState, dbFetchCashbookTransactionById, dbLoadCashbookForRange, upsertCashbookTransactionSnapshot } from '../services/supabase.js?v=20260814-invoice-discount-label-v19';
-import { getCanonicalCashbookId, isEffectiveCashbookTransaction } from '../domain/cashbook.js?v=20260814-invoice-discount-label-v19';
+import { renderAll } from '../main.js?v=20260829-onboarding-v1';
+import { dbSaveCashbookTransaction, dbSaveStartingBalances, dbRecordCustomerPayment, dbCancelCashbookEntry, dbSetCashbookStarred, dbAmendCashbookTransaction, dbReconcileLegacyCustomerReceipt, dbRefreshCustomerFinancialState, dbFetchCashbookTransactionById, dbLoadCashbookForRange, upsertCashbookTransactionSnapshot } from '../services/supabase.js?v=20260829-onboarding-v1';
+import { tenantStorage } from '../services/tenant-storage.js';
+import { getCanonicalCashbookId, isEffectiveCashbookTransaction } from '../domain/cashbook.js?v=20260829-onboarding-v1';
 
 // Seed transactions (empty to start clean)
 const seedTransactions = [];
@@ -155,7 +156,7 @@ function setupCashbook24HourPicker(targetId) {
 
 // Helper: load/save transactions from LocalStorage
 export function getCashbookTransactions() {
-  const stored = localStorage.getItem('billing_system_cashbook_transactions');
+  const stored = tenantStorage.getItem('billing_system_cashbook_transactions');
   if (stored) {
     let txs = JSON.parse(stored).map(t => {
       const rawNote = t.note || '';
@@ -174,17 +175,17 @@ export function getCashbookTransactions() {
       return !isAutoOrderReceipt;
     });
     if (filtered.length !== txs.length) {
-      localStorage.setItem('billing_system_cashbook_transactions', JSON.stringify(filtered));
+      tenantStorage.setItem('billing_system_cashbook_transactions', JSON.stringify(filtered));
       return filtered;
     }
     return txs;
   }
-  localStorage.setItem('billing_system_cashbook_transactions', JSON.stringify([]));
+  tenantStorage.setItem('billing_system_cashbook_transactions', JSON.stringify([]));
   return [];
 }
 
 export function saveCashbookTransactions(txs) {
-  localStorage.setItem('billing_system_cashbook_transactions', JSON.stringify(txs));
+  tenantStorage.setItem('billing_system_cashbook_transactions', JSON.stringify(txs));
 }
 
 function normalizeText(value) {
@@ -275,24 +276,24 @@ export function getStartingBalances() {
     bank: 0,
     wallet: 0
   };
-  const stored = localStorage.getItem('billing_system_cashbook_start_balances');
+  const stored = tenantStorage.getItem('billing_system_cashbook_start_balances');
   if (stored) {
     const parsed = JSON.parse(stored);
     // If the storage contains the large KiotViet sample initial balance, reset it to 0
     if (parsed.cash === 7620470195) {
-      localStorage.setItem('billing_system_cashbook_start_balances', JSON.stringify(defaults));
+      tenantStorage.setItem('billing_system_cashbook_start_balances', JSON.stringify(defaults));
       return defaults;
     }
     return parsed;
   }
-  localStorage.setItem('billing_system_cashbook_start_balances', JSON.stringify(defaults));
+  tenantStorage.setItem('billing_system_cashbook_start_balances', JSON.stringify(defaults));
   return defaults;
 }
 
 export async function saveStartingBalances(balances) {
   const saved = await dbSaveStartingBalances(balances);
   if (!saved) return false;
-  localStorage.setItem('billing_system_cashbook_start_balances', JSON.stringify(balances));
+  tenantStorage.setItem('billing_system_cashbook_start_balances', JSON.stringify(balances));
   return true;
 }
 
@@ -796,7 +797,7 @@ export function setupSoQuyPanel() {
             debtAfter: newDebt
           });
         }
-        localStorage.setItem('billing_system_customers', JSON.stringify(state.customers));
+        tenantStorage.setItem('billing_system_customers', JSON.stringify(state.customers));
 
         newTx.customerId = currentCustomer.id;
         newTx.cloudId = paymentResult.cashbook_id || null;
@@ -1770,7 +1771,7 @@ function wireCashbookInlineDetailActions(t, tableBody) {
         const supplier = state.suppliers.find(s => String(s.id) === String(savedToCloud.supplier_id));
         if (supplier) supplier.debt = supplierDebt;
       }
-      localStorage.setItem('billing_system_suppliers', JSON.stringify(state.suppliers));
+      tenantStorage.setItem('billing_system_suppliers', JSON.stringify(state.suppliers));
 
       if (!customerRefreshed || !cashbookRefreshed) {
         showToast('Phiếu đã hủy trên Cloud nhưng giao diện chưa tải lại đầy đủ. Vui lòng tải lại trang.', 'warning');

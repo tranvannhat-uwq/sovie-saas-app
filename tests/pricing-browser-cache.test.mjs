@@ -10,15 +10,17 @@ const cacheService = read('js/services/pricing-cache.js');
 const cloudService = read('js/services/supabase.js');
 const main = read('js/main.js');
 
-test('pricing cache is isolated by authenticated account and role', async () => {
+test('pricing cache is isolated by organization, authenticated account and role', async () => {
   const moduleUrl = pathToFileURL(path.join(root, 'js/services/pricing-cache.js')).href;
   const { getPricingCacheKey, loadAuthorizedPricingCache, saveAuthorizedPricingCache } = await import(moduleUrl);
 
-  assert.equal(getPricingCacheKey({ authUserId: 'user-1', role: 'sale' }), 'user-1::sale');
-  assert.equal(getPricingCacheKey({ authUserId: 'user-1', role: 'accounting' }), 'user-1::accounting');
+  assert.equal(getPricingCacheKey({ organizationId: 'org-a', authUserId: 'user-1', role: 'sale' }), 'org-a::user-1::sale');
+  assert.equal(getPricingCacheKey({ organizationId: 'org-b', authUserId: 'user-1', role: 'sale' }), 'org-b::user-1::sale');
+  assert.equal(getPricingCacheKey({ organizationId: 'org-a', authUserId: 'user-1', role: 'accounting' }), 'org-a::user-1::accounting');
+  assert.equal(getPricingCacheKey({ authUserId: 'user-1', role: 'sale' }), '');
   assert.equal(getPricingCacheKey(null), '');
-  assert.equal(await loadAuthorizedPricingCache({ authUserId: 'user-1', role: 'sale' }), null);
-  assert.equal(await saveAuthorizedPricingCache({ authUserId: 'user-1', role: 'sale' }, [], []), false);
+  assert.equal(await loadAuthorizedPricingCache({ organizationId: 'org-a', authUserId: 'user-1', role: 'sale' }), null);
+  assert.equal(await saveAuthorizedPricingCache({ organizationId: 'org-a', authUserId: 'user-1', role: 'sale' }, [], []), false);
 });
 
 test('pricing cache uses IndexedDB and never the permission-sensitive localStorage keys', () => {

@@ -1,4 +1,5 @@
 import { state } from '../state.js';
+import { tenantStorage } from '../services/tenant-storage.js';
 import { showToast, formatDateTime, safeCreateIcons, formatCurrency, makeSelectSearchable } from '../utils.js';
 import {
   dbSaveRawMaterial,
@@ -14,9 +15,9 @@ import {
   dbSaveSemiFinishedBulk,
   dbDeleteAllSemiFinished,
   dbSaveCashbookTransaction
-} from '../services/supabase.js?v=20260814-invoice-discount-label-v19';
-import { renderAll } from '../main.js?v=20260814-invoice-discount-label-v19';
-import { renderPurchasesPanel } from './purchases.js?v=20260814-invoice-discount-label-v19';
+} from '../services/supabase.js?v=20260829-onboarding-v1';
+import { renderAll } from '../main.js?v=20260829-onboarding-v1';
+import { renderPurchasesPanel } from './purchases.js?v=20260829-onboarding-v1';
 
 // --- TRÌNH VẼ GIAO DIỆN (RENDERERS) ---
 
@@ -29,7 +30,7 @@ export function renderGoodsPanel() {
 
 function getPurchaseReceipts() {
   try {
-    const parsed = JSON.parse(localStorage.getItem('billing_system_goods_receipts') || '[]');
+    const parsed = JSON.parse(tenantStorage.getItem('billing_system_goods_receipts') || '[]');
     return Array.isArray(parsed) ? parsed : [];
   } catch (e) {
     return [];
@@ -37,12 +38,12 @@ function getPurchaseReceipts() {
 }
 
 function savePurchaseReceipts(receipts) {
-  localStorage.setItem('billing_system_goods_receipts', JSON.stringify(receipts));
+  tenantStorage.setItem('billing_system_goods_receipts', JSON.stringify(receipts));
 }
 
 function getCashbookTransactionsForPurchase() {
   try {
-    const parsed = JSON.parse(localStorage.getItem('billing_system_cashbook_transactions') || '[]');
+    const parsed = JSON.parse(tenantStorage.getItem('billing_system_cashbook_transactions') || '[]');
     return Array.isArray(parsed) ? parsed : [];
   } catch (e) {
     return [];
@@ -50,7 +51,7 @@ function getCashbookTransactionsForPurchase() {
 }
 
 function saveCashbookTransactionsForPurchase(txs) {
-  localStorage.setItem('billing_system_cashbook_transactions', JSON.stringify(txs));
+  tenantStorage.setItem('billing_system_cashbook_transactions', JSON.stringify(txs));
 }
 
 function isPurchaseTxCancelled(tx) {
@@ -1045,7 +1046,7 @@ async function deleteRawMaterial(id) {
 
   if (confirm(`Bạn chắc chắn muốn xóa nguyên liệu "${item.name}" (${item.code})?`)) {
     state.rawMaterials = state.rawMaterials.filter(r => r.id !== id);
-    localStorage.setItem('billing_system_raw_materials', JSON.stringify(state.rawMaterials));
+    tenantStorage.setItem('billing_system_raw_materials', JSON.stringify(state.rawMaterials));
     await dbDeleteRawMaterial(id);
     showToast('Đã xóa nguyên liệu thành công.');
     renderAll();
@@ -1087,7 +1088,7 @@ async function deleteSemiFinished(id) {
 
   if (confirm(`Bạn chắc chắn muốn xóa bán thành phẩm "${item.name}" (${item.code})?`)) {
     state.semiFinished = state.semiFinished.filter(s => s.id !== id);
-    localStorage.setItem('billing_system_semi_finished', JSON.stringify(state.semiFinished));
+    tenantStorage.setItem('billing_system_semi_finished', JSON.stringify(state.semiFinished));
     await dbDeleteSemiFinished(id);
     showToast('Đã xóa bán thành phẩm thành công.');
     renderAll();
@@ -1184,7 +1185,7 @@ async function deleteRecipe(id) {
 
   if (confirm(`Bạn chắc chắn muốn xóa công thức "${item.name}"?`)) {
     state.recipes = state.recipes.filter(r => r.id !== id);
-    localStorage.setItem('billing_system_recipes', JSON.stringify(state.recipes));
+    tenantStorage.setItem('billing_system_recipes', JSON.stringify(state.recipes));
     await dbDeleteRecipe(id);
     showToast('Đã xóa công thức sản xuất thành công.');
     renderAll();
@@ -1438,7 +1439,7 @@ function handleRecipeExcelImport(event) {
 
       // Lưu nguyên vật liệu mới
       if (newRawCreated > 0) {
-        localStorage.setItem('billing_system_raw_materials', JSON.stringify(state.rawMaterials));
+        tenantStorage.setItem('billing_system_raw_materials', JSON.stringify(state.rawMaterials));
         await Promise.all(saveRawPromises);
       }
 
@@ -1711,7 +1712,7 @@ export function setupGoodsPanel() {
       const idx = state.rawMaterials.findIndex(r => r.id === idInput);
       if (idx !== -1) {
         state.rawMaterials[idx] = { ...state.rawMaterials[idx], name, unit, importPrice, quantity, notes };
-        localStorage.setItem('billing_system_raw_materials', JSON.stringify(state.rawMaterials));
+        tenantStorage.setItem('billing_system_raw_materials', JSON.stringify(state.rawMaterials));
         await dbSaveRawMaterial(state.rawMaterials[idx]);
         showToast('Cập nhật nguyên liệu thành công.');
       }
@@ -1723,7 +1724,7 @@ export function setupGoodsPanel() {
       }
       const newItem = { id: `raw-${Date.now()}`, code, name, unit, importPrice, quantity, notes };
       state.rawMaterials.push(newItem);
-      localStorage.setItem('billing_system_raw_materials', JSON.stringify(state.rawMaterials));
+      tenantStorage.setItem('billing_system_raw_materials', JSON.stringify(state.rawMaterials));
       await dbSaveRawMaterial(newItem);
       showToast('Thêm nguyên liệu mới thành công.');
     }
@@ -1746,7 +1747,7 @@ export function setupGoodsPanel() {
       const idx = state.semiFinished.findIndex(s => s.id === idInput);
       if (idx !== -1) {
         state.semiFinished[idx] = { ...state.semiFinished[idx], name, unit, quantity, notes };
-        localStorage.setItem('billing_system_semi_finished', JSON.stringify(state.semiFinished));
+        tenantStorage.setItem('billing_system_semi_finished', JSON.stringify(state.semiFinished));
         await dbSaveSemiFinished(state.semiFinished[idx]);
         showToast('Cập nhật bán thành phẩm thành công.');
       }
@@ -1757,7 +1758,7 @@ export function setupGoodsPanel() {
       }
       const newItem = { id: `semi-${Date.now()}`, code, name, unit, quantity, notes };
       state.semiFinished.push(newItem);
-      localStorage.setItem('billing_system_semi_finished', JSON.stringify(state.semiFinished));
+      tenantStorage.setItem('billing_system_semi_finished', JSON.stringify(state.semiFinished));
       await dbSaveSemiFinished(newItem);
       showToast('Thêm bán thành phẩm mới thành công.');
     }
@@ -1808,14 +1809,14 @@ export function setupGoodsPanel() {
       const idx = state.recipes.findIndex(r => r.id === idInput);
       if (idx !== -1) {
         state.recipes[idx] = { ...state.recipes[idx], name, semiFinishedId, outputQuantity, ingredients, notes };
-        localStorage.setItem('billing_system_recipes', JSON.stringify(state.recipes));
+        tenantStorage.setItem('billing_system_recipes', JSON.stringify(state.recipes));
         await dbSaveRecipe(state.recipes[idx]);
         showToast('Cập nhật công thức sản xuất thành công.');
       }
     } else {
       const newItem = { id: `recipe-${Date.now()}`, name, semiFinishedId, outputQuantity, ingredients, notes };
       state.recipes.push(newItem);
-      localStorage.setItem('billing_system_recipes', JSON.stringify(state.recipes));
+      tenantStorage.setItem('billing_system_recipes', JSON.stringify(state.recipes));
       await dbSaveRecipe(newItem);
       showToast('Tạo công thức sản xuất thành công.');
     }
@@ -1847,7 +1848,7 @@ export function setupGoodsPanel() {
       }
     });
 
-    localStorage.setItem('billing_system_finished_goods_stock', JSON.stringify(state.finishedGoodsStock));
+    tenantStorage.setItem('billing_system_finished_goods_stock', JSON.stringify(state.finishedGoodsStock));
     await Promise.all(promises);
     showToast('Điều chỉnh tồn kho thành phẩm thành công.');
     document.getElementById('finished-stock-adjust-modal').classList.remove('active');
@@ -1898,7 +1899,7 @@ export function setupGoodsPanel() {
         saveRawPromises.push(dbSaveRawMaterial(state.rawMaterials[rawIdx]));
       }
     });
-    localStorage.setItem('billing_system_raw_materials', JSON.stringify(state.rawMaterials));
+    tenantStorage.setItem('billing_system_raw_materials', JSON.stringify(state.rawMaterials));
 
     // Cộng tồn kho Bán thành phẩm
     const semiIdx = state.semiFinished.findIndex(s => s.id === recipe.semiFinishedId);
@@ -1906,7 +1907,7 @@ export function setupGoodsPanel() {
       state.semiFinished[semiIdx].quantity += runQtyVal;
       await dbSaveSemiFinished(state.semiFinished[semiIdx]);
     }
-    localStorage.setItem('billing_system_semi_finished', JSON.stringify(state.semiFinished));
+    tenantStorage.setItem('billing_system_semi_finished', JSON.stringify(state.semiFinished));
 
     // Lưu Nhật ký sản xuất
     const userDisplayName = state.currentUser ? state.currentUser.displayName : 'Administrator';
@@ -1932,7 +1933,7 @@ export function setupGoodsPanel() {
     };
 
     state.productionLogs.push(newLog);
-    localStorage.setItem('billing_system_production_logs', JSON.stringify(state.productionLogs));
+    tenantStorage.setItem('billing_system_production_logs', JSON.stringify(state.productionLogs));
     await dbSaveProductionLog(newLog);
 
     await Promise.all(saveRawPromises);
@@ -2173,7 +2174,7 @@ async function processRawExcelImport() {
       }
     }
     
-    localStorage.setItem('billing_system_raw_materials', JSON.stringify(state.rawMaterials));
+    tenantStorage.setItem('billing_system_raw_materials', JSON.stringify(state.rawMaterials));
     
     const success = await dbSaveRawMaterialsBulk(rawExcelImportData);
     if (success) {
@@ -2345,7 +2346,7 @@ async function processSemiExcelImport() {
       }
     }
     
-    localStorage.setItem('billing_system_semi_finished', JSON.stringify(state.semiFinished));
+    tenantStorage.setItem('billing_system_semi_finished', JSON.stringify(state.semiFinished));
     
     const success = await dbSaveSemiFinishedBulk(semiExcelImportData);
     if (success) {

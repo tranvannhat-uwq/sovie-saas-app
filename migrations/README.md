@@ -61,6 +61,35 @@ Run these files in order on a staging clone first:
 53. `0053_customer_assigned_price_list_trigger_repair.sql`
 54. `0054_quick_customer_manager_identity.sql`
 55. `0055_sales_return_deduction_percent.sql`
+56. `0056_saas_control_plane.sql`
+57. `0057_business_tenant_envelope.sql`
+58. `0058_tenant_relational_boundary.sql`
+59. `0059_platform_audit_tenant_bootstrap.sql`
+60. `0060_tenant_scoped_rpc_executor.sql`
+61. `0061_business_capability_model.sql`
+62. `0062_generic_catalog_and_extensions.sql`
+63. `0063_workspace_onboarding_and_switching.sql`
+64. `0064_workspace_member_management.sql`
+65. `0065_tenant_activity_conflict_keys.sql`
+66. `0066_workspace_invitations_and_owner_transfer.sql`
+67. `0067_organization_people_directory.sql`
+68. `0068_subscription_access_lifecycle.sql`
+69. `0069_monthly_order_quota.sql`
+70. `0070_custom_domain_workflow.sql`
+71. `0071_billing_control_plane.sql`
+72. `0072_signed_billing_event_ordering.sql`
+73. `0073_domain_dns_verification_attempts.sql`
+74. `0074_cloudflare_ssl_provisioning.sql`
+75. `0075_plan_catalog_branch_warehouse_management.sql`
+76. `0076_tenant_backup_inventory.sql`
+77. `0077_backup_inventory_membership_hotfix.sql`
+78. `0078_organization_archive_workflow.sql`
+79. `0079_enforce_business_tenant_not_null.sql`
+80. `0080_platform_customer_account_console.sql`
+81. `0081_platform_customer_provisioning.sql`
+82. `0082_platform_customer_lifecycle.sql`
+83. `0083_platform_plan_catalog.sql`
+84. `0084_momo_checkout_and_tax_policy.sql`
 
 Every file is additive and records its version in `public.schema_migrations`.
 Apply each version once; the migration table is the source of truth for the
@@ -321,3 +350,230 @@ item. The database validates the percentage, calculates the net refund from the
 immutable original-order value, and keeps debt, cash refund, revenue, commission
 and return cancellation authoritative. A zero or omitted percentage preserves
 the previous return calculation exactly.
+
+Migration `0056` starts the SaaS control plane. It adds organizations,
+auth-linked memberships, plans, subscriptions and authenticated onboarding/context
+RPCs. Existing Auth-linked profiles are placed in one compatibility organization;
+business tables are deliberately not presented as tenant-isolated until the next
+staging migration has backfilled `organization_id` and replaced their RLS/RPCs.
+Run `migrations/tests/saas_control_plane_integration.sql` on isolated staging to
+verify two-tenant RLS, context selection and server-owned subscription state.
+
+Migration `0057` starts Phase 2A tenantization. It adds `organization_id` to
+every business table, backfills existing staging rows into the compatibility
+organization, validates organization foreign keys, adds indexes/defaults and
+rejects browser tenant tampering or tenant reassignment. It deliberately leaves
+existing RLS policies and SECURITY DEFINER RPCs unchanged until the next
+migration can replace them as one reviewed isolation boundary. Run
+`migrations/tests/saas_business_tenant_envelope_integration.sql` after applying it.
+
+Migration `0058` completes the direct-table and existing relational portion of
+the tenant boundary. It replaces 11 global business unique constraints with
+organization-scoped equivalents, replaces all nine existing business-to-business
+foreign keys with composite tenant keys, and adds a restrictive organization
+policy to all 35 business tables. SECURITY DEFINER RPC recompilation remains a
+separate reviewed migration. Run
+`migrations/tests/saas_tenant_relational_boundary_integration.sql` after applying it.
+
+Migration `0059` repairs Auth bootstrap after the tenant write guard. Platform
+audit rows emitted before a new Auth identity has any membership may keep a null
+organization and remain invisible to tenant RLS. Authenticated audit and every
+business-table write still require the active organization.
+
+Migration `0060` removes database-owner bypass from browser-callable business
+RPC graphs. A dedicated `NOLOGIN/NOBYPASSRLS` executor receives tenant-scoped
+policies on all 35 business tables, profile visibility is limited to active
+co-members, and legacy database role checks derive from the active SaaS
+membership.
+Run `migrations/tests/saas_rpc_tenant_executor_integration.sql` to verify the
+role attributes, all 39 callable functions, membership-role mapping and an
+actual cross-tenant activity-log RPC read.
+
+Migration `0061` adds the organization capability model: settings, modules,
+branches, warehouses and domains. Existing and newly onboarded organizations
+receive conservative defaults, and `rpc_my_business_capabilities()` returns
+tenant-scoped configuration without domain verification secrets. Run
+`migrations/tests/saas_business_capability_integration.sql` on staging.
+
+Migration `0062` adds an industry-neutral catalog model for units, categories,
+typed attributes, product/variant values and opt-in extensions. The legacy
+workspace keeps paint color pricing through an explicit `paint_color` extension;
+new organizations remain generic. Run
+`migrations/tests/saas_generic_catalog_integration.sql` on staging.
+
+Migration `0063` makes first-workspace onboarding possible for an authenticated
+active profile that has no membership yet. It validates reserved/duplicate
+subdomains, stores business type and industry, and creates Owner membership plus
+Starter trial in the same transaction. The existing two-argument RPC remains as
+a compatibility wrapper.
+Run `migrations/tests/saas_workspace_onboarding_integration.sql` to verify a
+profile with no membership can create its first fully initialized workspace and
+switch between two defaults.
+
+Migration `0064` replaces the legacy global profile directory with a
+workspace-membership directory, adds Owner/Admin member RPCs, enforces the plan
+user quota under an organization row lock, protects the Owner and prevents
+self-suspension. Direct authenticated profile mutations are closed; Auth user
+creation must attach a membership or roll the new Auth identity back.
+Run `migrations/tests/saas_workspace_member_management_integration.sql` on staging.
+
+Migration `0065` updates the three pre-tenant activity trigger functions so
+their `ON CONFLICT` targets include `organization_id`, matching the unique key
+introduced by migration `0058`. This keeps audit logging non-blocking for
+profile, draft and price updates without reintroducing a global business key.
+
+Migration `0066` adds pending workspace invitations, login-time acceptance and
+transactional Owner transfer. A partial unique index guarantees one active
+Owner per organization; extra Owners created by the early legacy backfill are
+deterministically demoted to Admin before the invariant is installed.
+Run `migrations/tests/saas_workspace_invitations_integration.sql` on staging.
+
+Migration `0067` adds a tenant-scoped personnel directory independent from
+Supabase Auth and workspace memberships. Owner/Admin can maintain employees,
+contractors and external partners without consuming the login-user quota; all
+active members may read the directory for business assignment selectors.
+Direct browser writes remain closed.
+Run `migrations/tests/saas_organization_people_integration.sql` on staging.
+
+Migration `0068` adds the subscription access lifecycle. Active/trial tenants
+may write, past-due tenants receive a seven-day grace period, and paused or
+cancelled tenants become read-only without losing export/read access. Restrictive
+RLS guards cover all 35 business tables for both browser and RPC executor writes.
+Provider/back-office state events are service-role only, audited and idempotent.
+Run `migrations/tests/saas_subscription_access_integration.sql` on staging.
+
+Migration `0069` enforces each plan's monthly confirmed-order allowance with a
+tenant-derived `BEFORE INSERT` trigger and an organization row lock, preventing
+concurrent confirmations from oversubscribing the final slot. Cancelled/draft
+records do not consume allowance. `rpc_my_plan_usage()` exposes authoritative
+member and order usage for the workspace switcher.
+Run `migrations/tests/saas_monthly_order_quota_integration.sql` on staging.
+
+Migration `0070` adds the Owner-only, plan-gated custom-domain workflow. Domain
+verification tokens remain tenant-private, while DNS/SSL evidence can only be
+applied through a service-role RPC with idempotent event keys. A custom hostname
+becomes primary only after both verification and SSL are active; disabling it
+atomically restores the workspace's `sovie.vn` subdomain as primary.
+Run `migrations/tests/saas_custom_domain_workflow_integration.sql` on staging.
+
+Migration `0071` adds provider-neutral plan-change requests, tenant-scoped
+invoices and idempotent billing events. Owners may read billing state and queue
+a plan change, but only `service_role` can apply payment outcomes to the
+subscription lifecycle. Run
+`migrations/tests/saas_billing_control_plane_integration.sql` on staging.
+
+Migration `0072` retires service access to the unsigned billing RPC and adds a
+signed-event RPC with provider occurrence timestamps. Stale or duplicate
+deliveries remain auditable but cannot regress a newer invoice or subscription
+state. Run `migrations/tests/saas_signed_billing_event_ordering_integration.sql`
+on staging.
+
+Migration `0073` adds Owner-triggered DNS verification attempts with a one-minute
+per-domain rate limit, tenant audit history and a service-only completion RPC.
+Successful TXT checks mark DNS as verified but deliberately leave SSL pending.
+Run `migrations/tests/saas_domain_dns_verification_integration.sql` on staging.
+
+Migration `0074` adds tenant-audited Cloudflare custom-hostname provisioning
+jobs. Pending provider state never regresses DNS verification; a domain becomes
+active only when Cloudflare reports both hostname and SSL status as `active`.
+Run `migrations/tests/saas_cloudflare_ssl_provisioning_integration.sql` on staging.
+
+Migration `0075` publishes the baseline Starter, Pro and Business quota catalog
+and adds Owner/Admin RPCs for branch and warehouse management. Organization row
+locks serialize quota decisions; branch links are tenant checked and default
+locations cannot be deactivated without selecting another default. Direct
+authenticated table writes remain closed. Run
+`migrations/tests/saas_branch_warehouse_management_integration.sql` on staging.
+
+Migration `0076` adds an Owner/Admin-only tenant backup inventory RPC. Migration
+`0077` immediately corrects its membership count to use the deployed
+`auth_user_id` membership schema. The inventory returns a workspace identity,
+schema version and authoritative row counts used to bind Excel metadata and
+manifest validation to exactly one tenant. Run
+`migrations/tests/saas_tenant_backup_inventory_integration.sql` on staging.
+
+Migration `0078` adds the post-cancellation organization archive workflow.
+Only an Owner can request it after the 30-day read-only deadline, with exact
+slug confirmation and a verified backup reference. Only `service_role` can
+complete the request; completion suspends memberships and routing domains but
+does not delete business rows. Run
+`migrations/tests/saas_organization_archive_integration.sql` on staging.
+
+Migration `0079` closes the tenant-envelope rollout by requiring
+`organization_id NOT NULL` on all 33 business-data tables after a zero-null
+precondition. `audit_logs` and `activity_logs` remain nullable only for the
+explicit unauthenticated platform-audit bootstrap. Run
+`migrations/tests/saas_business_tenant_not_null_integration.sql` on staging.
+
+Migration `0080` separates platform staff from tenant roles and adds the
+cross-tenant customer account console. Migration `0081` adds the
+platform-owner-only customer provisioning RPC, active plan catalog and an
+append-only platform customer event trail. New customer Owners begin as invited
+members; the Edge Function owns Auth invitation delivery and removes a newly
+created Auth account if tenant provisioning fails.
+
+Migration `0082` adds platform-owner-only lifecycle controls for plan changes,
+trial extensions, suspension/reactivation and cancellation. Every mutation
+locks the customer row, updates the existing subscription access state and
+writes both subscription and platform audit events. Cancellation requires the
+exact workspace slug and preserves a 30-day read-only window; it does not delete
+tenant data.
+
+Migration `0083` adds annual plan pricing, ordering and an audited platform plan
+editor. It intentionally leaves the existing zero prices unchanged until the
+commercial prices are approved. The tenant billing summary exposes both monthly
+and yearly prices, while checkout requests remain provider-neutral.
+
+Migration `0084` selects MoMo as the checkout adapter, adds an explicit
+VAT-exclusive/not-subject tax policy, stores authoritative checkout totals and
+provides service-only RPCs for MoMo responses and signed IPN events. Billing
+remains disabled until prices, tax treatment, invoice identity and Edge secrets
+are configured.
+
+Migration `0085` adds compact, read-only RPCs for the Admin mobile application.
+It provides server-side merged order pagination, summary/detail payload
+separation, compact dashboard data, customer debt history and employee metrics.
+All functions preserve tenant RLS/role boundaries and change no business row.
+
+Migration `0086` grants the non-login, non-BYPASSRLS tenant RPC executor the
+missing read access needed by its existing profile-membership policy. It makes
+the mobile dashboard and employee read models executable without granting any
+new permission to browser roles or exposing cross-tenant rows.
+
+Migration `0087` introduces the database-enforced `mobile_admin_viewer`
+identity. It remains an authenticated tenant member but is rejected by ordinary
+business RPCs, so the mobile client can use only the reviewed read models.
+Migration `0088` explicitly makes those read models `SECURITY DEFINER` under the
+non-login, non-BYPASSRLS executor.
+
+Migrations `0089` and `0090` complete mobile identity resolution. `0089` records
+the intermediate Auth schema requirement; `0090` replaces it with the
+authenticated request claim so the executor needs no broad Auth-table access.
+
+Migration `0091` isolates the legacy reporting call behind a transaction-local,
+read-only dashboard context. Migration `0092` applies the same request-claim
+identity to mobile access metadata. Migration `0093` finishes the chain with a
+membership RLS policy limited to the authenticated user, active organization
+and active membership.
+
+Migration `0094` adds the missing canonical `customers.assigned_brand_id`
+relation already used by the current customer form. It retains the legacy brand
+name for imports and display, backfills unambiguous tenant-local name matches,
+and prevents browser customer writes from failing against the deployed schema.
+
+Migration `0095` fixes Sale customer reads under the tenant-scoped executor by
+resolving the authenticated identity from the JWT request claim. This removes
+the accidental dependency on Supabase's protected `auth` schema while retaining
+the existing tenant and customer-assignment boundaries.
+
+Migration `0096` moves every platform-managed workspace hostname from
+platform-managed workspace domains to `*.sovie.vn`, provisions new workspaces on the canonical suffix and
+prevents the internal suffix from being registered as an external custom domain.
+Existing custom domains and all domain status/primary metadata are preserved.
+
+Migration `0097` is the guarded staging reconciliation for installations where
+an earlier migration history entry kept the legacy `*.sovie.io.vn` function
+definitions. It checks custom-domain and hostname collisions, rewrites only
+platform-managed domains to `*.sovie.vn`, updates provisioning/boundary
+functions and preserves status, primary-domain and SSL metadata. Run
+`migrations/tests/saas_commercial_launch_readiness.sql` after deployment.

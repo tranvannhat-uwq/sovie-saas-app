@@ -25,7 +25,7 @@ test('Phase 6 export is versioned, paginated and excludes inventory/production',
     backup.indexOf("const PHASE6_BACKUP_VERSION"),
     backup.indexOf('async function legacyExportBackupToExcelDisabled')
   );
-  assert.match(safeBackup, /phase6-v1/);
+  assert.match(safeBackup, /saas-tenant-v1/);
   assert.match(safeBackup, /\.order\(cursorColumn, \{ ascending: true \}\)/);
   assert.match(safeBackup, /\.gt\(cursorColumn, cursorValue\)/);
   assert.match(safeBackup, /\.limit\(pageSize\)/);

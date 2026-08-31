@@ -78,7 +78,7 @@ test('order browser cache is bounded and quota failures cannot fail Cloud saves'
   assert.match(service, /const ORDER_CACHE_MAX_ITEMS = 120/);
   assert.match(service, /const ORDER_CACHE_MAX_JSON_CHARS = 750000/);
   assert.match(service, /export function cacheOrdersLocally/);
-  assert.match(service, /localStorage\.removeItem\(ORDER_CACHE_KEY\)[\s\S]*localStorage\.setItem\(ORDER_CACHE_KEY, payload\)/);
+  assert.match(service, /tenantStorage\.removeItem\(ORDER_CACHE_KEY\)[\s\S]*tenantStorage\.setItem\(ORDER_CACHE_KEY, payload\)/);
   assert.match(invoice, /cacheOrdersLocally\(state\.savedOrders\)/);
   assert.doesNotMatch(invoice, /localStorage\.setItem\('billing_system_orders'/);
 });

@@ -1,7 +1,8 @@
 import { state } from '../state.js';
 import { showToast } from '../utils.js';
-import { deserializeBackupRows, serializeBackupRows } from './backup-serialization.js?v=20260814-invoice-discount-label-v19';
-import { mapWithConcurrency } from '../domain/async-pool.js?v=20260814-invoice-discount-label-v19';
+import { deserializeBackupRows, serializeBackupRows } from './backup-serialization.js?v=20260829-onboarding-v1';
+import { mapWithConcurrency } from '../domain/async-pool.js?v=20260829-onboarding-v1';
+import { tenantStorage } from './tenant-storage.js';
 import { 
   supabaseClient, 
   isCloudActive,
@@ -21,8 +22,9 @@ import {
   tableCommissionTransactionsName,
   tableUsersName,
   tableBrandsName,
-  fetchCloudData
-} from './supabase.js?v=20260814-invoice-discount-label-v19';
+  fetchCloudData,
+  getSaasBackupInventory
+} from './supabase.js?v=20260829-onboarding-v1';
 
 async function deleteAllRows(tableName, key = 'id') {
   const { error } = await supabaseClient
@@ -123,12 +125,12 @@ async function legacyClearTestDataDisabled(onCompleteCallback) {
   state.finishedGoodsStock = [];
   state.salesReturns = [];
 
-  localStorage.setItem('billing_system_orders', JSON.stringify([]));
-  localStorage.setItem('billing_system_sales_returns', JSON.stringify([]));
-  localStorage.setItem('billing_system_cashbook_transactions', JSON.stringify([]));
-  localStorage.setItem('billing_system_cashbook_start_balances', JSON.stringify({ cash: 0, bank: 0, wallet: 0 }));
-  localStorage.setItem('billing_system_production_logs', JSON.stringify([]));
-  localStorage.setItem('billing_system_finished_goods_stock', JSON.stringify([]));
+  tenantStorage.setItem('billing_system_orders', JSON.stringify([]));
+  tenantStorage.setItem('billing_system_sales_returns', JSON.stringify([]));
+  tenantStorage.setItem('billing_system_cashbook_transactions', JSON.stringify([]));
+  tenantStorage.setItem('billing_system_cashbook_start_balances', JSON.stringify({ cash: 0, bank: 0, wallet: 0 }));
+  tenantStorage.setItem('billing_system_production_logs', JSON.stringify([]));
+  tenantStorage.setItem('billing_system_finished_goods_stock', JSON.stringify([]));
   [
     'billing_system_goods_receipts',
     'billing_system_purchase_orders',
@@ -137,7 +139,7 @@ async function legacyClearTestDataDisabled(onCompleteCallback) {
     'billing_system_supplier_returns',
     'billing_system_purchase_returns',
     'billing_system_goods_return_to_suppliers'
-  ].forEach(key => localStorage.setItem(key, JSON.stringify([])));
+  ].forEach(key => tenantStorage.setItem(key, JSON.stringify([])));
 
   try {
     if (isCloudActive && supabaseClient) {
@@ -168,7 +170,7 @@ async function legacyClearTestDataDisabled(onCompleteCallback) {
 
 export const clearAllSampleData = clearTestData;
 
-const PHASE6_BACKUP_VERSION = 'phase6-v1';
+const PHASE6_BACKUP_VERSION = 'saas-tenant-v1';
 const BACKUP_FETCH_CONCURRENCY = 3;
 let activeBackupExport = null;
 const PHASE6_BACKUP_TABLES = [
@@ -269,14 +271,19 @@ async function performBackupExport() {
     showToast('Không thể xuất dữ liệu vì chưa kết nối Supabase.', 'warning');
     return false;
   }
-  if (state.currentUser?.role !== 'admin') {
-    showToast('Chỉ Admin được xuất bản sao dữ liệu toàn hệ thống.', 'danger');
+  if (!['owner','admin'].includes(state.currentUser?.organizationRole)) {
+    showToast('Chỉ Owner hoặc Admin workspace được xuất bản sao dữ liệu.', 'danger');
     return false;
   }
 
   try {
     showToast('Đang đọc dữ liệu Cloud theo từng trang...', 'info');
     updateBackupExportButtons(`Đang sao lưu 0/${PHASE6_BACKUP_TABLES.length}...`, true);
+    const inventory = await getSaasBackupInventory();
+    const organizationId = String(inventory?.organizationId || '');
+    if (!organizationId || organizationId !== String(state.activeOrganizationId || '')) {
+      throw new Error('Kiểm kê backup không thuộc workspace hiện tại');
+    }
     const workbook = XLSX.utils.book_new();
     const manifest = [];
     let completedTables = 0;
@@ -299,7 +306,14 @@ async function performBackupExport() {
 
     PHASE6_BACKUP_TABLES.forEach((spec, index) => {
       const rows = tableRows[index];
-      manifest.push({ sheet: spec.sheet, table_name: spec.table, row_count: rows.length });
+      if (spec.table !== 'profiles' && rows.some(row => String(row.organization_id || '') !== organizationId)) {
+        throw new Error(`${spec.table}: phát hiện dữ liệu ngoài workspace hiện tại`);
+      }
+      const inventoryCount = Number(inventory?.tableCounts?.[spec.table] ?? -1);
+      if (inventoryCount !== rows.length) {
+        throw new Error(`${spec.table}: số dòng thay đổi trong lúc sao lưu (${inventoryCount}/${rows.length}); hãy chạy lại`);
+      }
+      manifest.push({ sheet: spec.sheet, table_name: spec.table, row_count: rows.length, organization_id: organizationId });
       const worksheet = rows.length > 0
         ? XLSX.utils.json_to_sheet(serializeBackupRows(rows))
         : XLSX.utils.aoa_to_sheet([['__empty_table__']]);
@@ -310,8 +324,11 @@ async function performBackupExport() {
       schema_version: PHASE6_BACKUP_VERSION,
       created_at: new Date().toISOString(),
       created_by_profile: state.currentUser.id || '',
+      organization_id: organizationId,
+      organization_slug: inventory.organizationSlug || '',
+      latest_migration: inventory.latestMigration || '',
       source: 'supabase-authoritative-read',
-      scope: 'sales-debt-cashbook-returns-purchases',
+      scope: 'single-saas-organization',
       restore_policy: 'new-staging-only'
     }];
     XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(metadata), '_Metadata');
@@ -320,8 +337,8 @@ async function performBackupExport() {
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
     updateBackupExportButtons('Đang tạo file Excel...', true);
     await nextBrowserPaint();
-    XLSX.writeFile(workbook, `weblendon_phase6_${timestamp}.xlsx`);
-    localStorage.setItem('weblendon_last_backup_date', new Date().toLocaleDateString('vi-VN'));
+    XLSX.writeFile(workbook, `sovie_${inventory.organizationSlug || 'workspace'}_${timestamp}.xlsx`);
+    tenantStorage.setItem('weblendon_last_backup_date', new Date().toLocaleDateString('vi-VN'));
     showToast('Đã xuất bản dữ liệu có version và manifest thành công.', 'success');
     return true;
   } catch (error) {
@@ -359,8 +376,8 @@ export async function importBackupFromExcel(file) {
     showToast('Không thể kiểm tra file vì chưa kết nối Supabase.', 'warning');
     return false;
   }
-  if (state.currentUser?.role !== 'admin') {
-    showToast('Chỉ Admin được kiểm tra và chuẩn bị khôi phục dữ liệu.', 'danger');
+  if (!['owner','admin'].includes(state.currentUser?.organizationRole)) {
+    showToast('Chỉ Owner hoặc Admin workspace được kiểm tra bản sao dữ liệu.', 'danger');
     return false;
   }
   if (!file || file.size > 50 * 1024 * 1024) {
@@ -375,6 +392,13 @@ export async function importBackupFromExcel(file) {
     if (!metadata || metadata.schema_version !== PHASE6_BACKUP_VERSION) {
       throw new Error(`Sai hoặc thiếu version ${PHASE6_BACKUP_VERSION}`);
     }
+    if (String(metadata.organization_id || '') !== String(state.activeOrganizationId || '')) {
+      throw new Error('File sao lưu thuộc workspace khác; không được kiểm tra/khôi phục chéo tenant');
+    }
+
+    const manifestSheet = workbook.Sheets._Manifest;
+    const manifest = manifestSheet ? XLSX.utils.sheet_to_json(manifestSheet) : [];
+    const manifestBySheet = new Map(manifest.map(entry => [String(entry.sheet || ''),entry]));
 
     const summary = [];
     let missingSheets = 0;
@@ -390,6 +414,14 @@ export async function importBackupFromExcel(file) {
       const rows = deserializeBackupRows(
         XLSX.utils.sheet_to_json(worksheet).filter(row => !row.__empty_table__)
       );
+      const manifestEntry = manifestBySheet.get(spec.sheet);
+      if (!manifestEntry || Number(manifestEntry.row_count) !== rows.length
+        || String(manifestEntry.organization_id || '') !== String(metadata.organization_id)) {
+        throw new Error(`${spec.sheet}: manifest không khớp số dòng hoặc workspace`);
+      }
+      if (spec.table !== 'profiles' && rows.some(row => String(row.organization_id || '') !== String(metadata.organization_id))) {
+        throw new Error(`${spec.sheet}: chứa dữ liệu ngoài workspace của file`);
+      }
       const duplicates = findDuplicateBackupKeys(rows);
       totalRows += rows.length;
       totalDuplicates += duplicates;

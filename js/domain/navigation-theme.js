@@ -1,5 +1,12 @@
-export const NAV_COLOR_STORAGE_KEY = 'vieone_nav_color';
-export const DEFAULT_NAV_COLOR = '#22c55e';
+export const NAV_COLOR_STORAGE_KEY = 'sovie_nav_color';
+export const LEGACY_NAV_COLOR_STORAGE_KEY = 'vieone_nav_color';
+export const NAV_LAYOUT_STORAGE_KEY = 'sovie_nav_layout';
+export const DEFAULT_NAV_COLOR = '#0b365f';
+export const DEFAULT_NAV_LAYOUT = 'vertical';
+
+export function normalizeNavigationLayout(value) {
+  return value === 'horizontal' ? 'horizontal' : DEFAULT_NAV_LAYOUT;
+}
 
 export function normalizeNavigationColor(value, fallback = DEFAULT_NAV_COLOR) {
   const color = String(value || '').trim();

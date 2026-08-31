@@ -35,13 +35,14 @@ Deno.serve(async (request) => {
     const { data: authData, error: authError } = await callerClient.auth.getUser();
     if (authError || !authData.user) return jsonResponse({ error: 'Phiên đăng nhập không hợp lệ.' }, 401);
 
-    const { data: callerProfile, error: profileError } = await callerClient
-      .from('profiles')
-      .select('role,is_active')
-      .eq('auth_user_id', authData.user.id)
-      .single();
-    if (profileError || callerProfile?.role !== 'admin' || callerProfile?.is_active !== true) {
-      return jsonResponse({ error: 'Chỉ Admin đang hoạt động mới được tạo tài khoản.' }, 403);
+    const { data: tenantContext, error: contextError } = await callerClient
+      .rpc('rpc_my_saas_context');
+    const activeOrganizationId = String(tenantContext?.activeOrganizationId || '');
+    const activeOrganization = Array.isArray(tenantContext?.organizations)
+      ? tenantContext.organizations.find((item: { id?: string }) => String(item?.id || '') === activeOrganizationId)
+      : null;
+    if (contextError || !activeOrganization || !['owner', 'admin'].includes(String(activeOrganization.role || ''))) {
+      return jsonResponse({ error: 'Chỉ Owner hoặc Admin của workspace hiện tại mới được tạo thành viên.' }, 403);
     }
 
     const payload = await request.json();
@@ -93,7 +94,19 @@ Deno.serve(async (request) => {
       return jsonResponse({ error: updateError?.message || 'Không thể tạo profile; Auth user đã được hoàn tác.' }, 500);
     }
 
-    return jsonResponse({ user: { id: created.user.id, email: created.user.email }, profile }, 201);
+    const { data: membership, error: membershipError } = await callerClient
+      .rpc('rpc_add_organization_member', {
+        p_auth_user_id: created.user.id,
+        p_role: role,
+      });
+    if (membershipError || !membership?.membershipId) {
+      await adminClient.auth.admin.deleteUser(created.user.id);
+      return jsonResponse({
+        error: membershipError?.message || 'Không thể thêm tài khoản vào workspace; Auth user đã được hoàn tác.',
+      }, 400);
+    }
+
+    return jsonResponse({ user: { id: created.user.id, email: created.user.email }, profile, membership }, 201);
   } catch (error) {
     return jsonResponse({ error: error instanceof Error ? error.message : 'Lỗi không xác định.' }, 500);
   }

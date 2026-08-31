@@ -1,8 +1,9 @@
 import { state } from '../state.js';
 import { formatCurrency, safeCreateIcons, isSameUser, getUserCompanyId, getCompanyNameById, getCompanyIdByBrand, getCanonicalBrandName, normalizeCompanyId, isFestivalBrand, isSharedBrand, getNormalizedBrandName, removeVietnameseTones, showToast, getUserDisplayName } from '../utils.js';
-import { switchTab } from '../main.js?v=20260814-invoice-discount-label-v19';
-import { openProductModal } from './products.js';
-import { dbFetchPhase5Dashboard } from '../services/supabase.js?v=20260814-invoice-discount-label-v19';
+import { switchTab } from '../main.js?v=20260829-onboarding-v1';
+import { openProductModal } from './products.js?v=20260829-onboarding-v1';
+import { tenantStorage } from '../services/tenant-storage.js';
+import { dbFetchPhase5Dashboard } from '../services/supabase.js?v=20260829-onboarding-v1';
 import { buildDashboardChartSeries } from '../domain/dashboard-series.js';
 import { filterLoginEmployeeRevenueRows } from '../domain/dashboard-employees.js';
 
@@ -16,6 +17,44 @@ const DASHBOARD_COMPANY_SCOPE_VERSION = 'finance-all-companies-v1';
 const dashboardBreakdownCharts = new Map();
 const DASHBOARD_CHART_COLORS = ['#10b981', '#6366f1', '#0ea5e9', '#f59e0b', '#ec4899', '#8b5cf6', '#14b8a6', '#f97316'];
 const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
+
+export function renderOnboardingChecklist() {
+  const card = document.getElementById('saas-onboarding-checklist');
+  const list = document.getElementById('saas-onboarding-steps');
+  if (!card || !list) return;
+  const role = String(state.currentUser?.organizationRole || '').toLowerCase();
+  if (!['owner', 'admin'].includes(role) || !state.currentUser?.organizationId) {
+    card.style.display = 'none';
+    return;
+  }
+
+  const planOrders = Number(state.saasContext?.planUsage?.orders?.used || 0);
+  const steps = [
+    { key: 'organization', label: 'Thông tin doanh nghiệp', detail: 'Workspace và địa chỉ sovie.vn đã sẵn sàng.', done: Boolean(state.saasContext?.organizationName && state.saasContext?.organizationSlug), target: 'settings-panel', action: 'Kiểm tra' },
+    { key: 'members', label: 'Mời nhân viên', detail: 'Thêm ít nhất một thành viên để cùng vận hành.', done: (state.users || []).filter(user => !user.isExternal && user.membershipStatus !== 'suspended').length > 1, target: 'users-panel', action: 'Mời thành viên' },
+    { key: 'products', label: 'Tạo sản phẩm', detail: 'Khai báo sản phẩm hoặc nhập danh mục có sẵn.', done: (state.products || []).length > 0, target: 'products-panel', action: 'Thêm sản phẩm' },
+    { key: 'customers', label: 'Tạo khách hàng', detail: 'Thêm khách hàng đầu tiên để lập đơn.', done: (state.customers || []).length > 0, target: 'customers-panel', action: 'Thêm khách hàng' },
+    { key: 'order', label: 'Tạo đơn hàng đầu tiên', detail: 'Hoàn tất một giao dịch thử nghiệm trên Cloud.', done: planOrders > 0 || (state.savedOrders || []).length > 0, target: 'invoice-panel', action: 'Lập đơn hàng' }
+  ];
+  const completed = steps.filter(step => step.done).length;
+  const percent = Math.round((completed / steps.length) * 100);
+  card.style.display = completed === steps.length ? 'none' : '';
+  const progressLabel = document.getElementById('saas-onboarding-progress-label');
+  const progressBar = document.getElementById('saas-onboarding-progress-bar');
+  const summary = document.getElementById('saas-onboarding-summary');
+  if (progressLabel) progressLabel.textContent = `${completed}/${steps.length}`;
+  if (progressBar) progressBar.style.width = `${percent}%`;
+  if (summary) summary.textContent = completed
+    ? `Đã hoàn thành ${completed}/${steps.length} bước. Tiếp tục để sẵn sàng vận hành.`
+    : 'Thực hiện các bước nền tảng trước khi vận hành đơn hàng đầu tiên.';
+  list.innerHTML = steps.map(step => `
+    <article class="saas-onboarding-step ${step.done ? 'is-complete' : ''}">
+      <span class="saas-onboarding-step-icon"><i data-lucide="${step.done ? 'check' : 'circle'}"></i></span>
+      <span class="saas-onboarding-step-copy"><strong>${escapeHtml(step.label)}</strong><small>${escapeHtml(step.detail)}</small></span>
+      ${step.done ? '<span class="saas-onboarding-done">Hoàn tất</span>' : `<button type="button" class="saas-onboarding-action" data-target="${step.target}">${escapeHtml(step.action)} <i data-lucide="arrow-right"></i></button>`}
+    </article>`).join('');
+  safeCreateIcons();
+}
 
 function canViewAllDashboardCompanies(user = state.currentUser) {
   return ['admin', 'accounting'].includes(String(user?.role || '').toLowerCase());
@@ -268,7 +307,7 @@ function buildDashboardRevenueRows(filteredOrders) {
 
 export function saveDashboardFilterToStorage() {
   try {
-    localStorage.setItem('billing_system_dashboard_filter', JSON.stringify({
+    tenantStorage.setItem('billing_system_dashboard_filter', JSON.stringify({
       filter: state.dashboardFilter,
       mode: state.dashboardSalesMode,
       companyScopeVersion: DASHBOARD_COMPANY_SCOPE_VERSION,
@@ -279,7 +318,7 @@ export function saveDashboardFilterToStorage() {
 
 export function loadDashboardFilterFromStorage() {
   try {
-    const stored = localStorage.getItem('billing_system_dashboard_filter');
+    const stored = tenantStorage.getItem('billing_system_dashboard_filter');
     if (stored) {
       const parsed = JSON.parse(stored);
       if (parsed.filter) {
@@ -742,6 +781,7 @@ function renderServerDashboard(payload) {
 }
 
 export async function updateDashboardStats({ force = false } = {}) {
+  renderOnboardingChecklist();
   populateDashboardFilters();
   const filters = dashboardRequestFiltersForRange(state.dashboardFilter.timeRange || 'month');
   const requestKey = JSON.stringify(filters);
@@ -1268,6 +1308,10 @@ function setupCustomerAutocomplete() {
 }
 
 export function setupDashboardQuickActions() {
+  document.getElementById('saas-onboarding-checklist')?.addEventListener('click', event => {
+    const button = event.target.closest('.saas-onboarding-action');
+    if (button?.dataset.target) switchTab(button.dataset.target);
+  });
   const quickOrderBtn = document.getElementById('btn-quick-order');
   const addProdBtn = document.getElementById('dash-btn-add-product');
   const newOrdBtn = document.getElementById('dash-btn-new-order');

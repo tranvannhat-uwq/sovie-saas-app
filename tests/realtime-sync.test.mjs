@@ -30,7 +30,11 @@ test('realtime client batches events and applies changed records without full-ta
   assert.doesNotMatch(realtime, /refreshDomains\.add/);
   assert.match(service, /Array\.isArray\(options\.onlyDomains\)/);
   assert.match(service, /export async function dbRefreshOrderById/);
-  assert.match(service, /if \(!onlyDomains\)[\s\S]{0,300}\.delete\(\)/);
+  const fetchOrders = service.slice(
+    service.indexOf('const fetchOrders = async () =>'),
+    service.indexOf('const fetchCustomers = async () =>')
+  );
+  assert.doesNotMatch(fetchOrders, /\.delete\s*\(/);
   assert.doesNotMatch(realtime, /document\.addEventListener\('visibilitychange'/);
 });
 
@@ -39,6 +43,6 @@ test('realtime lifecycle follows authentication and disconnect paths', () => {
   const main = read('js/main.js');
   assert.match(users, /void startRealtimeSync\(renderAll\)/);
   assert.match(users, /await stopRealtimeSync\(\)/);
-  assert.match(main, /if \(activeUser\) \{[\s\S]{0,100}void startRealtimeSync\(renderAll\)/);
+  assert.match(main, /if \(activeUser\?\.organizationId\) \{[\s\S]{0,100}void startRealtimeSync\(renderAll\)/);
   assert.match(main, /await stopRealtimeSync\(\);\s*disconnectSupabase\(\)/);
 });

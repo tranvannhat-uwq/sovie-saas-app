@@ -13,6 +13,7 @@ import {
   dbRefreshOrderById,
   dbRefreshSalesReturnById,
   fetchCloudData,
+  getCloudReadHealth,
   isCloudActive,
   supabaseClient,
   tableBrandsName,
@@ -27,7 +28,7 @@ import {
   tableSalesReturnItemsName,
   tableSalesReturnsName,
   tableStartingBalancesName
-} from './supabase.js?v=20260814-invoice-discount-label-v19';
+} from './supabase.js?v=20260829-onboarding-v1';
 
 const REALTIME_DEBOUNCE_MS = 250;
 let realtimeChannel = null;
@@ -220,7 +221,11 @@ export async function startRealtimeSync(renderCallback) {
     if (generation !== realtimeGeneration || channel !== realtimeChannel) return;
     realtimeStatus = status;
     if (status === 'SUBSCRIBED') {
-      updateDbStatusUI('cloud', 'Đám mây • Trực tiếp');
+      const health = getCloudReadHealth();
+      updateDbStatusUI(
+        health.status === 'degraded' ? 'cloud_degraded' : 'cloud',
+        health.status === 'degraded' ? 'Cloud đã nối • Lỗi đọc dữ liệu' : 'Đám mây • Trực tiếp'
+      );
     } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
       updateDbStatusUI('connecting', 'Đang nối lại dữ liệu trực tiếp...');
     }

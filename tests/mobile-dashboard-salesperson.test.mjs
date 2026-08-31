@@ -9,13 +9,13 @@ const types = readFileSync(new URL('src/types/dashboard.ts', mobileRoot), 'utf8'
 
 test('mobile dashboard maps salesperson revenue from the authenticated RPC', () => {
   assert.match(service, /raw\.by_salesperson/);
-  assert.match(service, /from\('profiles'\)/);
-  assert.match(service, /row\.auth_user_id/);
-  assert.match(service, /bySalesperson: salespersonRows/);
+  assert.match(service, /rpc\('rpc_mobile_admin_dashboard'/);
+  assert.doesNotMatch(service, /from\('profiles'\)/);
+  assert.match(service, /bySalesperson: normalizeBreakdown\(raw\.by_salesperson\)/);
   assert.match(types, /bySalesperson: DashboardBreakdown\[\]/);
 });
 
 test('mobile Admin dashboard renders the salesperson revenue chart', () => {
-  assert.match(screen, /Doanh số theo nhân viên kinh doanh/);
-  assert.match(screen, /HorizontalBars data=\{dashboard\.bySalesperson\}/);
+  assert.match(screen, /title="Nhân viên kinh doanh"/);
+  assert.match(screen, /RankedBars data=\{dashboard\.bySalesperson\}/);
 });

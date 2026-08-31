@@ -1,7 +1,8 @@
 import { state } from '../state.js';
 import { showToast, safeCreateIcons, getBrandName } from '../utils.js';
-import { dbSaveProductsBulk, dbDeleteProduct } from '../services/supabase.js?v=20260814-invoice-discount-label-v19';
-import { renderAll } from '../main.js?v=20260814-invoice-discount-label-v19';
+import { dbSaveProductsBulk, dbDeleteProduct } from '../services/supabase.js?v=20260829-onboarding-v1';
+import { renderAll } from '../main.js?v=20260829-onboarding-v1';
+import { tenantStorage } from '../services/tenant-storage.js';
 import {
   buildProductFamilies,
   getProductBaseCode,
@@ -83,7 +84,7 @@ function populateBrandOptions() {
 
   if (filter) {
     const current = filter.value;
-    filter.innerHTML = `<option value="">Tất cả hãng sơn</option>${brands.map(brand => `<option value="${brand}">${brand}</option>`).join('')}`;
+    filter.innerHTML = `<option value="">Tất cả thương hiệu</option>${brands.map(brand => `<option value="${brand}">${brand}</option>`).join('')}`;
     filter.value = brands.includes(current) ? current : '';
   }
 
@@ -332,7 +333,7 @@ export async function saveProduct() {
     variants.some(variant => variant.code === product.code)
   );
   if (duplicate) {
-    showToast('Có mã SKU đã tồn tại trong cùng hãng sơn.', 'danger');
+    showToast('Có mã SKU đã tồn tại trong cùng thương hiệu.', 'danger');
     return;
   }
 
@@ -342,7 +343,7 @@ export async function saveProduct() {
     if (existingIndex >= 0) state.products[existingIndex] = variant;
     else state.products.push(variant);
   });
-  localStorage.setItem('billing_system_products', JSON.stringify(state.products));
+  tenantStorage.setItem('billing_system_products', JSON.stringify(state.products));
   closeProductModal();
   renderAll();
   showToast(`Đã lưu sản phẩm và ${variants.length} quy cách.`);
@@ -357,7 +358,7 @@ async function archiveProductFamily(familyKey) {
     const index = state.products.findIndex(product => product.id === variant.id);
     if (index >= 0) state.products[index] = variant;
   });
-  localStorage.setItem('billing_system_products', JSON.stringify(state.products));
+  tenantStorage.setItem('billing_system_products', JSON.stringify(state.products));
   renderProductsTable();
   showToast('Sản phẩm và các quy cách đã được ngừng áp dụng.', 'warning');
 }
@@ -368,7 +369,7 @@ export async function deleteProduct(code, brand) {
   const archived = await dbDeleteProduct(code, brand);
   if (!archived) return;
   product.isActive = false;
-  localStorage.setItem('billing_system_products', JSON.stringify(state.products));
+  tenantStorage.setItem('billing_system_products', JSON.stringify(state.products));
   renderProductsTable();
   showToast('SKU đã được ngừng áp dụng.', 'warning');
 }
@@ -497,7 +498,7 @@ async function processExcelImport() {
   });
 
   const successCount = productsToSave.length;
-  localStorage.setItem('billing_system_products', JSON.stringify(state.products));
+  tenantStorage.setItem('billing_system_products', JSON.stringify(state.products));
   renderAll();
   showToast(`Đã nhập/cập nhật ${successCount} SKU.`);
 }

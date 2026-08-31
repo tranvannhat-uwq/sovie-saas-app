@@ -1,15 +1,46 @@
 import { state } from '../state.js';
-import { COMPANY_SUPABASE_URL, COMPANY_SUPABASE_KEY, defaultProducts } from '../config.js';
+import { COMPANY_SUPABASE_URL, COMPANY_SUPABASE_KEY, assertSaasStagingConnection, defaultProducts } from '../config.js';
 import { showToast, updateDbStatusUI, isSameUser, getRevenueAttributes, getBrandById } from '../utils.js';
 import { rawMaterialsSeed } from '../components/goods_seed.js';
-import { normalizePriceListType, filterPriceListsForUser, canUserViewPriceList, canUserUsePriceListForCustomer } from '../domain/pricing.js?v=20260814-invoice-discount-label-v19';
-import { isPrintOnlyPriceList } from '../domain/invoice-discount.js?v=20260814-invoice-discount-label-v19';
+import { normalizePriceListType, filterPriceListsForUser, canUserViewPriceList, canUserUsePriceListForCustomer } from '../domain/pricing.js?v=20260829-onboarding-v1';
+import { isPrintOnlyPriceList } from '../domain/invoice-discount.js?v=20260829-onboarding-v1';
 import { collectAllPages } from '../domain/pagination.js';
-import { getCustomerDebtPostingDate, mergeCustomerDebtHistory } from '../domain/customer-debt.js?v=20260814-invoice-discount-label-v19';
-import { loadAuthorizedPricingCache, saveAuthorizedPricingCache } from './pricing-cache.js?v=20260814-invoice-discount-label-v19';
+import { getCustomerDebtPostingDate, mergeCustomerDebtHistory } from '../domain/customer-debt.js?v=20260829-onboarding-v1';
+import { loadAuthorizedPricingCache, saveAuthorizedPricingCache } from './pricing-cache.js?v=20260829-onboarding-v1';
+import { resolveActiveSaasContext } from '../domain/saas-context.js';
+import { resolveBusinessCapabilities } from '../domain/business-capabilities.js';
+import { resolveCatalogContext } from '../domain/generic-catalog.js';
+import {
+  isEffectiveOrderHistoryRow,
+  isOrderInHistoryWindow,
+  mapOrderHistoryRow,
+  matchesOrderHistoryStatus
+} from '../domain/order-history.js';
+import { activateTenantStorage, clearTenantStorageContext, tenantStorage } from './tenant-storage.js';
 
 export let supabaseClient = null;
 export let isCloudActive = false;
+let cloudReadHealth = Object.freeze({ status: 'unknown', failedDomains: [] });
+
+export function getCloudReadHealth() {
+  return cloudReadHealth;
+}
+
+function publishCloudReadHealth(failedDomains = [], attemptedDomains = []) {
+  const nextFailures = new Set(cloudReadHealth.failedDomains);
+  attemptedDomains.filter(Boolean).forEach(domain => nextFailures.delete(domain));
+  failedDomains.filter(Boolean).forEach(domain => nextFailures.add(domain));
+  const uniqueFailures = [...nextFailures];
+  cloudReadHealth = Object.freeze({
+    status: uniqueFailures.length > 0 ? 'degraded' : 'healthy',
+    failedDomains: uniqueFailures
+  });
+  updateDbStatusUI(
+    uniqueFailures.length > 0 ? 'cloud_degraded' : 'cloud',
+    uniqueFailures.length > 0 ? 'Cloud đã nối • Lỗi đọc dữ liệu' : ''
+  );
+  return cloudReadHealth;
+}
 
 const ORDER_CACHE_KEY = 'billing_system_orders';
 const ORDER_CACHE_MAX_ITEMS = 120;
@@ -42,12 +73,12 @@ export function cacheOrdersLocally(orders = state.savedOrders) {
     if (payload.length > ORDER_CACHE_MAX_JSON_CHARS) payload = '[]';
 
     try {
-      localStorage.setItem(ORDER_CACHE_KEY, payload);
+      tenantStorage.setItem(ORDER_CACHE_KEY, payload);
     } catch (error) {
       // Replacing an oversized legacy value can fail while that value still
       // occupies the quota. Remove only this disposable cache and retry once.
-      localStorage.removeItem(ORDER_CACHE_KEY);
-      localStorage.setItem(ORDER_CACHE_KEY, payload);
+      tenantStorage.removeItem(ORDER_CACHE_KEY);
+      tenantStorage.setItem(ORDER_CACHE_KEY, payload);
     }
     return true;
   } catch (error) {
@@ -71,6 +102,348 @@ export function clearSupabaseAuthStorage() {
   removeStorageKeysByPrefix(localStorage, authKeyPrefixes);
   removeStorageKeysByPrefix(sessionStorage, authKeyPrefixes);
 }
+
+export async function loadSaasContext({ allowMissingOrganization = false } = {}) {
+  if (!isCloudActive || !supabaseClient) {
+    throw new Error('Cần kết nối Supabase để xác định doanh nghiệp hiện tại.');
+  }
+  const { error: invitationError } = await supabaseClient.rpc('rpc_accept_my_organization_invitations');
+  if (invitationError) throw invitationError;
+  const { data, error } = await supabaseClient.rpc('rpc_my_saas_context');
+  if (error) throw error;
+  const organizations = Array.isArray(data?.organizations) ? data.organizations : [];
+  const activeOrganizationId = String(
+    data?.activeOrganizationId || data?.active_organization_id || ''
+  ).trim();
+  if (allowMissingOrganization && (
+    !activeOrganizationId
+    || !organizations.some(item => String(item?.id || '').trim() === activeOrganizationId)
+  )) {
+    clearTenantStorageContext();
+    return null;
+  }
+  const context = resolveActiveSaasContext(data);
+  const [capabilityResponse, catalogResponse, subscriptionAccessResponse, planUsageResponse, billingSummaryResponse] = await Promise.all([
+    supabaseClient.rpc('rpc_my_business_capabilities'),
+    supabaseClient.rpc('rpc_my_catalog_context'),
+    supabaseClient.rpc('rpc_my_subscription_access'),
+    supabaseClient.rpc('rpc_my_plan_usage'),
+    context.organizationRole === 'owner'
+      ? supabaseClient.rpc('rpc_my_billing_summary')
+      : Promise.resolve({ data: null, error: null })
+  ]);
+  const { data: capabilityData, error: capabilityError } = capabilityResponse;
+  if (capabilityError) throw capabilityError;
+  if (catalogResponse.error) throw catalogResponse.error;
+  if (subscriptionAccessResponse.error) throw subscriptionAccessResponse.error;
+  if (planUsageResponse.error) throw planUsageResponse.error;
+  if (billingSummaryResponse.error) throw billingSummaryResponse.error;
+  const baseCapabilities = resolveBusinessCapabilities(capabilityData, context.organizationId);
+  const catalog = resolveCatalogContext(catalogResponse.data, context.organizationId);
+  const capabilities = Object.freeze({ ...baseCapabilities, catalog });
+  const subscriptionAccess = Object.freeze({ ...(subscriptionAccessResponse.data || {}) });
+  const planUsage = Object.freeze({ ...(planUsageResponse.data || {}) });
+  const billingSummary = billingSummaryResponse.data
+    ? Object.freeze({ ...billingSummaryResponse.data }) : null;
+  const completeContext = Object.freeze({ ...context, capabilities, subscriptionAccess, planUsage, billingSummary });
+  activateTenantStorage(completeContext.organizationId);
+  return completeContext;
+}
+
+export async function validateSaasOrganizationSlug(slug) {
+  if (!isCloudActive || !supabaseClient) {
+    throw new Error('Cần kết nối Supabase để kiểm tra tên miền doanh nghiệp.');
+  }
+  const { data, error } = await supabaseClient.rpc('rpc_validate_organization_slug', {
+    p_slug: String(slug || '').trim().toLowerCase()
+  });
+  if (error) throw error;
+  return data;
+}
+
+export async function getPlatformCustomerAccounts() {
+  if (!isCloudActive || !supabaseClient) return null;
+  const { data, error } = await supabaseClient.rpc('rpc_platform_customer_accounts');
+  if (error) throw error;
+  return data || null;
+}
+
+export async function getPlatformActivePlans() {
+  if (!isCloudActive || !supabaseClient) return [];
+  const { data, error } = await supabaseClient.rpc('rpc_platform_active_plans');
+  if (error) throw error;
+  return Array.isArray(data) ? data : [];
+}
+
+export async function getPlatformPlanCatalog() {
+  if (!isCloudActive || !supabaseClient) return [];
+  const { data, error } = await supabaseClient.rpc('rpc_platform_plan_catalog');
+  if (error) throw error;
+  return Array.isArray(data) ? data : [];
+}
+
+export async function updatePlatformPlan(payload = {}) {
+  if (!isCloudActive || !supabaseClient) {
+    throw new Error('Cần kết nối Supabase để cập nhật bảng giá SaaS.');
+  }
+  const limits = {
+    users: Number(payload.users),
+    branches: Number(payload.branches),
+    warehouses: Number(payload.warehouses),
+    monthly_orders: Number(payload.monthlyOrders),
+    custom_domains: Number(payload.customDomains)
+  };
+  const { data, error } = await supabaseClient.rpc('rpc_platform_update_plan', {
+    p_plan_id: String(payload.planId || '').trim().toLowerCase(),
+    p_name: String(payload.name || '').trim(),
+    p_description: String(payload.description || '').trim(),
+    p_price_monthly: Number(payload.priceMonthly),
+    p_price_yearly: Number(payload.priceYearly),
+    p_currency: String(payload.currency || 'VND').trim().toUpperCase(),
+    p_limits: limits,
+    p_is_public: Boolean(payload.isPublic),
+    p_is_active: Boolean(payload.isActive),
+    p_sort_order: Number(payload.sortOrder || 100)
+  });
+  if (error) throw error;
+  return data;
+}
+
+export async function getPlatformBillingConfiguration() {
+  if (!isCloudActive || !supabaseClient) return null;
+  const { data, error } = await supabaseClient.rpc('rpc_platform_billing_configuration');
+  if (error) throw error;
+  return data || null;
+}
+
+export async function updatePlatformBillingConfiguration(payload = {}) {
+  if (!isCloudActive || !supabaseClient) {
+    throw new Error('Cần kết nối Supabase để cập nhật cấu hình thanh toán.');
+  }
+  const { data, error } = await supabaseClient.rpc('rpc_platform_update_billing_configuration', {
+    p_tax_mode: String(payload.taxMode || ''),
+    p_vat_rate: payload.taxMode === 'not_subject' ? 0 : Number(payload.vatRate),
+    p_issuer_name: String(payload.issuerName || '').trim(),
+    p_issuer_tax_code: String(payload.issuerTaxCode || '').trim().toUpperCase(),
+    p_billing_enabled: Boolean(payload.billingEnabled)
+  });
+  if (error) throw error;
+  return data;
+}
+
+export async function createPlatformCustomer(payload = {}) {
+  if (!isCloudActive || !supabaseClient) {
+    throw new Error('Cần kết nối Supabase để tạo khách hàng SaaS.');
+  }
+  const { data, error } = await supabaseClient.functions.invoke('platform-create-customer', {
+    body: {
+      name: String(payload.name || '').trim(),
+      slug: String(payload.slug || '').trim().toLowerCase(),
+      ownerEmail: String(payload.ownerEmail || '').trim().toLowerCase(),
+      ownerName: String(payload.ownerName || '').trim(),
+      planId: String(payload.planId || 'starter'),
+      trialDays: Number(payload.trialDays || 14),
+      businessType: String(payload.businessType || 'general_trade'),
+      industryKey: String(payload.industryKey || 'general')
+    }
+  });
+  if (error) {
+    let message = error.message || 'Không thể tạo khách hàng SaaS.';
+    try {
+      const responseBody = await error.context?.json?.();
+      if (responseBody?.error) message = responseBody.error;
+    } catch (_) {
+      // Preserve the SDK message when the response body cannot be decoded.
+    }
+    throw new Error(message);
+  }
+  if (data?.error) throw new Error(data.error);
+  return data;
+}
+
+export async function managePlatformCustomer(payload = {}) {
+  if (!isCloudActive || !supabaseClient) {
+    throw new Error('Cần kết nối Supabase để quản lý khách hàng SaaS.');
+  }
+  const { data, error } = await supabaseClient.rpc('rpc_platform_manage_customer', {
+    p_organization_id: String(payload.organizationId || ''),
+    p_action: String(payload.action || ''),
+    p_plan_id: payload.planId ? String(payload.planId) : null,
+    p_trial_days: payload.trialDays ? Number(payload.trialDays) : null,
+    p_reason: String(payload.reason || '').trim(),
+    p_confirmation_slug: payload.confirmationSlug ? String(payload.confirmationSlug).trim().toLowerCase() : null
+  });
+  if (error) throw error;
+  return data;
+}
+
+export async function createSaasOrganization({ name, slug, businessType, industryKey }) {
+  if (!isCloudActive || !supabaseClient) {
+    throw new Error('Cần kết nối Supabase để tạo doanh nghiệp.');
+  }
+  const { data, error } = await supabaseClient.rpc('rpc_create_organization', {
+    p_name: String(name || '').trim(),
+    p_slug: String(slug || '').trim().toLowerCase(),
+    p_business_type: String(businessType || 'general_trade'),
+    p_industry_key: String(industryKey || 'general')
+  });
+  if (error) throw error;
+  return data;
+}
+
+export async function switchSaasOrganization(organizationId) {
+  if (!isCloudActive || !supabaseClient) {
+    throw new Error('Cần kết nối Supabase để chuyển doanh nghiệp.');
+  }
+  const { data, error } = await supabaseClient.rpc('rpc_set_default_organization', {
+    p_organization_id: organizationId
+  });
+  if (error) throw error;
+  return data;
+}
+
+export async function transferSaasOrganizationOwnership(targetAuthUserId) {
+  if (!isCloudActive || !supabaseClient) {
+    throw new Error('Cần kết nối Supabase để chuyển quyền Owner.');
+  }
+  const { data, error } = await supabaseClient.rpc('rpc_transfer_organization_ownership', {
+    p_target_auth_user_id: targetAuthUserId
+  });
+  if (error) throw error;
+  return data;
+}
+
+export async function requestSaasCustomDomain(hostname) {
+  if (!isCloudActive || !supabaseClient) throw new Error('Cần kết nối Supabase để đăng ký tên miền.');
+  const { data, error } = await supabaseClient.rpc('rpc_request_custom_domain', {
+    p_hostname: String(hostname || '').trim().toLowerCase()
+  });
+  if (error) throw error;
+  return data;
+}
+
+export async function getSaasCustomDomainVerification(domainId) {
+  if (!isCloudActive || !supabaseClient) throw new Error('Cần kết nối Supabase để đọc xác minh tên miền.');
+  const { data, error } = await supabaseClient.rpc('rpc_my_custom_domain_verification', {
+    p_domain_id: domainId
+  });
+  if (error) throw error;
+  return data;
+}
+
+export async function verifySaasCustomDomainDns(domainId) {
+  if (!isCloudActive || !supabaseClient) throw new Error('Cần kết nối Supabase để kiểm tra DNS.');
+  const { data, error } = await supabaseClient.functions.invoke('verify-custom-domain', {
+    body: { domainId }
+  });
+  if (error) throw error;
+  if (data?.error) throw new Error(data.error);
+  return data;
+}
+
+export async function provisionSaasCustomDomain(domainId) {
+  if (!isCloudActive || !supabaseClient) throw new Error('Cần kết nối Supabase để cấp SSL.');
+  const { data, error } = await supabaseClient.functions.invoke('provision-custom-domain', {
+    body: { domainId }
+  });
+  if (error) throw error;
+  if (data?.error) throw new Error(data.error);
+  return data;
+}
+
+export async function setPrimarySaasCustomDomain(domainId) {
+  if (!isCloudActive || !supabaseClient) throw new Error('Cần kết nối Supabase để đổi tên miền chính.');
+  const { data, error } = await supabaseClient.rpc('rpc_set_primary_custom_domain', {
+    p_domain_id: domainId
+  });
+  if (error) throw error;
+  return data;
+}
+
+export async function disableSaasCustomDomain(domainId) {
+  if (!isCloudActive || !supabaseClient) throw new Error('Cần kết nối Supabase để vô hiệu hóa tên miền.');
+  const { data, error } = await supabaseClient.rpc('rpc_disable_custom_domain', {
+    p_domain_id: domainId
+  });
+  if (error) throw error;
+  return data;
+}
+
+export async function requestSaasPlanChange(planId, billingCycle = 'monthly') {
+  if (!isCloudActive || !supabaseClient) throw new Error('Cần kết nối Supabase để yêu cầu đổi gói.');
+  const requestKey = globalThis.crypto?.randomUUID?.() || `billing-${Date.now()}-${Math.random()}`;
+  const { data, error } = await supabaseClient.rpc('rpc_request_plan_change', {
+    p_plan_id: planId, p_request_key: requestKey, p_billing_cycle: billingCycle
+  });
+  if (error) throw error;
+  const { data: checkout, error: checkoutError } = await supabaseClient.functions.invoke('momo-create-checkout', {
+    body: { requestId: data?.requestId }
+  });
+  if (checkoutError) {
+    let message = checkoutError.message || 'Không thể tạo giao dịch MoMo.';
+    try {
+      const responseBody = await checkoutError.context?.json?.();
+      if (responseBody?.error) message = responseBody.error;
+    } catch (_) {
+      // Preserve the SDK error when the Edge response is not JSON.
+    }
+    throw new Error(message);
+  }
+  if (checkout?.error) throw new Error(checkout.error);
+  return { ...data, checkout };
+}
+
+export async function saveSaasBranch(branch = {}) {
+  if (!isCloudActive || !supabaseClient) throw new Error('Cần kết nối Supabase để lưu chi nhánh.');
+  const { data, error } = await supabaseClient.rpc('rpc_upsert_organization_branch', {
+    p_branch_id: branch.id || null,
+    p_code: String(branch.code || '').trim(),
+    p_name: String(branch.name || '').trim(),
+    p_address: String(branch.address || '').trim(),
+    p_phone: String(branch.phone || '').trim() || null,
+    p_email: String(branch.email || '').trim() || null,
+    p_tax_code: String(branch.taxCode || branch.tax_code || '').trim() || null,
+    p_is_default: branch.isDefault === true || branch.is_default === true,
+    p_is_active: branch.isActive !== false && branch.is_active !== false
+  });
+  if (error) throw error;
+  return data;
+}
+
+export async function saveSaasWarehouse(warehouse = {}) {
+  if (!isCloudActive || !supabaseClient) throw new Error('Cần kết nối Supabase để lưu kho.');
+  const { data, error } = await supabaseClient.rpc('rpc_upsert_organization_warehouse', {
+    p_warehouse_id: warehouse.id || null,
+    p_branch_id: warehouse.branchId || warehouse.branch_id || null,
+    p_code: String(warehouse.code || '').trim(),
+    p_name: String(warehouse.name || '').trim(),
+    p_address: String(warehouse.address || '').trim(),
+    p_is_default: warehouse.isDefault === true || warehouse.is_default === true,
+    p_is_active: warehouse.isActive !== false && warehouse.is_active !== false
+  });
+  if (error) throw error;
+  return data;
+}
+
+export async function getSaasBackupInventory() {
+  if (!isCloudActive || !supabaseClient) throw new Error('Cần kết nối Supabase để kiểm kê bản sao.');
+  const { data, error } = await supabaseClient.rpc('rpc_my_backup_inventory');
+  if (error) throw error;
+  return data;
+}
+
+export async function requestSaasOrganizationArchive({ confirmationSlug, backupReference, reason = '' }) {
+  if (!isCloudActive || !supabaseClient) throw new Error('Cần kết nối Supabase để gửi yêu cầu lưu trữ.');
+  const { data, error } = await supabaseClient.rpc('rpc_request_organization_archive', {
+    p_confirmation_slug: String(confirmationSlug || '').trim().toLowerCase(),
+    p_backup_reference: String(backupReference || '').trim(),
+    p_reason: String(reason || '').trim()
+  });
+  if (error) throw error;
+  return data;
+}
+
+export { clearTenantStorageContext };
 
 // Tên các bảng trên cơ sở dữ liệu (tự động điều chỉnh dựa trên sự tồn tại của tiền tố wl_)
 export let tableProductsName = 'products';
@@ -151,14 +524,14 @@ export async function setMaintenanceMode(enabled, message = '') {
 
 // Tải dữ liệu dự phòng từ LocalStorage khi mất kết nối mạng
 export function loadLocalStorageBackup() {
-  const storedProducts = localStorage.getItem('billing_system_products');
-  const storedOrders = localStorage.getItem('billing_system_orders');
+  const storedProducts = tenantStorage.getItem('billing_system_products');
+  const storedOrders = tenantStorage.getItem('billing_system_orders');
   
   if (storedProducts && JSON.parse(storedProducts).length > 0) {
     state.products = JSON.parse(storedProducts);
   } else {
     state.products = [...defaultProducts];
-    localStorage.setItem('billing_system_products', JSON.stringify(state.products));
+    tenantStorage.setItem('billing_system_products', JSON.stringify(state.products));
   }
   
   if (storedOrders) {
@@ -168,32 +541,32 @@ export function loadLocalStorageBackup() {
     cacheOrdersLocally(state.savedOrders);
   }
 
-  const storedCustomers = localStorage.getItem('billing_system_customers');
+  const storedCustomers = tenantStorage.getItem('billing_system_customers');
   if (storedCustomers && JSON.parse(storedCustomers).length > 0) {
     state.customers = JSON.parse(storedCustomers);
   } else {
     state.customers = [];
-    localStorage.setItem('billing_system_customers', JSON.stringify(state.customers));
+    tenantStorage.setItem('billing_system_customers', JSON.stringify(state.customers));
   }
 
-  const storedSuppliers = localStorage.getItem('billing_system_suppliers');
+  const storedSuppliers = tenantStorage.getItem('billing_system_suppliers');
   if (storedSuppliers && JSON.parse(storedSuppliers).length > 0) {
     state.suppliers = JSON.parse(storedSuppliers);
   } else {
     state.suppliers = [
       { id: 'supplier-abs', code: 'NCC001', name: 'CÔNG TY CỔ PHẦN ABS JAPAN', phone: '088.603.7878', address: 'Tiên Kha - Phúc Thịnh - Hà Nội', debt: 0, notes: 'Nhà máy cung cấp sơn chính hãng Nano10*' }
     ];
-    localStorage.setItem('billing_system_suppliers', JSON.stringify(state.suppliers));
+    tenantStorage.setItem('billing_system_suppliers', JSON.stringify(state.suppliers));
   }
 
   // Identity and role are never restored from browser-controlled storage.
-  localStorage.removeItem('billing_system_users');
+  tenantStorage.removeItem('billing_system_users');
   state.users = [];
 
   // Price-list data is permission-sensitive and must never survive a user
   // switch in browser storage. Keep only non-secret bootstrap lists in memory.
-  localStorage.removeItem('billing_system_pricelists');
-  localStorage.removeItem('billing_system_price_list_items');
+  tenantStorage.removeItem('billing_system_pricelists');
+  tenantStorage.removeItem('billing_system_price_list_items');
   state.pricelists = [
       {
         id: 'pl-02',
@@ -224,7 +597,7 @@ export function loadLocalStorageBackup() {
   state.priceListItems = [];
   state.allPriceListItems = [];
 
-  const storedBrands = localStorage.getItem('billing_system_brands');
+  const storedBrands = tenantStorage.getItem('billing_system_brands');
   if (storedBrands) {
     state.brands = JSON.parse(storedBrands);
   } else {
@@ -237,53 +610,56 @@ export function loadLocalStorageBackup() {
       { name: 'NANO10 MN', companyName: 'Công ty Cổ phần ABS JAPAN - Chi nhánh Miền Nam', companyId: 'ABS_SOUTH', logoFilename: 'absjapan.png' },
       { name: 'TDKAW NANO', companyName: 'Công ty Cổ phần ABS JAPAN (Miền Bắc)', companyId: 'ABS_NORTH', logoFilename: 'absjapan.png' }
     ];
-    localStorage.setItem('billing_system_brands', JSON.stringify(state.brands));
+    tenantStorage.setItem('billing_system_brands', JSON.stringify(state.brands));
   }
 
-  const storedRaw = localStorage.getItem('billing_system_raw_materials');
+  const storedRaw = tenantStorage.getItem('billing_system_raw_materials');
   if (storedRaw && JSON.parse(storedRaw).length > 0) {
     state.rawMaterials = JSON.parse(storedRaw);
   } else {
     state.rawMaterials = [...rawMaterialsSeed];
-    localStorage.setItem('billing_system_raw_materials', JSON.stringify(state.rawMaterials));
+    tenantStorage.setItem('billing_system_raw_materials', JSON.stringify(state.rawMaterials));
   }
 
-  const storedSemi = localStorage.getItem('billing_system_semi_finished');
+  const storedSemi = tenantStorage.getItem('billing_system_semi_finished');
   if (storedSemi) {
     state.semiFinished = JSON.parse(storedSemi);
   } else {
     state.semiFinished = [];
-    localStorage.setItem('billing_system_semi_finished', JSON.stringify([]));
+    tenantStorage.setItem('billing_system_semi_finished', JSON.stringify([]));
   }
 
-  const storedRecipes = localStorage.getItem('billing_system_recipes');
+  const storedRecipes = tenantStorage.getItem('billing_system_recipes');
   if (storedRecipes) {
     state.recipes = JSON.parse(storedRecipes);
   } else {
     state.recipes = [];
-    localStorage.setItem('billing_system_recipes', JSON.stringify([]));
+    tenantStorage.setItem('billing_system_recipes', JSON.stringify([]));
   }
 
-  const storedLogs = localStorage.getItem('billing_system_production_logs');
+  const storedLogs = tenantStorage.getItem('billing_system_production_logs');
   if (storedLogs) {
     state.productionLogs = JSON.parse(storedLogs);
   } else {
     state.productionLogs = [];
-    localStorage.setItem('billing_system_production_logs', JSON.stringify([]));
+    tenantStorage.setItem('billing_system_production_logs', JSON.stringify([]));
   }
 
-  const storedFgs = localStorage.getItem('billing_system_finished_goods_stock');
+  const storedFgs = tenantStorage.getItem('billing_system_finished_goods_stock');
   if (storedFgs) {
     state.finishedGoodsStock = JSON.parse(storedFgs);
   } else {
     state.finishedGoodsStock = [];
-    localStorage.setItem('billing_system_finished_goods_stock', JSON.stringify([]));
+    tenantStorage.setItem('billing_system_finished_goods_stock', JSON.stringify([]));
   }
 }
 
 // Kết nối đến Supabase
 export async function connectSupabase(url, key, verbose = true) {
   try {
+    const stagingConnection = assertSaasStagingConnection(url, key);
+    url = stagingConnection.url;
+    key = stagingConnection.key;
     if (typeof supabase === 'undefined') {
       throw new Error('Thư viện Supabase chưa được tải (vui lòng kiểm tra kết nối mạng).');
     }
@@ -359,8 +735,8 @@ export async function connectSupabase(url, key, verbose = true) {
     supabaseClient = client;
     isCloudActive = true;
     
-    localStorage.setItem('billing_supabase_url', url);
-    localStorage.setItem('billing_supabase_key', key);
+    tenantStorage.setItem('billing_supabase_url', url);
+    tenantStorage.setItem('billing_supabase_key', key);
     
     const dbUrlInput = document.getElementById('db-url');
     const dbKeyInput = document.getElementById('db-anon-key');
@@ -408,12 +784,14 @@ export async function connectSupabase(url, key, verbose = true) {
 // Ngắt kết nối đám mây
 export function disconnectSupabase() {
   const connectedClient = supabaseClient;
-  localStorage.removeItem('billing_supabase_url');
-  localStorage.removeItem('billing_supabase_key');
+  tenantStorage.removeItem('billing_supabase_url');
+  tenantStorage.removeItem('billing_supabase_key');
   clearSupabaseAuthStorage();
+  clearTenantStorageContext();
   
   supabaseClient = null;
   isCloudActive = false;
+  cloudReadHealth = Object.freeze({ status: 'unknown', failedDomains: [] });
   if (connectedClient?.removeAllChannels) {
     void connectedClient.removeAllChannels().catch(error => {
       console.warn('Could not close Cloud realtime channels:', error);
@@ -436,8 +814,8 @@ export function disconnectSupabase() {
 
 // Kết nối lại
 export async function retrySupabaseConnection() {
-  const savedUrl = localStorage.getItem('billing_supabase_url');
-  const savedKey = localStorage.getItem('billing_supabase_key');
+  const savedUrl = tenantStorage.getItem('billing_supabase_url');
+  const savedKey = tenantStorage.getItem('billing_supabase_key');
   if (!savedUrl || !savedKey) {
     showToast('Chưa có thông tin cấu hình Cloud. Vui lòng cấu hình trong phần Cấu hình Cloud.', 'warning');
     return false;
@@ -533,9 +911,11 @@ function publishAuthorizedPricingState() {
 }
 
 function currentPricingActorId() {
-  return String(
+  const organizationId = String(state.currentUser?.organizationId || '').trim();
+  const actorId = String(
     state.currentUser?.authUserId || state.currentUser?.auth_user_id || state.currentUser?.id || ''
-  );
+  ).trim();
+  return organizationId && actorId ? `${organizationId}::${actorId}` : '';
 }
 
 async function hydrateAuthorizedPricingCache(pricingActorId) {
@@ -742,7 +1122,7 @@ export function applyCustomerDebtRealtimePayload(payload = {}) {
   }
   customer.debtHistory = history.sort((a, b) =>
     new Date(getCustomerDebtPostingDate(a) || 0) - new Date(getCustomerDebtPostingDate(b) || 0));
-  localStorage.setItem('billing_system_customers', JSON.stringify(state.customers));
+  tenantStorage.setItem('billing_system_customers', JSON.stringify(state.customers));
   return true;
 }
 
@@ -819,13 +1199,13 @@ export function applyCashbookRealtimePayload(payload = {}) {
   const row = payload.new || payload.old || {};
   const id = String(row.id || '');
   if (!id) return false;
-  const transactions = JSON.parse(localStorage.getItem('billing_system_cashbook_transactions') || '[]')
+  const transactions = JSON.parse(tenantStorage.getItem('billing_system_cashbook_transactions') || '[]')
     .filter(item => String(item.id) !== id);
   if (payload.eventType !== 'DELETE' && payload.new) {
     transactions.unshift(mapCashbookTransaction(payload.new));
     transactions.sort((a, b) => new Date(b.date) - new Date(a.date));
   }
-  localStorage.setItem('billing_system_cashbook_transactions', JSON.stringify(transactions));
+  tenantStorage.setItem('billing_system_cashbook_transactions', JSON.stringify(transactions));
   return true;
 }
 
@@ -842,7 +1222,7 @@ export function applyStartingBalanceRealtimePayload(payload = {}) {
     bank: Number(row.bank || 0),
     wallet: Number(row.wallet || 0)
   };
-  localStorage.setItem('billing_system_cashbook_start_balances', JSON.stringify(balances));
+  tenantStorage.setItem('billing_system_cashbook_start_balances', JSON.stringify(balances));
   return balances;
 }
 
@@ -898,7 +1278,7 @@ function getCurrentLocalWeekRange() {
 function replaceLoadedCashbookWindow(rawTransactions, startIso, endExclusiveIso) {
   const startTime = new Date(startIso).getTime();
   const endTime = new Date(endExclusiveIso).getTime();
-  const cached = JSON.parse(localStorage.getItem('billing_system_cashbook_transactions') || '[]');
+  const cached = JSON.parse(tenantStorage.getItem('billing_system_cashbook_transactions') || '[]');
   const retained = cached.filter(transaction => {
     const transactionTime = new Date(transaction.date || transaction.transaction_date || 0).getTime();
     return !Number.isFinite(transactionTime)
@@ -909,7 +1289,7 @@ function replaceLoadedCashbookWindow(rawTransactions, startIso, endExclusiveIso)
   const merged = [...mapped, ...retained]
     .filter((transaction, index, rows) => rows.findIndex(item => String(item.id) === String(transaction.id)) === index)
     .sort((left, right) => new Date(right.date || 0) - new Date(left.date || 0));
-  localStorage.setItem('billing_system_cashbook_transactions', JSON.stringify(merged));
+  tenantStorage.setItem('billing_system_cashbook_transactions', JSON.stringify(merged));
   return mapped;
 }
 
@@ -937,7 +1317,7 @@ async function loadFullCashbookFallback() {
     .order('date', { ascending: false });
   if (error) throw error;
   const transactions = (data || []).map(mapCashbookTransaction);
-  localStorage.setItem('billing_system_cashbook_transactions', JSON.stringify(transactions));
+  tenantStorage.setItem('billing_system_cashbook_transactions', JSON.stringify(transactions));
   state.cashbookOpeningNetByMethod = null;
   state.cashbookOpeningStartIso = '';
   return transactions;
@@ -1145,7 +1525,7 @@ export function applyProductRealtimePayload(payload = {}) {
     remaining.sort((a, b) => String(a.code || '').localeCompare(String(b.code || ''), 'vi'));
   }
   state.products = remaining;
-  localStorage.setItem('billing_system_products', JSON.stringify(state.products));
+  tenantStorage.setItem('billing_system_products', JSON.stringify(state.products));
   return true;
 }
 
@@ -1175,7 +1555,7 @@ export function applyBrandRealtimePayload(payload = {}) {
   if (payload.eventType !== 'DELETE' && payload.new) brands.push(mapBrandRow(payload.new));
   brands.sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), 'vi'));
   state.brands = brands;
-  localStorage.setItem('billing_system_brands', JSON.stringify(state.brands));
+  tenantStorage.setItem('billing_system_brands', JSON.stringify(state.brands));
   return true;
 }
 
@@ -1188,6 +1568,11 @@ export async function fetchCloudData(options = {}) {
   const onlyDomains = Array.isArray(options.onlyDomains)
     ? new Set(options.onlyDomains.filter(Boolean))
     : null;
+  const failedDomains = new Set();
+  const recordReadFailure = (domain, error, message) => {
+    failedDomains.add(domain);
+    console.warn(message, error?.message || error);
+  };
   try {
     // Luồng tải dữ liệu lõi (nếu lỗi sẽ dừng và báo lỗi toàn cục)
     const fetchProducts = async () => {
@@ -1199,32 +1584,17 @@ export async function fetchCloudData(options = {}) {
           
         if (prodErr) throw prodErr;
         
-        const localProducts = JSON.parse(localStorage.getItem('billing_system_products') || '[]');
+        const localProducts = JSON.parse(tenantStorage.getItem('billing_system_products') || '[]');
         state.products = (prodData || []).map(row => normalizeProductRow(row, localProducts));
-        localStorage.setItem('billing_system_products', JSON.stringify(state.products));
+        tenantStorage.setItem('billing_system_products', JSON.stringify(state.products));
       } catch (prodErr) {
-        console.warn("Could not load products from Supabase, fallback to local:", prodErr.message);
-        state.products = JSON.parse(localStorage.getItem('billing_system_products') || '[]');
+        recordReadFailure('products', prodErr, 'Could not load products from Supabase, fallback to tenant cache:');
+        state.products = JSON.parse(tenantStorage.getItem('billing_system_products') || '[]');
       }
     };
 
     const fetchOrders = async () => {
       try {
-        // Preserve the existing login cleanup behavior, but never delete rows
-        // from a read-only Realtime catch-up refresh.
-        if (!onlyDomains) {
-          try {
-            const twoDaysAgo = new Date();
-            twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
-            await supabaseClient
-              .from(tableDraftOrdersName)
-              .delete()
-              .lt('created_at', twoDaysAgo.toISOString());
-          } catch (cleanErr) {
-            console.warn("Could not auto-cleanup old drafts on Cloud:", cleanErr.message);
-          }
-        }
-
         const currentWeek = getCurrentLocalWeekRange();
         const [rawOrders, rawDrafts] = await Promise.all([
           fetchOrderRowsForHistoryWindow(currentWeek.startIso, currentWeek.endExclusiveIso),
@@ -1237,8 +1607,8 @@ export async function fetchCloudData(options = {}) {
           .sort((a, b) => new Date(b.date) - new Date(a.date));
         cacheOrdersLocally(state.savedOrders);
       } catch (ordErr) {
-        console.warn("Could not load orders from Supabase, fallback to local:", ordErr.message);
-        state.savedOrders = JSON.parse(localStorage.getItem('billing_system_orders') || '[]');
+        recordReadFailure('orders', ordErr, 'Could not load orders from Supabase, fallback to tenant cache:');
+        state.savedOrders = JSON.parse(tenantStorage.getItem('billing_system_orders') || '[]');
       }
     };
 
@@ -1288,10 +1658,10 @@ export async function fetchCloudData(options = {}) {
         if (state.activeCustomerId && !state.customers.some(customer => customer.id === state.activeCustomerId)) {
           state.activeCustomerId = null;
         }
-        localStorage.setItem('billing_system_customers', JSON.stringify(state.customers));
+        tenantStorage.setItem('billing_system_customers', JSON.stringify(state.customers));
       } catch (custErr) {
-        console.warn("Could not load customers from Supabase, using local fallback:", custErr.message);
-        state.customers = JSON.parse(localStorage.getItem('billing_system_customers') || '[]');
+        recordReadFailure('customers', custErr, 'Could not load customers from Supabase, using tenant cache:');
+        state.customers = JSON.parse(tenantStorage.getItem('billing_system_customers') || '[]');
       }
     };
 
@@ -1359,6 +1729,7 @@ export async function fetchCloudData(options = {}) {
         if (includeItems) state.pricingSnapshotCachedAt = new Date().toISOString();
         scheduleAuthorizedPricingCachePersist();
       } catch (plErr) {
+        failedDomains.add('pricelists');
         // Keep the last in-memory snapshot for this authenticated session on
         // transient refresh failures. Bootstrap data or a snapshot belonging
         // to another account must still fail closed.
@@ -1387,27 +1758,50 @@ export async function fetchCloudData(options = {}) {
 
     const fetchUsers = async () => {
       try {
-        const { data: userData, error: userErr } = await supabaseClient
-          .from(tableUsersName)
-          .select('*');
+        const [memberResult, peopleResult] = await Promise.all([
+          supabaseClient.rpc('rpc_my_organization_members'),
+          supabaseClient.rpc('rpc_my_organization_people')
+        ]);
+        const { data: userData, error: userErr } = memberResult;
+        const { data: peopleData, error: peopleErr } = peopleResult;
 
         if (userErr) throw userErr;
+        if (peopleErr) throw peopleErr;
 
         const cloudUsers = (userData || []).map(u => {
           return {
-            id: u.id,
+            id: u.profile_id,
             authUserId: u.auth_user_id || null,
             username: u.username,
             displayName: u.display_name,
             role: u.role || 'sale',
-            position: u.position || '',
             companyId: u.company_id || u.companyId || 'ABS_NORTH',
-            isExternal: u.is_external || false,
-            isActive: u.is_active !== false
+            isExternal: false,
+            isActive: u.status === 'active',
+            membershipId: u.membership_id,
+            membershipStatus: u.status || 'active',
+            isDefaultWorkspace: u.is_default === true,
+            joinedAt: u.joined_at || null
           };
         });
 
-        const merged = [...cloudUsers];
+        const directoryPeople = (peopleData || []).map(person => ({
+          id: person.person_id,
+          authUserId: null,
+          username: person.username,
+          displayName: person.display_name,
+          role: 'sale',
+          companyId: person.company_id || 'ABS_NORTH',
+          isExternal: true,
+          isActive: person.status === 'active',
+          membershipStatus: person.status || 'active',
+          phone: person.phone || '',
+          jobTitle: person.job_title || '',
+          employmentType: person.employment_type || 'employee',
+          createdAt: person.created_at || null
+        }));
+
+        const merged = [...cloudUsers, ...directoryPeople];
         
         const uniqueUsers = [];
         merged.forEach(u => {
@@ -1424,7 +1818,7 @@ export async function fetchCloudData(options = {}) {
 
         state.users = uniqueUsers;
       } catch (uErr) {
-        console.warn("Could not load authenticated profiles from Supabase:", uErr.message);
+        recordReadFailure('users', uErr, 'Could not load authenticated profiles from Supabase:');
         state.users = [];
       }
     };
@@ -1438,8 +1832,10 @@ export async function fetchCloudData(options = {}) {
 
         if (brandErr) throw brandErr;
 
-        const localBrands = JSON.parse(localStorage.getItem('billing_system_brands') || '[]');
-        let sourceData = (brandData && brandData.length > 0) ? brandData : localBrands;
+        // An empty Cloud result is authoritative for a new or reset tenant.
+        // Reusing a previous browser snapshot here makes an empty workspace
+        // look as if it owns records that are no longer present on Cloud.
+        const sourceData = brandData || [];
 
         const uniqueBrands = [];
         const seenIds = new Set();
@@ -1469,10 +1865,10 @@ export async function fetchCloudData(options = {}) {
         });
 
         state.brands = uniqueBrands;
-        localStorage.setItem('billing_system_brands', JSON.stringify(state.brands));
+        tenantStorage.setItem('billing_system_brands', JSON.stringify(state.brands));
       } catch (brandErr) {
-        console.warn("Could not load brands from Supabase:", brandErr.message);
-        state.brands = JSON.parse(localStorage.getItem('billing_system_brands') || '[]');
+        recordReadFailure('brands', brandErr, 'Could not load brands from Supabase:');
+        state.brands = JSON.parse(tenantStorage.getItem('billing_system_brands') || '[]');
       }
     };
 
@@ -1482,7 +1878,7 @@ export async function fetchCloudData(options = {}) {
         const loaded = await dbLoadCashbookForRange(currentWeek.startIso, currentWeek.endExclusiveIso);
         if (!loaded) throw new Error('Cashbook window could not be loaded');
       } catch (txErr) {
-        console.warn("Could not load cashbook transactions from Supabase:", txErr.message);
+        recordReadFailure('cashbook', txErr, 'Could not load cashbook transactions from Supabase:');
       }
     };
 
@@ -1501,9 +1897,9 @@ export async function fetchCloudData(options = {}) {
           bank: parseFloat(balData?.bank || 0),
           wallet: parseFloat(balData?.wallet || 0)
         };
-        localStorage.setItem('billing_system_cashbook_start_balances', JSON.stringify(cloudBal));
+        tenantStorage.setItem('billing_system_cashbook_start_balances', JSON.stringify(cloudBal));
       } catch (balErr) {
-        console.warn("Could not load starting balances from Supabase:", balErr.message);
+        recordReadFailure('startingBalances', balErr, 'Could not load starting balances from Supabase:');
       }
     };
     const fetchSuppliers = async () => {
@@ -1532,7 +1928,7 @@ export async function fetchCloudData(options = {}) {
         }
         console.log("[SUPPLIERS] STATE:", state.suppliers?.length || 0);
       } catch (err) {
-        console.warn("Could not load suppliers from Supabase:", err.message);
+        recordReadFailure('suppliers', err, 'Could not load suppliers from Supabase:');
         state.suppliers = [];
       }
     };
@@ -1606,7 +2002,7 @@ export async function fetchCloudData(options = {}) {
           };
         });
       } catch (err) {
-        console.warn('Could not load authoritative purchases from Supabase:', err.message || err);
+        recordReadFailure('purchases', err, 'Could not load authoritative purchases from Supabase:');
         state.purchases = [];
       }
     };
@@ -1623,14 +2019,14 @@ export async function fetchCloudData(options = {}) {
             quantity: parseFloat(r.quantity || 0),
             notes: r.notes || ''
           }));
-          localStorage.setItem('billing_system_raw_materials', JSON.stringify(state.rawMaterials));
+          tenantStorage.setItem('billing_system_raw_materials', JSON.stringify(state.rawMaterials));
         } else {
           state.rawMaterials = [...rawMaterialsSeed];
-          localStorage.setItem('billing_system_raw_materials', JSON.stringify(state.rawMaterials));
+          tenantStorage.setItem('billing_system_raw_materials', JSON.stringify(state.rawMaterials));
         }
       } catch (err) {
         console.warn("Could not load raw materials from Supabase, using local:", err.message);
-        state.rawMaterials = JSON.parse(localStorage.getItem('billing_system_raw_materials') || '[]');
+        state.rawMaterials = JSON.parse(tenantStorage.getItem('billing_system_raw_materials') || '[]');
       }
     };
     const fetchSemiFinished = async () => {
@@ -1645,11 +2041,11 @@ export async function fetchCloudData(options = {}) {
             quantity: parseFloat(s.quantity || 0),
             notes: s.notes || ''
           }));
-          localStorage.setItem('billing_system_semi_finished', JSON.stringify(state.semiFinished));
+          tenantStorage.setItem('billing_system_semi_finished', JSON.stringify(state.semiFinished));
         }
       } catch (err) {
         console.warn("Could not load semi finished from Supabase, using local:", err.message);
-        state.semiFinished = JSON.parse(localStorage.getItem('billing_system_semi_finished') || '[]');
+        state.semiFinished = JSON.parse(tenantStorage.getItem('billing_system_semi_finished') || '[]');
       }
     };
     const fetchRecipes = async () => {
@@ -1664,11 +2060,11 @@ export async function fetchCloudData(options = {}) {
             ingredients: typeof r.ingredients === 'string' ? JSON.parse(r.ingredients) : (r.ingredients || []),
             notes: r.notes || ''
           }));
-          localStorage.setItem('billing_system_recipes', JSON.stringify(state.recipes));
+          tenantStorage.setItem('billing_system_recipes', JSON.stringify(state.recipes));
         }
       } catch (err) {
         console.warn("Could not load recipes from Supabase, using local:", err.message);
-        state.recipes = JSON.parse(localStorage.getItem('billing_system_recipes') || '[]');
+        state.recipes = JSON.parse(tenantStorage.getItem('billing_system_recipes') || '[]');
       }
     };
     const fetchProductionLogs = async () => {
@@ -1685,11 +2081,11 @@ export async function fetchCloudData(options = {}) {
             createdBy: l.created_by || 'admin',
             date: l.created_at
           }));
-          localStorage.setItem('billing_system_production_logs', JSON.stringify(state.productionLogs));
+          tenantStorage.setItem('billing_system_production_logs', JSON.stringify(state.productionLogs));
         }
       } catch (err) {
         console.warn("Could not load production logs from Supabase, using local:", err.message);
-        state.productionLogs = JSON.parse(localStorage.getItem('billing_system_production_logs') || '[]');
+        state.productionLogs = JSON.parse(tenantStorage.getItem('billing_system_production_logs') || '[]');
       }
     };
     const fetchFinishedGoodsStock = async () => {
@@ -1702,11 +2098,11 @@ export async function fetchCloudData(options = {}) {
             packageType: s.package_type,
             quantity: parseFloat(s.quantity || 0)
           }));
-          localStorage.setItem('billing_system_finished_goods_stock', JSON.stringify(state.finishedGoodsStock));
+          tenantStorage.setItem('billing_system_finished_goods_stock', JSON.stringify(state.finishedGoodsStock));
         }
       } catch (err) {
         console.warn("Could not load finished goods stock from Supabase, using local:", err.message);
-        state.finishedGoodsStock = JSON.parse(localStorage.getItem('billing_system_finished_goods_stock') || '[]');
+        state.finishedGoodsStock = JSON.parse(tenantStorage.getItem('billing_system_finished_goods_stock') || '[]');
       }
     };
 
@@ -1764,7 +2160,7 @@ export async function fetchCloudData(options = {}) {
           saveSalesReturns(state.salesReturns);
         }
       } catch (err) {
-        console.warn("Could not load sales returns from Supabase, using local:", err.message);
+        recordReadFailure('salesReturns', err, 'Could not load sales returns from Supabase, using tenant cache:');
         state.salesReturns = getSalesReturns();
       }
     };
@@ -1815,7 +2211,8 @@ export async function fetchCloudData(options = {}) {
         .filter(Boolean)
         .map(loader => loader()));
       if (onlyDomains.has('purchases') || onlyDomains.has('salesReturns')) enrichSecondaryState();
-      return { background: null, domains: [...onlyDomains] };
+      publishCloudReadHealth([...failedDomains], [...onlyDomains]);
+      return { background: null, domains: [...onlyDomains], failedDomains: [...failedDomains] };
     }
 
     // Start every request together, but login may stop waiting once the data
@@ -1838,12 +2235,19 @@ export async function fetchCloudData(options = {}) {
     ]);
 
     await coreLoad;
+    const coreDomains = ['products', 'customers', 'pricelists', 'users', 'brands',
+      ...(leanBootstrap ? [] : ['orders'])];
+    publishCloudReadHealth([...failedDomains], coreDomains);
 
     const finishSecondaryLoad = async () => {
       await secondaryLoad;
       // Returns load in parallel with customers/orders; enrich display-only names
       // after every authoritative collection has completed.
       enrichSecondaryState();
+      publishCloudReadHealth([...failedDomains], [
+        ...coreDomains,
+        ...(leanBootstrap ? [] : ['cashbook', 'startingBalances', 'suppliers', 'purchases', 'salesReturns'])
+      ]);
       return true;
     };
 
@@ -1852,15 +2256,18 @@ export async function fetchCloudData(options = {}) {
         console.error('Error loading secondary cloud data:', error);
         return false;
       });
-      return { background };
+      return { background, failedDomains: [...failedDomains] };
     }
 
     await finishSecondaryLoad();
-    return { background: null };
+    return { background: null, failedDomains: [...failedDomains] };
 
   } catch(err) {
     console.error('Error fetching cloud data:', err);
+    failedDomains.add('unknown');
+    publishCloudReadHealth([...failedDomains]);
     showToast('Lỗi đồng bộ dữ liệu đám mây!', 'danger');
+    return { background: null, failedDomains: [...failedDomains] };
   }
 }
 
@@ -1873,8 +2280,11 @@ export async function syncLocalToCloud() {
   }
   try {
     updateDbStatusUI('connecting', 'Đang tải dữ liệu mới nhất từ Cloud...');
-    await fetchCloudData({ leanBootstrap: true, hydrateCustomerHistory: false });
-    updateDbStatusUI('cloud');
+    const result = await fetchCloudData({ leanBootstrap: true, hydrateCustomerHistory: false });
+    if (result.failedDomains?.length) {
+      showToast(`Cloud đã kết nối nhưng chưa đọc được: ${result.failedDomains.join(', ')}. Dữ liệu đang thấy có thể là cache cũ.`, 'danger');
+      return false;
+    }
     showToast('Đã tải lại dữ liệu mới nhất từ Cloud. Cache trình duyệt không được ghi ngược lên database.', 'success');
     return true;
   } catch (error) {
@@ -1893,14 +2303,14 @@ async function legacyLocalUploadDisabled() {
     return false;
   }
   
-  const localProducts = JSON.parse(localStorage.getItem('billing_system_products') || '[]');
-  const localOrders = JSON.parse(localStorage.getItem('billing_system_orders') || '[]');
-  const localCustomers = JSON.parse(localStorage.getItem('billing_system_customers') || '[]');
+  const localProducts = JSON.parse(tenantStorage.getItem('billing_system_products') || '[]');
+  const localOrders = JSON.parse(tenantStorage.getItem('billing_system_orders') || '[]');
+  const localCustomers = JSON.parse(tenantStorage.getItem('billing_system_customers') || '[]');
   const localPricelists = [];
-  const localBrands = JSON.parse(localStorage.getItem('billing_system_brands') || '[]');
-  const localTxs = JSON.parse(localStorage.getItem('billing_system_cashbook_transactions') || '[]');
-  const localBalances = JSON.parse(localStorage.getItem('billing_system_cashbook_start_balances') || 'null');
-  const localSuppliers = JSON.parse(localStorage.getItem('billing_system_suppliers') || '[]');
+  const localBrands = JSON.parse(tenantStorage.getItem('billing_system_brands') || '[]');
+  const localTxs = JSON.parse(tenantStorage.getItem('billing_system_cashbook_transactions') || '[]');
+  const localBalances = JSON.parse(tenantStorage.getItem('billing_system_cashbook_start_balances') || 'null');
+  const localSuppliers = JSON.parse(tenantStorage.getItem('billing_system_suppliers') || '[]');
   // Inventory and production are outside the final project scope. Legacy local
   // data is preserved, but this sync path must never upload or depend on it.
   const localRaw = [];
@@ -1957,7 +2367,7 @@ async function legacyLocalUploadDisabled() {
         : { error: null };
         
       if (error) throw error;
-      localStorage.setItem('billing_system_products', JSON.stringify(localProducts));
+      tenantStorage.setItem('billing_system_products', JSON.stringify(localProducts));
     }
     
     // 2. Sync Orders
@@ -2016,7 +2426,7 @@ async function legacyLocalUploadDisabled() {
       if (error) throw error;
     }
 
-    // Price lists, profiles, and roles are never synchronized from localStorage.
+    // Price lists, profiles, and roles are never synchronized from tenantStorage.
 
     // 6. Sync Brands
     if (localBrands.length > 0) {
@@ -2696,7 +3106,7 @@ export async function dbFetchCustomers({ includeHistory = false } = {}) {
         deletedAt: cust.deleted_at || null
       }));
       if (includeHistory) await hydrateCustomerDebtHistory(state.customers);
-      localStorage.setItem('billing_system_customers', JSON.stringify(state.customers));
+      tenantStorage.setItem('billing_system_customers', JSON.stringify(state.customers));
       return true;
     } catch (err) {
       console.error("Error fetching customers:", err);
@@ -2769,7 +3179,7 @@ export async function dbFetchCustomerById(customerId) {
 
     if (existingIndex >= 0) state.customers[existingIndex] = customer;
     else state.customers.push(customer);
-    localStorage.setItem('billing_system_customers', JSON.stringify(state.customers));
+    tenantStorage.setItem('billing_system_customers', JSON.stringify(state.customers));
     return customer;
   } catch (error) {
     console.error('Error refreshing customer profile:', error);
@@ -2790,7 +3200,7 @@ export function applyCustomerRealtimePayload(payload = {}) {
   if (payload.eventType === 'DELETE') {
     state.customers = (state.customers || [])
       .filter(customer => String(customer.id) !== customerId);
-    localStorage.setItem('billing_system_customers', JSON.stringify(state.customers));
+    tenantStorage.setItem('billing_system_customers', JSON.stringify(state.customers));
     return true;
   }
   if (!payload.new) return false;
@@ -2836,7 +3246,7 @@ export function applyCustomerRealtimePayload(payload = {}) {
 
   if (existingIndex >= 0) state.customers[existingIndex] = customer;
   else state.customers.push(customer);
-  localStorage.setItem('billing_system_customers', JSON.stringify(state.customers));
+  tenantStorage.setItem('billing_system_customers', JSON.stringify(state.customers));
   return customer;
 }
 
@@ -2967,7 +3377,7 @@ export async function dbFetchCashbookTransactions() {
       .order('date', { ascending: false });
     if (error) throw error;
     const transactions = (data || []).map(mapCashbookTransaction);
-    localStorage.setItem('billing_system_cashbook_transactions', JSON.stringify(transactions));
+    tenantStorage.setItem('billing_system_cashbook_transactions', JSON.stringify(transactions));
     return transactions;
   } catch (error) {
     console.error('Error fetching cashbook transactions:', error);
@@ -3023,7 +3433,7 @@ export async function dbRefreshCustomerFinancialState(customerId, { includeHisto
         ledgerRows.map(mapCustomerDebtTransaction)
       );
     }
-    localStorage.setItem('billing_system_customers', JSON.stringify(state.customers));
+    tenantStorage.setItem('billing_system_customers', JSON.stringify(state.customers));
     return customer;
   } catch (error) {
     console.error('Error refreshing customer financial state:', error);
@@ -3419,10 +3829,12 @@ async function getEdgeFunctionError(error, fallback) {
 export async function authRegisterOrUpdateUser(user, isNew, initialPassword = '') {
   if (!isCloudActive || !supabaseClient) return false;
   if (isNew && !user.isExternal) {
-    const { data, error } = await supabaseClient.functions.invoke('admin-create-user', {
+    const useInvitation = initialPassword.length === 0;
+    const { data, error } = await supabaseClient.functions.invoke(
+      useInvitation ? 'workspace-invite-member' : 'admin-create-user', {
       body: {
         email: user.username,
-        password: initialPassword,
+        ...(useInvitation ? {} : { password: initialPassword }),
         displayName: user.displayName,
         role: user.role,
         companyId: user.companyId || 'ABS_NORTH'
@@ -3436,6 +3848,10 @@ export async function authRegisterOrUpdateUser(user, isNew, initialPassword = ''
     }
     user.id = data.profile.id;
     user.authUserId = data.user.id;
+    user.membershipStatus = data.membership?.status || 'active';
+    user.isActive = user.membershipStatus === 'active';
+    user.invitationSent = data.invitationSent === true;
+    user.existingAccount = data.existingAccount === true;
   }
   return true;
 }
@@ -3444,23 +3860,33 @@ export async function dbSaveUser(user, { initialPassword = '' } = {}) {
   if (isCloudActive && supabaseClient) {
     try {
       const isNew = !state.users.some(existing => existing.id === user.id);
+      if (user.isExternal) {
+        const { data, error } = await supabaseClient.rpc('rpc_upsert_organization_person', {
+          p_person_id: isNew ? null : user.id,
+          p_username: user.username,
+          p_display_name: user.displayName,
+          p_phone: user.phone || null,
+          p_job_title: user.jobTitle || null,
+          p_company_id: user.companyId || null,
+          p_employment_type: user.employmentType || 'employee',
+          p_status: user.isActive === false ? 'inactive' : 'active'
+        });
+        if (error) throw error;
+        user.id = data?.personId || user.id;
+        user.authUserId = null;
+        user.membershipStatus = data?.status || (user.isActive === false ? 'inactive' : 'active');
+        return true;
+      }
       if (!(await authRegisterOrUpdateUser(user, isNew, initialPassword))) return false;
-      const dbRow = {
-        id: user.id,
-        auth_user_id: user.authUserId || (/^[0-9a-f-]{36}$/i.test(String(user.id)) ? user.id : null),
-        username: user.username,
-        display_name: user.displayName,
-        role: user.role,
-        company_id: user.companyId || 'ABS_NORTH',
-        is_external: user.isExternal || false,
-        is_active: user.isActive !== false,
-        updated_at: new Date().toISOString()
-      };
-      
-      const { error } = await supabaseClient
-        .from(tableUsersName)
-        .upsert(dbRow, { onConflict: 'id' });
-        
+      if (isNew) return true;
+      if (!user.authUserId) throw new Error('Thành viên chưa được liên kết Supabase Auth.');
+      const { error } = await supabaseClient.rpc('rpc_update_organization_member', {
+        p_auth_user_id: user.authUserId,
+        p_role: user.role,
+        p_status: user.isActive === false ? 'suspended' : 'active',
+        p_display_name: user.displayName,
+        p_company_id: user.companyId || 'ABS_NORTH'
+      });
       if (error) throw error;
       return true;
     } catch(err) {
@@ -3475,10 +3901,29 @@ export async function dbSaveUser(user, { initialPassword = '' } = {}) {
 export async function dbDeleteUser(id) {
   if (isCloudActive && supabaseClient) {
     try {
-      const { error } = await supabaseClient
-        .from(tableUsersName)
-        .update({ is_active: false, updated_at: new Date().toISOString() })
-        .eq('id', id);
+      const user = state.users.find(item => item.id === id);
+      if (user?.isExternal) {
+        const { error } = await supabaseClient.rpc('rpc_upsert_organization_person', {
+          p_person_id: user.id,
+          p_username: user.username,
+          p_display_name: user.displayName,
+          p_phone: user.phone || null,
+          p_job_title: user.jobTitle || null,
+          p_company_id: user.companyId || null,
+          p_employment_type: user.employmentType || 'employee',
+          p_status: 'inactive'
+        });
+        if (error) throw error;
+        return true;
+      }
+      if (!user?.authUserId) throw new Error('Không tìm thấy membership của thành viên.');
+      const { error } = await supabaseClient.rpc('rpc_update_organization_member', {
+        p_auth_user_id: user.authUserId,
+        p_role: user.role,
+        p_status: 'suspended',
+        p_display_name: null,
+        p_company_id: null
+      });
         
       if (error) throw error;
       return true;
@@ -4095,7 +4540,7 @@ export async function dbDeleteAllSemiFinished() {
 }
 
 export function getSalesReturns() {
-  const stored = localStorage.getItem('billing_system_sales_returns');
+  const stored = tenantStorage.getItem('billing_system_sales_returns');
   if (stored) {
     try { return JSON.parse(stored); } catch(e) { return []; }
   }
@@ -4103,7 +4548,7 @@ export function getSalesReturns() {
 }
 
 export function saveSalesReturns(returns) {
-  localStorage.setItem('billing_system_sales_returns', JSON.stringify(returns));
+  tenantStorage.setItem('billing_system_sales_returns', JSON.stringify(returns));
 }
 
 export async function dbSaveSalesReturn(ret) {
@@ -4127,7 +4572,7 @@ export function backfillMultiCompanyAndRevenueData() {
       }
     });
     state.brands = uniqueBrands;
-    localStorage.setItem('billing_system_brands', JSON.stringify(state.brands));
+    tenantStorage.setItem('billing_system_brands', JSON.stringify(state.brands));
   }
 
   // 2. Clean Sweep & Normalize Product Brands
@@ -4146,7 +4591,7 @@ export function backfillMultiCompanyAndRevenueData() {
       }
     });
     if (prodChanged) {
-      localStorage.setItem('billing_system_products', JSON.stringify(state.products));
+      tenantStorage.setItem('billing_system_products', JSON.stringify(state.products));
       if (isCloudActive && supabaseClient) {
         Promise.all(normalizedProducts.map(p =>
           supabaseClient
@@ -4183,7 +4628,7 @@ export function backfillMultiCompanyAndRevenueData() {
       }
     });
     if (custChanged) {
-      localStorage.setItem('billing_system_customers', JSON.stringify(state.customers));
+      tenantStorage.setItem('billing_system_customers', JSON.stringify(state.customers));
     }
   }
 
@@ -4920,43 +5365,6 @@ export async function dbFetchCustomerOrderHistory(customerId, startIso, endExclu
 
 export async function dbFetchCustomersOrderHistory(customerIds, startIso, endExclusiveIso, status = 'all') {
   const idSet = new Set((customerIds || []).map(id => String(id)).filter(Boolean));
-  const mapOrderRow = (order) => ({
-    id: order.id,
-    customerId: order.customer_id || order.customerId || null,
-    customerName: order.customer_name || order.customerName || '',
-    customerPhone: order.customer_phone || order.customerPhone || '',
-    customerAddress: order.customer_address || order.customerAddress || '',
-    notes: order.notes || '',
-    items: typeof order.items === 'string' ? JSON.parse(order.items || '[]') : (order.items || []),
-    date: order.order_date || order.created_at || order.date || order.createdAt,
-    pricingVersion: order.pricing_version || order.pricingVersion || '',
-    createdAt: order.created_at || order.createdAt || order.date,
-    updatedAt: order.updated_at || order.updatedAt || order.created_at || order.date,
-    totalMarket: parseFloat(order.total_market ?? order.totalMarket ?? 0),
-    totalDiscount: parseFloat(order.total_discount ?? order.totalDiscount ?? 0),
-    subtotal: parseFloat(order.subtotal ?? order.total_payable ?? order.totalPayable ?? 0),
-    discountValue: parseFloat(order.discount_value ?? order.discountValue ?? 0),
-    discountType: order.discount_type || order.discountType || 'amount',
-    discountAmount: parseFloat(order.discount_amount ?? order.discountAmount ?? 0),
-    otherFeeAmount: parseFloat(order.other_fee_amount ?? order.otherFeeAmount ?? 0),
-    shippingFeeValue: parseFloat(order.shipping_fee_value ?? order.shippingFeeValue ?? 0),
-    shippingFeeAmount: parseFloat(order.shipping_fee_amount ?? order.shippingFeeAmount ?? 0),
-    totalPayable: parseFloat(order.total_payable ?? order.totalPayable ?? 0),
-    paidAmount: parseFloat(order.paid_amount ?? order.paidAmount ?? order.other_fee_amount ?? order.otherFeeAmount ?? 0),
-    amountDue: parseFloat(order.debt_amount ?? order.amountDue ?? Math.max(
-      0,
-      parseFloat(order.total_payable ?? order.totalPayable ?? 0) -
-      parseFloat(order.paid_amount ?? order.paidAmount ?? 0) +
-      parseFloat(order.shipping_fee_amount ?? order.shippingFeeAmount ?? 0)
-    )),
-    pricelistId: order.pricelist_id || order.pricelistId || 'retail',
-    createdBy: order.created_by || order.createdBy || '',
-    salespersonId: order.salesperson_id || order.salespersonId || order.created_by || order.createdBy || '',
-    customerManagerId: order.customer_manager_id || order.customerManagerId || '',
-    status: order.status || 'settled',
-    companyId: order.company_id || order.companyId || 'ABS_NORTH'
-  });
-
   if (idSet.size === 0) return [];
 
   if (isCloudActive && supabaseClient) {
@@ -4983,30 +5391,17 @@ export async function dbFetchCustomersOrderHistory(customerIds, startIso, endExc
         if (!data || data.length < pageSize) break;
         from += pageSize;
       }
-      return allRows.map(mapOrderRow);
+      return allRows.map(mapOrderHistoryRow);
     } catch (err) {
       console.warn('Loi tai lich su don hang khach hang tu Supabase, dung du lieu local:', err.message || err);
     }
   }
 
-  const startTime = new Date(startIso).getTime();
-  const endTime = new Date(endExclusiveIso).getTime();
   return (state.savedOrders || [])
     .filter(o => idSet.has(String(o.customerId || o.customer_id || '')))
-    .filter(o => {
-      if (!status || status === 'all') return true;
-      const orderStatus = String(o.status || 'settled').toLowerCase();
-      if (status === 'settled') return ['settled', 'completed', 'complete', 'confirmed'].includes(orderStatus);
-      if (status === 'cancelled') return ['cancelled', 'canceled'].includes(orderStatus);
-      return orderStatus === String(status).toLowerCase();
-    })
-    .filter(o => {
-      const deleted = o.deletedAt || o.deleted_at || o.isDeleted;
-      const st = String(o.status || 'settled').toLowerCase();
-      if ((!status || status === 'all') && (deleted || st === 'draft' || st === 'cancelled' || st === 'canceled')) return false;
-      const time = new Date(o.date || o.createdAt || o.created_at).getTime();
-      return Number.isFinite(time) && time >= startTime && time < endTime;
-    })
+    .filter(o => matchesOrderHistoryStatus(o, status))
+    .filter(o => isEffectiveOrderHistoryRow(o, status))
+    .filter(o => isOrderInHistoryWindow(o, startIso, endExclusiveIso))
     .sort((a, b) => new Date(a.date || a.createdAt) - new Date(b.date || b.createdAt))
-    .map(mapOrderRow);
+    .map(mapOrderHistoryRow);
 }

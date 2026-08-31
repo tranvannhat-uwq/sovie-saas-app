@@ -426,6 +426,7 @@ export function updateDbStatusUI(status, message = '') {
   if (!badge) return;
   badge.className = 'db-status-badge'; // reset
   badge.style.border = ''; // reset styles
+  badge.removeAttribute('title');
   
   const savedUrl = localStorage.getItem('billing_supabase_url');
   const savedKey = localStorage.getItem('billing_supabase_key');
@@ -433,6 +434,10 @@ export function updateDbStatusUI(status, message = '') {
   if (status === 'cloud') {
     badge.classList.add('status-cloud');
     badge.innerHTML = `<i data-lucide="cloud" style="width:12px;height:12px;"></i> ${message || 'Đám mây (Supabase)'}`;
+  } else if (status === 'cloud_degraded') {
+    badge.classList.add('status-cloud-degraded');
+    badge.title = 'Kết nối Cloud đang hoạt động nhưng một hoặc nhiều luồng đọc dữ liệu bị lỗi.';
+    badge.innerHTML = `<i data-lucide="cloud-alert" style="width:12px;height:12px;"></i> ${message || 'Cloud đã nối • Lỗi đọc dữ liệu'}`;
   } else if (status === 'connecting') {
     badge.classList.add('status-connecting');
     badge.innerHTML = `<i data-lucide="loader" style="width:12px;height:12px;animation:spin 1s linear infinite;"></i> ${message || 'Đang kết nối...'}`;

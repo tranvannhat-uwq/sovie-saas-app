@@ -1,7 +1,8 @@
 import { state } from '../state.js';
 import { showToast, formatCurrency, safeCreateIcons, formatPhoneNumber } from '../utils.js';
-import { dbSaveSupplier, dbDeleteSupplier, dbSaveSuppliersBulk } from '../services/supabase.js?v=20260814-invoice-discount-label-v19';
-import { renderAll } from '../main.js?v=20260814-invoice-discount-label-v19';
+import { dbSaveSupplier, dbDeleteSupplier, dbSaveSuppliersBulk } from '../services/supabase.js?v=20260829-onboarding-v1';
+import { renderAll } from '../main.js?v=20260829-onboarding-v1';
+import { tenantStorage } from '../services/tenant-storage.js';
 
 function toNumber(value) {
   if (value === null || value === undefined || value === '') return 0;
@@ -12,7 +13,7 @@ function toNumber(value) {
 
 function getStoredArray(key) {
   try {
-    const raw = localStorage.getItem(key);
+    const raw = tenantStorage.getItem(key);
     const parsed = raw ? JSON.parse(raw) : [];
     return Array.isArray(parsed) ? parsed : [];
   } catch (e) {
@@ -325,7 +326,7 @@ export function setupSupplierManagement() {
       }
 
       // Lưu LocalStorage
-      localStorage.setItem('billing_system_suppliers', JSON.stringify(state.suppliers));
+      tenantStorage.setItem('billing_system_suppliers', JSON.stringify(state.suppliers));
       
       // Lưu đám mây
       dbSaveSupplier(supplierData);
@@ -462,7 +463,7 @@ async function handleDeleteSupplier(idx) {
 
   if (confirm(`Bạn có chắc chắn muốn xóa nhà cung cấp "${s.name}"?`)) {
     state.suppliers.splice(idx, 1);
-    localStorage.setItem('billing_system_suppliers', JSON.stringify(state.suppliers));
+    tenantStorage.setItem('billing_system_suppliers', JSON.stringify(state.suppliers));
     dbDeleteSupplier(s.id);
     showToast('Đã xóa nhà cung cấp thành công!', 'warning');
     

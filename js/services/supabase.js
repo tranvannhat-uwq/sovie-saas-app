@@ -2,14 +2,15 @@ import { state } from '../state.js';
 import { COMPANY_SUPABASE_URL, COMPANY_SUPABASE_KEY, assertSaasStagingConnection, defaultProducts } from '../config.js';
 import { showToast, updateDbStatusUI, isSameUser, getRevenueAttributes, getBrandById } from '../utils.js';
 import { rawMaterialsSeed } from '../components/goods_seed.js';
-import { normalizePriceListType, filterPriceListsForUser, canUserViewPriceList, canUserUsePriceListForCustomer } from '../domain/pricing.js?v=20260829-onboarding-v1';
-import { isPrintOnlyPriceList } from '../domain/invoice-discount.js?v=20260829-onboarding-v1';
+import { normalizePriceListType, filterPriceListsForUser, canUserViewPriceList, canUserUsePriceListForCustomer } from '../domain/pricing.js?v=20260831-provisioning-v2';
+import { isPrintOnlyPriceList } from '../domain/invoice-discount.js?v=20260831-provisioning-v2';
 import { collectAllPages } from '../domain/pagination.js';
-import { getCustomerDebtPostingDate, mergeCustomerDebtHistory } from '../domain/customer-debt.js?v=20260829-onboarding-v1';
-import { loadAuthorizedPricingCache, saveAuthorizedPricingCache } from './pricing-cache.js?v=20260829-onboarding-v1';
+import { getCustomerDebtPostingDate, mergeCustomerDebtHistory } from '../domain/customer-debt.js?v=20260831-provisioning-v2';
+import { loadAuthorizedPricingCache, saveAuthorizedPricingCache } from './pricing-cache.js?v=20260831-provisioning-v2';
 import { resolveActiveSaasContext } from '../domain/saas-context.js';
 import { resolveBusinessCapabilities } from '../domain/business-capabilities.js';
 import { resolveCatalogContext } from '../domain/generic-catalog.js';
+import { normalizeIndustryKey, normalizePlatformCustomerPayload } from '../domain/tenant-provisioning.js?v=20260831-provisioning-v2';
 import {
   isEffectiveOrderHistoryRow,
   isOrderInHistoryWindow,
@@ -235,18 +236,8 @@ export async function createPlatformCustomer(payload = {}) {
   if (!isCloudActive || !supabaseClient) {
     throw new Error('Cần kết nối Supabase để tạo khách hàng SaaS.');
   }
-  const { data, error } = await supabaseClient.functions.invoke('platform-create-customer', {
-    body: {
-      name: String(payload.name || '').trim(),
-      slug: String(payload.slug || '').trim().toLowerCase(),
-      ownerEmail: String(payload.ownerEmail || '').trim().toLowerCase(),
-      ownerName: String(payload.ownerName || '').trim(),
-      planId: String(payload.planId || 'starter'),
-      trialDays: Number(payload.trialDays || 14),
-      businessType: String(payload.businessType || 'general_trade'),
-      industryKey: String(payload.industryKey || 'general')
-    }
-  });
+  const body = normalizePlatformCustomerPayload(payload);
+  const { data, error } = await supabaseClient.functions.invoke('platform-create-customer', { body });
   if (error) {
     let message = error.message || 'Không thể tạo khách hàng SaaS.';
     try {
@@ -284,8 +275,8 @@ export async function createSaasOrganization({ name, slug, businessType, industr
   const { data, error } = await supabaseClient.rpc('rpc_create_organization', {
     p_name: String(name || '').trim(),
     p_slug: String(slug || '').trim().toLowerCase(),
-    p_business_type: String(businessType || 'general_trade'),
-    p_industry_key: String(industryKey || 'general')
+    p_business_type: String(businessType || 'general_trade').trim().toLowerCase(),
+    p_industry_key: normalizeIndustryKey(industryKey)
   });
   if (error) throw error;
   return data;

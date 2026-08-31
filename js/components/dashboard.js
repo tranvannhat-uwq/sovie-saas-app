@@ -1,9 +1,9 @@
 import { state } from '../state.js';
 import { formatCurrency, safeCreateIcons, isSameUser, getUserCompanyId, getCompanyNameById, getCompanyIdByBrand, getCanonicalBrandName, normalizeCompanyId, isFestivalBrand, isSharedBrand, getNormalizedBrandName, removeVietnameseTones, showToast, getUserDisplayName } from '../utils.js';
-import { switchTab } from '../main.js?v=20260829-onboarding-v1';
-import { openProductModal } from './products.js?v=20260829-onboarding-v1';
+import { switchTab } from '../main.js?v=20260831-provisioning-v2';
+import { openProductModal } from './products.js?v=20260831-provisioning-v2';
 import { tenantStorage } from '../services/tenant-storage.js';
-import { dbFetchPhase5Dashboard } from '../services/supabase.js?v=20260829-onboarding-v1';
+import { dbFetchPhase5Dashboard } from '../services/supabase.js?v=20260831-provisioning-v2';
 import { buildDashboardChartSeries } from '../domain/dashboard-series.js';
 import { filterLoginEmployeeRevenueRows } from '../domain/dashboard-employees.js';
 

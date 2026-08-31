@@ -1,11 +1,11 @@
 import { state, resetTenantBusinessState } from '../state.js';
 import { showToast, safeCreateIcons, isSameUser, getCompanyNameById } from '../utils.js';
-import { dbSaveUser, dbDeleteUser, isCloudActive, supabaseClient, fetchCloudData, clearSupabaseAuthStorage, getMaintenanceStatus, loadSaasContext, clearTenantStorageContext, transferSaasOrganizationOwnership } from '../services/supabase.js?v=20260829-onboarding-v1';
-import { startRealtimeSync, stopRealtimeSync } from '../services/realtime.js?v=20260829-onboarding-v1';
-import { renderAll, switchTab } from '../main.js?v=20260829-onboarding-v1';
-import { populateManagedByDropdown } from './customers.js?v=20260829-onboarding-v1';
-import { openWorkspaceOnboarding, renderWorkspaceSwitcher, renderSubscriptionAccessNotice } from './workspaces.js?v=20260829-onboarding-v1';
-import { clearPlatformAdminState, hydratePlatformAdmin } from './platform-admin.js?v=20260829-onboarding-v1';
+import { dbSaveUser, dbDeleteUser, isCloudActive, supabaseClient, fetchCloudData, clearSupabaseAuthStorage, getMaintenanceStatus, loadSaasContext, clearTenantStorageContext, transferSaasOrganizationOwnership } from '../services/supabase.js?v=20260831-provisioning-v2';
+import { startRealtimeSync, stopRealtimeSync } from '../services/realtime.js?v=20260831-provisioning-v2';
+import { renderAll, switchTab } from '../main.js?v=20260831-provisioning-v2';
+import { populateManagedByDropdown } from './customers.js?v=20260831-provisioning-v2';
+import { openWorkspaceOnboarding, renderWorkspaceSwitcher, renderSubscriptionAccessNotice } from './workspaces.js?v=20260831-provisioning-v2';
+import { clearPlatformAdminState, hydratePlatformAdmin } from './platform-admin.js?v=20260831-provisioning-v2';
 import {
   LOGIN_ERROR,
   classifySupabaseError,

@@ -1,5 +1,5 @@
 import { state } from '../state.js';
-import { createPlatformCustomer, getPlatformActivePlans, getPlatformBillingConfiguration, getPlatformCustomerAccounts, getPlatformPlanCatalog, managePlatformCustomer, updatePlatformBillingConfiguration, updatePlatformPlan, validateSaasOrganizationSlug } from '../services/supabase.js?v=20260829-onboarding-v1';
+import { createPlatformCustomer, getPlatformActivePlans, getPlatformBillingConfiguration, getPlatformCustomerAccounts, getPlatformPlanCatalog, managePlatformCustomer, updatePlatformBillingConfiguration, updatePlatformPlan, validateSaasOrganizationSlug } from '../services/supabase.js?v=20260831-provisioning-v2';
 import { safeCreateIcons, showToast } from '../utils.js';
 
 let platformDataLoaded = false;
@@ -503,15 +503,36 @@ async function submitPlatformCustomer(event) {
   const submit = document.getElementById('btn-submit-platform-customer');
   const original = submit?.innerHTML || '';
   if (submit) { submit.disabled = true; submit.textContent = 'Đang khởi tạo...'; }
+  const fields = Object.fromEntries(new FormData(form).entries());
   try {
-    const fields = new FormData(form);
-    const result = await createPlatformCustomer(Object.fromEntries(fields.entries()));
+    const result = await createPlatformCustomer(fields);
     closePlatformCustomerModal();
-    await hydratePlatformAdmin({ force: true });
     const invitationText = result?.invitationSent ? 'Email thiết lập mật khẩu đã được gửi.' : 'Tài khoản đã tồn tại và được gắn lời mời workspace.';
     showToast(`Đã tạo khách hàng SaaS. ${invitationText}`, 'success');
+    try {
+      await hydratePlatformAdmin({ force: true });
+    } catch (refreshError) {
+      console.warn('Customer created but platform list refresh failed', refreshError);
+      showToast('Khách hàng đã được tạo; danh sách sẽ được cập nhật ở lần tải lại tiếp theo.', 'warning');
+    }
   } catch (error) {
     const rawMessage = String(error?.message || 'Không thể tạo khách hàng SaaS.');
+    try {
+      await hydratePlatformAdmin({ force: true });
+      const normalizedSlug = String(fields.slug || '').trim().toLowerCase();
+      const normalizedEmail = String(fields.ownerEmail || '').trim().toLowerCase();
+      const reconciled = state.platformOrganizations.find(item =>
+        String(item?.slug || '').toLowerCase() === normalizedSlug
+        && String(item?.ownerEmail || '').toLowerCase() === normalizedEmail
+      );
+      if (reconciled) {
+        closePlatformCustomerModal();
+        showToast('Khách hàng đã được tạo thành công và vừa được đồng bộ lại.', 'success');
+        return;
+      }
+    } catch (refreshError) {
+      console.warn('Unable to reconcile customer creation after an uncertain response', refreshError);
+    }
     const message = /rate limit/i.test(rawMessage)
       ? 'Supabase đang giới hạn gửi email. Vui lòng thử lại sau hoặc cấu hình SMTP riêng.'
       : rawMessage;

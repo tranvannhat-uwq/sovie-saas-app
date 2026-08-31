@@ -1,7 +1,7 @@
 import { state } from '../state.js';
 import { showToast, safeCreateIcons, getBrandById } from '../utils.js';
-import { dbSaveBrand, dbDeleteBrand, dbRenameBrandProducts } from '../services/supabase.js?v=20260829-onboarding-v1';
-import { renderAll } from '../main.js?v=20260829-onboarding-v1';
+import { dbSaveBrand, dbDeleteBrand, dbRenameBrandProducts } from '../services/supabase.js?v=20260831-provisioning-v2';
+import { renderAll } from '../main.js?v=20260831-provisioning-v2';
 import { tenantStorage } from '../services/tenant-storage.js';
 
 export function renderBrandsTable() {

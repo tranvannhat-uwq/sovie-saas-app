@@ -577,3 +577,9 @@ definitions. It checks custom-domain and hostname collisions, rewrites only
 platform-managed domains to `*.sovie.vn`, updates provisioning/boundary
 functions and preserves status, primary-domain and SSL metadata. Run
 `migrations/tests/saas_commercial_launch_readiness.sql` after deployment.
+
+Migration `0098` hardens new-customer provisioning. Slug availability now
+checks both organization slugs and reserved workspace hostnames; capability
+provisioning fails atomically instead of silently omitting a conflicting
+`*.sovie.vn` domain; and the platform RPC verifies settings, domain,
+membership and subscription completeness before returning success.

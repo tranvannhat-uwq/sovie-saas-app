@@ -452,7 +452,7 @@
               <div class="form-group"><label for="platform-customer-name">Tên doanh nghiệp *</label><input class="form-control" id="platform-customer-name" name="name" required minlength="2" maxlength="120" placeholder="Công ty TNHH Minh Anh"></div>
               <div class="form-group"><label for="platform-customer-slug">Tên miền con *</label><div class="platform-slug-input"><input class="form-control" id="platform-customer-slug" name="slug" required minlength="3" maxlength="64" pattern="[a-z0-9][a-z0-9-]{1,62}[a-z0-9]" placeholder="minh-anh"><span>.sovie.vn</span></div><small id="platform-customer-slug-status" class="platform-field-status">Dùng chữ thường, số và dấu gạch ngang.</small></div>
               <div class="form-group"><label for="platform-customer-business-type">Mô hình kinh doanh</label><select class="form-control" id="platform-customer-business-type" name="businessType"><option value="general_trade">Thương mại tổng hợp</option><option value="retail">Bán lẻ</option><option value="wholesale">Bán buôn</option><option value="distribution">Phân phối</option><option value="services">Dịch vụ</option><option value="manufacturing">Sản xuất</option></select></div>
-              <div class="form-group"><label for="platform-customer-industry">Ngành nghề</label><input class="form-control" id="platform-customer-industry" name="industryKey" value="general" pattern="[a-z0-9][a-z0-9_-]{1,62}" placeholder="paint_distribution"></div>
+              <div class="form-group"><label for="platform-customer-industry">Ngành nghề *</label><select class="form-control" id="platform-customer-industry" name="industryKey" required><option value="general">Đa ngành / Tổng hợp</option><option value="retail">Bán lẻ</option><option value="food_beverage">Thực phẩm &amp; đồ uống</option><option value="fashion">Thời trang</option><option value="construction">Xây dựng &amp; vật liệu</option><option value="consulting">Tư vấn &amp; dịch vụ</option><option value="manufacturing">Sản xuất</option><option value="paint_distribution">Sơn &amp; phân phối</option></select></div>
               <div class="platform-form-section platform-form-span-2"><strong>Tài khoản Owner</strong><small>Owner nhận email thiết lập mật khẩu và chỉ thuộc workspace vừa tạo.</small></div>
               <div class="form-group"><label for="platform-customer-owner-name">Họ tên Owner *</label><input class="form-control" id="platform-customer-owner-name" name="ownerName" required minlength="2" placeholder="Nguyễn Văn Minh"></div>
               <div class="form-group"><label for="platform-customer-owner-email">Email đăng nhập *</label><input class="form-control" id="platform-customer-owner-email" name="ownerEmail" required type="email" placeholder="owner@doanhnghiep.vn"></div>
@@ -4771,6 +4771,6 @@
 
   <!-- App logic -->
   <script type="module" src="js/landing-motion.js?v=20260817-saas-platform-v1"></script>
-  <script type="module" src="js/main.js?v=20260829-onboarding-v1"></script>
+  <script type="module" src="js/main.js?v=20260831-provisioning-v2"></script>
 </body>
 </html>

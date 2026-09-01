@@ -1764,13 +1764,21 @@ export function setupCustomerManagement() {
   const filterButton = document.getElementById('btn-customer-advanced-filter');
   const filterPanel = document.getElementById('customer-advanced-filter-panel');
   const filterBackdrop = document.getElementById('customer-filter-drawer-backdrop');
+  const usesInlineFilter = Boolean(filterPanel?.closest('.module-filter-sidebar'));
   // A fixed element inside .glass-panel is positioned against that panel
   // because backdrop-filter creates a containing block. Portal both elements
   // to <body> so the popup is centered and clipped against the viewport only.
-  if (filterBackdrop?.parentElement !== document.body) document.body.appendChild(filterBackdrop);
-  if (filterPanel?.parentElement !== document.body) document.body.appendChild(filterPanel);
+  if (!usesInlineFilter && filterBackdrop?.parentElement !== document.body) document.body.appendChild(filterBackdrop);
+  if (!usesInlineFilter && filterPanel?.parentElement !== document.body) document.body.appendChild(filterPanel);
   const closeFilterButton = document.getElementById('btn-close-customer-filter');
+  if (usesInlineFilter) {
+    filterButton?.setAttribute('hidden', '');
+    closeFilterButton?.setAttribute('hidden', '');
+    filterBackdrop?.setAttribute('hidden', '');
+    filterPanel?.setAttribute('aria-hidden', 'false');
+  }
   const setFilterDrawerOpen = (open) => {
+    if (usesInlineFilter) return;
     if (!filterPanel || !filterButton) return;
     filterPanel.classList.toggle('active', open);
     filterBackdrop?.classList.toggle('active', open);

@@ -43,7 +43,7 @@
   <!-- Style CSS -->
   <link rel="stylesheet" href="style.css?v=20260829-login-center-v1">
   <link rel="stylesheet" href="landing.css?v=20260817-saas-platform-v1">
-  <link rel="stylesheet" href="ui-system.css?v=20260829-modern-light-v1">
+  <link rel="stylesheet" href="ui-system.css?v=20260901-search-alignment-v7">
   <link rel="stylesheet" href="landing-premium.css?v=20260829-auth-flow-v1">
 </head>
 <body>
@@ -238,19 +238,19 @@
           </a>
         </li>
         <li class="nav-item purchase-nav-item">
-          <button type="button" class="nav-link purchase-menu-trigger">
+          <button type="button" class="nav-link purchase-menu-trigger" aria-haspopup="menu" aria-expanded="false" aria-controls="purchase-navigation-menu">
             <i data-lucide="shopping-cart"></i>
             Mua hàng
             <i data-lucide="chevron-down" class="purchase-menu-chevron"></i>
           </button>
-          <div class="purchase-menu">
+          <div class="purchase-menu" id="purchase-navigation-menu" role="menu" aria-hidden="true">
             <div class="purchase-menu-section">
               <div class="purchase-menu-heading">Nhà cung cấp</div>
-              <a class="purchase-menu-link nav-link" data-target="suppliers-panel">Nhà cung cấp</a>
+              <a class="purchase-menu-link nav-link" data-target="suppliers-panel" role="menuitem">Nhà cung cấp</a>
             </div>
             <div class="purchase-menu-section">
               <div class="purchase-menu-heading">Mua hàng</div>
-              <a class="purchase-menu-link nav-link" data-target="goods-panel">Phiếu mua hàng</a>
+              <a class="purchase-menu-link nav-link" data-target="goods-panel" role="menuitem">Phiếu mua hàng</a>
             </div>
           </div>
         </li>
@@ -267,20 +267,20 @@
           </a>
         </li>
         <li class="nav-item staff-nav-item">
-          <button type="button" class="nav-link staff-menu-trigger">
+          <button type="button" class="nav-link staff-menu-trigger" aria-haspopup="menu" aria-expanded="false" aria-controls="staff-navigation-menu">
             <i data-lucide="briefcase-business"></i>
             Quản lý nhân viên
             <i data-lucide="chevron-down" class="staff-menu-chevron"></i>
           </button>
-          <div class="staff-menu">
+          <div class="staff-menu" id="staff-navigation-menu" role="menu" aria-hidden="true">
             <div class="staff-menu-item">
-              <a class="staff-menu-link nav-link" data-target="users-panel">
+              <a class="staff-menu-link nav-link" data-target="users-panel" role="menuitem">
                 <i data-lucide="user-cog"></i>
                 Quản lý tài khoản
               </a>
             </div>
             <div class="staff-menu-item">
-              <a class="staff-menu-link nav-link" data-target="reports-panel">
+              <a class="staff-menu-link nav-link" data-target="reports-panel" role="menuitem">
                 <i data-lucide="bar-chart-3"></i>
                 Báo cáo nghiệp vụ
               </a>
@@ -588,9 +588,9 @@
               </div>
 
               <div class="filter-group" style="display: flex; align-items: center; gap: 0.4rem;">
-                <label class="filter-label" style="font-size: 0.85rem; font-weight: 500; margin: 0; white-space: nowrap;"><i data-lucide="award"></i> Nhãn:</label>
+                <label class="filter-label" style="font-size: 0.85rem; font-weight: 500; margin: 0; white-space: nowrap;"><i data-lucide="award"></i> Thương hiệu:</label>
                 <select class="form-control dashboard-filter-control" id="dashboard-brand-filter">
-                  <option value="all" selected>-- Tất cả --</option>
+                  <option value="all" selected>-- Tất cả thương hiệu --</option>
                 </select>
               </div>
 
@@ -614,24 +614,24 @@
             </div>
           </div>
 
-          <!-- Row 2: Advanced Autocomplete Filters & FESTIVAL Checkbox -->
+          <!-- Row 2: Customer and salesperson autocomplete filters -->
           <div class="filter-row-2" style="display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center; width: 100%; position: relative; z-index: 101;">
-            <!-- Autocomplete Sale Filter -->
             <div class="filter-group" id="dashboard-sale-filter-group" style="position: relative; flex: 1; min-width: 220px; display: flex; align-items: center; gap: 0.4rem;">
               <label class="filter-label" style="font-size: 0.85rem; font-weight: 500; margin: 0; white-space: nowrap;"><i data-lucide="users"></i> Sale:</label>
               <div style="position: relative; flex: 1; display: flex; align-items: center;">
-                <input type="text" class="form-control dashboard-filter-control" id="dashboard-sale-search-input" placeholder="-- Tất cả nhân viên --" style="width: 100%; padding-right: 28px;">
-                <button type="button" id="btn-clear-sale-search" style="display: none; position: absolute; right: 8px; background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 1rem;">✕</button>
+                <input type="text" class="form-control dashboard-filter-control" id="dashboard-sale-search-input" placeholder="-- Tất cả nhân viên --" autocomplete="off" style="width: 100%; padding-right: 28px;">
+                <button type="button" id="btn-clear-sale-search" aria-label="Xóa bộ lọc nhân viên" title="Xóa bộ lọc nhân viên" style="display: none; position: absolute; right: 8px; background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 1rem;">✕</button>
                 <ul class="suggestions-list" id="dashboard-sale-suggestions" style="display: none; position: absolute; top: 42px; left: 0; right: 0; z-index: 1050; max-height: 220px; overflow-y: auto; background: #ffffff; border: 1px solid var(--border-color); border-radius: 6px; padding: 0.25rem 0; margin: 0; box-shadow: 0 10px 25px rgba(0,0,0,0.15);"></ul>
               </div>
             </div>
 
-            <!-- FESTIVAL Checkbox Vertically Centered at End of Row 2 -->
-            <div class="filter-group" style="display: flex; align-items: center; gap: 0.4rem; cursor: pointer; height: 38px; margin-left: auto; padding: 0 0.25rem;">
-              <input type="checkbox" id="dashboard-include-festival-allocation" checked style="width: 16px; height: 16px; accent-color: var(--color-primary); cursor: pointer;">
-              <label for="dashboard-include-festival-allocation" style="font-size: 0.85rem; font-weight: 500; color: var(--text-primary); cursor: pointer; user-select: none; margin: 0; white-space: nowrap;">
-                Bao gồm FESTIVAL phân bổ
-              </label>
+            <div class="filter-group" id="dashboard-customer-filter-group" style="position: relative; flex: 1; min-width: 260px; display: flex; align-items: center; gap: 0.4rem;">
+              <label class="filter-label" style="font-size: 0.85rem; font-weight: 500; margin: 0; white-space: nowrap;"><i data-lucide="contact"></i> Khách hàng:</label>
+              <div style="position: relative; flex: 1; display: flex; align-items: center;">
+                <input type="text" class="form-control dashboard-filter-control" id="dashboard-customer-search-input" placeholder="-- Tất cả khách hàng --" autocomplete="off" style="width: 100%; padding-right: 28px;">
+                <button type="button" id="btn-clear-customer-search" aria-label="Xóa bộ lọc khách hàng" title="Xóa bộ lọc khách hàng" style="display: none; position: absolute; right: 8px; background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 1rem;">✕</button>
+                <ul class="suggestions-list" id="dashboard-customer-suggestions" style="display: none; position: absolute; top: 42px; left: 0; right: 0; z-index: 1050; max-height: 220px; overflow-y: auto; background: #ffffff; border: 1px solid var(--border-color); border-radius: 6px; padding: 0.25rem 0; margin: 0; box-shadow: 0 10px 25px rgba(0,0,0,0.15);"></ul>
+              </div>
             </div>
           </div>
         </div>
@@ -716,7 +716,7 @@
             <div class="dashboard-insight-header">
               <div>
                 <h3 class="panel-title"><i data-lucide="building-2"></i> Doanh thu theo Công ty</h3>
-                <p>Tỷ trọng doanh thu theo công ty sở hữu nhãn sơn</p>
+                <p>Tỷ trọng doanh thu theo đơn vị kinh doanh</p>
               </div>
               <span class="dashboard-insight-badge" id="company-revenue-chart-meta">0 công ty</span>
             </div>
@@ -729,32 +729,14 @@
           <article class="glass-panel dashboard-insight-card dashboard-insight-brand">
             <div class="dashboard-insight-header">
               <div>
-                <h3 class="panel-title"><i data-lucide="award"></i> Doanh thu theo Nhãn sơn</h3>
-                <p>So sánh các nhãn đang tạo doanh thu</p>
+                <h3 class="panel-title"><i data-lucide="award"></i> Doanh thu theo Thương hiệu</h3>
+                <p>So sánh các thương hiệu hoặc nhóm sản phẩm đang tạo doanh thu</p>
               </div>
-              <span class="dashboard-insight-badge" id="brand-revenue-chart-meta">Top nhãn sơn</span>
+              <span class="dashboard-insight-badge" id="brand-revenue-chart-meta">Top thương hiệu</span>
             </div>
             <div class="dashboard-breakdown-chart">
-              <canvas id="brand-revenue-chart" role="img" aria-label="Biểu đồ doanh thu theo nhãn sơn"></canvas>
-              <div class="dashboard-chart-empty" id="brand-revenue-chart-empty">Chưa có dữ liệu nhãn sơn</div>
-            </div>
-          </article>
-
-          <article class="glass-panel dashboard-insight-card dashboard-insight-festival">
-            <div class="dashboard-insight-header">
-              <div>
-                <h3 class="panel-title dashboard-festival-title"><i data-lucide="sparkles"></i> Phân bổ FESTIVAL</h3>
-                <p>Chi tiết nhãn đại lý nhận doanh thu</p>
-              </div>
-              <span class="dashboard-festival-total" id="festival-total-revenue-badge">0 ₫</span>
-            </div>
-            <div class="table-responsive dashboard-festival-table">
-              <table class="table">
-                <thead><tr><th>Nhãn đại lý</th><th style="text-align: right;">Doanh thu</th></tr></thead>
-                <tbody id="festival-allocation-breakdown-body">
-                  <tr><td colspan="2" style="text-align: center; color: var(--text-muted);">Không có dữ liệu FESTIVAL</td></tr>
-                </tbody>
-              </table>
+              <canvas id="brand-revenue-chart" role="img" aria-label="Biểu đồ doanh thu theo thương hiệu"></canvas>
+              <div class="dashboard-chart-empty" id="brand-revenue-chart-empty">Chưa có dữ liệu thương hiệu</div>
             </div>
           </article>
 
@@ -1969,8 +1951,8 @@
             </div>
             </div>
             <div class="customer-filter-modal-footer">
-              <button class="btn btn-secondary" id="btn-reset-customer-filter-modal" type="button"><i data-lucide="rotate-ccw"></i> Xóa toàn bộ lọc</button>
-              <button class="btn btn-success" id="btn-apply-customer-filter-modal" type="button"><i data-lucide="check"></i> Xem kết quả</button>
+              <button class="btn btn-secondary" id="btn-reset-customer-filter-modal" type="button"><i data-lucide="rotate-ccw"></i> Đặt lại</button>
+              <button class="btn btn-success" id="btn-apply-customer-filter-modal" type="button"><i data-lucide="check"></i> Áp dụng</button>
             </div>
           </aside>
 
@@ -2439,7 +2421,7 @@
               </div>
             </div>
 
-            <div style="display: flex; gap: 0.75rem; margin-bottom: 1rem; align-items: center;">
+            <div class="report-debt-filter-row" style="display: flex; gap: 0.75rem; margin-bottom: 1rem; align-items: center;">
               <input type="text" class="form-control" id="report-debt-search" placeholder="Tìm theo mã KH, tên, SĐT..." style="max-width: 320px;">
             </div>
 
@@ -2466,7 +2448,7 @@
 
           <!-- Subtab 2: Báo cáo Trả hàng -->
           <div id="report-subtab-returns" class="report-subtab-content" style="display: none;">
-            <div style="display: flex; gap: 0.75rem; margin-bottom: 1rem; align-items: center;">
+            <div class="report-return-filter-row" style="display: flex; gap: 0.75rem; margin-bottom: 1rem; align-items: center;">
               <label style="font-weight: 500; font-size: 0.85rem;">Xem trả hàng theo:</label>
               <select class="form-control" id="report-return-filter" style="width: auto; height: 38px; min-width: 180px;">
                 <option value="product" selected>Theo Sản phẩm</option>
@@ -4771,6 +4753,6 @@
 
   <!-- App logic -->
   <script type="module" src="js/landing-motion.js?v=20260817-saas-platform-v1"></script>
-  <script type="module" src="js/main.js?v=20260831-provisioning-v2"></script>
+  <script type="module" src="js/main.js?v=20260901-customer-filter-v2"></script>
 </body>
 </html>

@@ -104,7 +104,8 @@ const migrationNames = [
   '0095_customer_access_request_claim_identity.sql',
   '0096_sovie_vn_primary_domain.sql',
   '0097_align_workspace_domains_to_sovie_vn.sql',
-  '0098_platform_customer_provisioning_hardening.sql'
+  '0098_platform_customer_provisioning_hardening.sql',
+  '0099_dashboard_customer_filter.sql'
 ];
 const read = relative => fs.readFileSync(path.join(root, relative), 'utf8');
 

@@ -24,6 +24,14 @@ test('all visual breakdowns use the same filtered server payload as before', () 
   assert.match(dashboard, /await dbFetchPhase5Dashboard/);
 });
 
+test('dashboard exposes and applies the customer autocomplete filter', () => {
+  assert.match(html, /id="dashboard-customer-search-input"/);
+  assert.match(html, /id="dashboard-customer-suggestions"/);
+  assert.match(dashboard, /setupCustomerAutocomplete\(\)/);
+  assert.match(dashboard, /customer_id:\s*state\.dashboardFilter\.customerId \|\| 'all'/);
+  assert.match(dashboard, /String\(o\.customerId \|\| o\.customer_id\) === String\(state\.dashboardFilter\.customerId\)/);
+});
+
 test('chart range buttons update only the chart and leave dashboard filters unchanged', () => {
   const buttonHandler = dashboard.slice(dashboard.indexOf("document.querySelectorAll('.chart-view-btn')"));
   assert.match(buttonHandler, /state\.dashboardChartView\s*=\s*view;/);

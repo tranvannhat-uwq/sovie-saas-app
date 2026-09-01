@@ -44,7 +44,6 @@ export const state = {
     endDate: '',
     companyId: 'all',
     brand: 'all',
-    includeFestivalAllocation: true,
     saleUser: 'all',
     customerId: 'all'
   },

@@ -1,5 +1,5 @@
 import { state } from '../state.js';
-import { formatCurrency, safeCreateIcons, isSameUser, getUserCompanyId, getCompanyNameById, getCompanyIdByBrand, getCanonicalBrandName, normalizeCompanyId, isFestivalBrand, isSharedBrand, getNormalizedBrandName, removeVietnameseTones, showToast, getUserDisplayName } from '../utils.js';
+import { formatCurrency, safeCreateIcons, isSameUser, getUserCompanyId, getCompanyNameById, getCompanyIdByBrand, getCanonicalBrandName, normalizeCompanyId, getNormalizedBrandName, removeVietnameseTones, showToast, getUserDisplayName } from '../utils.js';
 import { switchTab } from '../main.js?v=20260831-provisioning-v2';
 import { openProductModal } from './products.js?v=20260831-provisioning-v2';
 import { tenantStorage } from '../services/tenant-storage.js';
@@ -15,7 +15,21 @@ let dashboardStatsCache = { key: '', payload: null, cachedAt: 0 };
 const DASHBOARD_STATS_CACHE_MS = 10_000;
 const DASHBOARD_COMPANY_SCOPE_VERSION = 'finance-all-companies-v1';
 const dashboardBreakdownCharts = new Map();
-const DASHBOARD_CHART_COLORS = ['#10b981', '#6366f1', '#0ea5e9', '#f59e0b', '#ec4899', '#8b5cf6', '#14b8a6', '#f97316'];
+const DASHBOARD_CHART_COLORS = ['#2563eb', '#0f766e', '#6d28d9', '#b45309', '#0891b2', '#4f46e5', '#65a30d', '#dc2626'];
+const DASHBOARD_CHART_FONT = "'Inter', system-ui, sans-serif";
+const DASHBOARD_CHART_GRID = '#edf1f5';
+const DASHBOARD_CHART_TEXT = '#667085';
+const DASHBOARD_CHART_TOOLTIP = Object.freeze({
+  backgroundColor: '#172033',
+  titleColor: '#ffffff',
+  bodyColor: '#f8fafc',
+  borderColor: 'rgba(255,255,255,.12)',
+  borderWidth: 1,
+  cornerRadius: 8,
+  padding: 10,
+  titleFont: { family: DASHBOARD_CHART_FONT, size: 12, weight: '600' },
+  bodyFont: { family: DASHBOARD_CHART_FONT, size: 12, weight: '500' }
+});
 const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
 
 export function renderOnboardingChecklist() {
@@ -175,9 +189,8 @@ function getOrderCompanyId(order) {
 
 function getItemRevenueCompanyId(item, orderCompanyId) {
   const pBrand = getCanonicalBrandName(item.productBrand || item.brand || 'COVA NANO', state.brands);
-  const aBrand = getCanonicalBrandName(item.agencyBrand || pBrand, state.brands);
-  const rBrand = getCanonicalBrandName(item.revenueBrand || (isFestivalBrand(pBrand) ? aBrand : pBrand), state.brands);
-  // Công ty nhận doanh thu được xác định từ nhãn sơn của từng dòng hàng.
+  const rBrand = getCanonicalBrandName(item.revenueBrand || pBrand, state.brands);
+  // Công ty nhận doanh thu được xác định từ thương hiệu của từng dòng hàng.
   // Không dùng công ty của người lập/chốt đơn vì một đơn có thể chứa nhãn của
   // công ty khác với công ty của nhân viên thao tác.
   return normalizeCompanyId(getCompanyIdByBrand(rBrand, state.brands), rBrand);
@@ -229,8 +242,7 @@ function getOrderRevenueRows(order, sign = 1) {
     const gross = sign > 0 ? getItemGross(item) * ratio : toNumber(item.subtotal ?? (toNumber(item.refundPrice) * qty));
     const rawPBrand = item.productBrand || item.brand || 'COVA NANO';
     const pBrand = getCanonicalBrandName(rawPBrand, state.brands);
-    const aBrand = getCanonicalBrandName(item.agencyBrand || pBrand, state.brands);
-    const rBrand = getCanonicalBrandName(item.revenueBrand || (isFestivalBrand(pBrand) ? aBrand : pBrand), state.brands);
+    const rBrand = getCanonicalBrandName(item.revenueBrand || pBrand, state.brands);
     const rCompany = getItemRevenueCompanyId(item, orderCompany);
 
     return {
@@ -245,8 +257,7 @@ function getOrderRevenueRows(order, sign = 1) {
       rCompany,
       spKey,
       custKey,
-      customerName,
-      isFestival: isFestivalBrand(pBrand)
+      customerName
     };
   }).filter(row => row.amount || row.quantity);
 }
@@ -254,9 +265,7 @@ function getOrderRevenueRows(order, sign = 1) {
 function matchesDashboardBrand(row) {
   const fBrand = state.dashboardFilter.brand || 'all';
   if (fBrand === 'all') return true;
-  const includeFest = state.dashboardFilter.includeFestivalAllocation !== false;
-  const targetBrand = includeFest ? row.rBrand : row.pBrand;
-  return getCanonicalBrandName(targetBrand, state.brands).toLowerCase() === getCanonicalBrandName(fBrand, state.brands).toLowerCase();
+  return getCanonicalBrandName(row.rBrand, state.brands).toLowerCase() === getCanonicalBrandName(fBrand, state.brands).toLowerCase();
 }
 
 function getFilteredDashboardReturns(filteredOrders) {
@@ -322,7 +331,11 @@ export function loadDashboardFilterFromStorage() {
     if (stored) {
       const parsed = JSON.parse(stored);
       if (parsed.filter) {
-        state.dashboardFilter = { ...state.dashboardFilter, ...parsed.filter };
+        const allowedFilterKeys = new Set(['timeRange', 'startDate', 'endDate', 'companyId', 'brand', 'saleUser', 'customerId']);
+        const persistedFilter = Object.fromEntries(
+          Object.entries(parsed.filter).filter(([key]) => allowedFilterKeys.has(key))
+        );
+        state.dashboardFilter = { ...state.dashboardFilter, ...persistedFilter };
       }
       // Older Accounting sessions were silently pinned to the profile's
       // company. Start the expanded finance scope at "all" once, while still
@@ -346,12 +359,9 @@ export function populateDashboardFilters() {
     loadDashboardFilterFromStorage();
     isFilterLoaded = true;
   }
-  state.dashboardFilter.customerId = 'all';
-
   const companySelect = document.getElementById('dashboard-company-filter');
   const companyGroup = document.getElementById('dashboard-company-filter-group');
   const brandSelect = document.getElementById('dashboard-brand-filter');
-  const festCheck = document.getElementById('dashboard-include-festival-allocation');
   const timeSelect = document.getElementById('dashboard-time-filter');
   const modeSelect = document.getElementById('dashboard-sales-mode-filter');
 
@@ -375,7 +385,7 @@ export function populateDashboardFilters() {
     }
   }
 
-  // 2. Nhãn sản phẩm (Lọc theo công ty được chọn: hiển thị nhãn do công ty đó quản lý + nhãn dùng chung)
+  // 2. Thương hiệu (lọc theo công ty được chọn và thương hiệu dùng chung)
   const selectedCompId = state.dashboardFilter.companyId || 'all';
 
   const allBrandsSet = new Set();
@@ -385,7 +395,7 @@ export function populateDashboardFilters() {
       allBrandsSet.add(b.name);
     } else {
       const bCompId = b.companyId || '';
-      const isShared = !bCompId || bCompId === 'shared' || isFestivalBrand(b.name) || b.companyName === 'Dùng chung';
+      const isShared = !bCompId || bCompId === 'shared' || b.companyName === 'Dùng chung';
       if (bCompId === selectedCompId || isShared) {
         allBrandsSet.add(b.name);
       }
@@ -399,28 +409,19 @@ export function populateDashboardFilters() {
     } else {
       const foundBrand = (state.brands || []).find(b => b.name && b.name.toLowerCase() === p.brand.toLowerCase());
       const bCompId = foundBrand ? (foundBrand.companyId || '') : '';
-      const isShared = !bCompId || bCompId === 'shared' || isFestivalBrand(p.brand) || (foundBrand && foundBrand.companyName === 'Dùng chung');
+      const isShared = !bCompId || bCompId === 'shared' || (foundBrand && foundBrand.companyName === 'Dùng chung');
       if (!foundBrand || bCompId === selectedCompId || isShared) {
         allBrandsSet.add(p.brand);
       }
     }
   });
 
-  const rawList = Array.from(allBrandsSet);
-  const hasFestivaNano = rawList.some(b => b.trim().toLowerCase() === 'festiva nano' || b.trim().toLowerCase() === 'festivanano');
-
-  const cleanBrands = rawList.filter(b => {
-    const bLower = b.trim().toLowerCase();
-    if (hasFestivaNano && (bLower === 'festival' || bLower === 'festiva')) {
-      return false;
-    }
-    return true;
-  });
+  const cleanBrands = Array.from(allBrandsSet);
 
   const brandOptions = cleanBrands.map(b => `<option value="${b}">${b}</option>`).join('');
 
   if (brandSelect) {
-    brandSelect.innerHTML = `<option value="all">-- Tất cả nhãn --</option>${brandOptions}`;
+    brandSelect.innerHTML = `<option value="all">-- Tất cả thương hiệu --</option>${brandOptions}`;
     if (cleanBrands.includes(state.dashboardFilter.brand)) {
       brandSelect.value = state.dashboardFilter.brand;
     } else {
@@ -429,8 +430,10 @@ export function populateDashboardFilters() {
     }
   }
 
-  if (festCheck) {
-    festCheck.checked = state.dashboardFilter.includeFestivalAllocation !== false;
+  if (state.dashboardFilter.customerId !== 'all'
+    && (state.customers || []).length > 0
+    && !(state.customers || []).some(customer => String(customer.id) === String(state.dashboardFilter.customerId))) {
+    state.dashboardFilter.customerId = 'all';
   }
 
   // 3. Nhân viên Sale (Ẩn nếu là Sale đăng nhập)
@@ -463,7 +466,7 @@ export function getFilteredDashboardOrders() {
   }
 
   if (state.dashboardFilter.customerId && state.dashboardFilter.customerId !== 'all') {
-    orders = orders.filter(o => String(o.customerId) === String(state.dashboardFilter.customerId));
+    orders = orders.filter(o => String(o.customerId || o.customer_id) === String(state.dashboardFilter.customerId));
   }
 
   return orders.filter(order => isDateInRange(order.date || order.createdAt));
@@ -524,12 +527,12 @@ export function renderRevenueChart(orders) {
   }
 
   const gradient = ctx.createLinearGradient(0, 0, 0, 280);
-  gradient.addColorStop(0, 'rgba(16, 185, 129, 0.25)');
-  gradient.addColorStop(1, 'rgba(16, 185, 129, 0.0)');
+  gradient.addColorStop(0, 'rgba(37, 99, 235, 0.18)');
+  gradient.addColorStop(1, 'rgba(37, 99, 235, 0.01)');
 
   revenueChartInstance = new Chart(ctx, {
     type: 'line',
-    data: { labels, datasets: [{ label: 'Doanh thu', data: dataPoints, borderColor: '#10b981', borderWidth: 3, pointBackgroundColor: '#10b981', pointBorderColor: 'rgba(255,255,255,0.8)', pointBorderWidth: 1, pointRadius: 4, pointHoverRadius: 6, tension: 0.35, fill: true, backgroundColor: gradient }] },
+    data: { labels, datasets: [{ label: 'Doanh thu', data: dataPoints, borderColor: '#2563eb', borderWidth: 2.5, pointBackgroundColor: '#ffffff', pointBorderColor: '#2563eb', pointBorderWidth: 2, pointRadius: 2.5, pointHoverRadius: 5, tension: 0.34, fill: true, backgroundColor: gradient }] },
     options: {
       responsive: true,
       maintainAspectRatio: false,
@@ -538,8 +541,12 @@ export function renderRevenueChart(orders) {
         active: { animation: { duration: 180 } },
         resize: { animation: { duration: 250 } }
       },
-      plugins: { legend: { display: false }, tooltip: { backgroundColor: '#111827', titleColor: '#fff', bodyColor: '#fff', borderColor: 'rgba(255,255,255,0.1)', borderWidth: 1, padding: 10, displayColors: false, callbacks: { label: context => `Doanh thu: ${formatCurrency(context.raw)}` } } },
-      scales: { x: { grid: { color: 'rgba(0, 0, 0, 0.05)' }, ticks: { color: '#64748b', font: { family: "'Inter', sans-serif", size: 11 } } }, y: { grid: { color: 'rgba(0, 0, 0, 0.05)' }, ticks: { color: '#64748b', font: { family: "'Inter', sans-serif", size: 11 }, callback: value => value >= 1e6 ? `${(value / 1e6).toFixed(1)}M ₫` : value >= 1e3 ? `${(value / 1e3).toFixed(0)}k ₫` : `${value} ₫` } } }
+      interaction: { intersect: false, mode: 'index' },
+      plugins: { legend: { display: false }, tooltip: { ...DASHBOARD_CHART_TOOLTIP, displayColors: false, callbacks: { label: context => `Doanh thu: ${formatCurrency(context.raw)}` } } },
+      scales: {
+        x: { grid: { display: false }, border: { display: false }, ticks: { color: DASHBOARD_CHART_TEXT, maxRotation: 0, padding: 8, font: { family: DASHBOARD_CHART_FONT, size: 10, weight: '500' } } },
+        y: { beginAtZero: true, grid: { color: DASHBOARD_CHART_GRID, drawTicks: false }, border: { display: false }, ticks: { color: DASHBOARD_CHART_TEXT, padding: 9, font: { family: DASHBOARD_CHART_FONT, size: 10, weight: '500' }, callback: value => value >= 1e6 ? `${(value / 1e6).toFixed(1)}M ₫` : value >= 1e3 ? `${(value / 1e3).toFixed(0)}k ₫` : `${value} ₫` } }
+      }
     }
   });
 }
@@ -621,12 +628,7 @@ function renderDashboardBreakdownChart({
   const labels = displayedRows.map(row => row.label);
   const amounts = displayedRows.map(row => type === 'doughnut' ? Math.max(0, row.amount) : row.amount);
   const commonTooltip = {
-    backgroundColor: '#0f172a',
-    titleColor: '#fff',
-    bodyColor: '#fff',
-    borderColor: 'rgba(255,255,255,.12)',
-    borderWidth: 1,
-    padding: 11,
+    ...DASHBOARD_CHART_TOOLTIP,
     callbacks: { label: context => `${context.label}: ${formatCurrency(context.raw)}` }
   };
 
@@ -641,38 +643,38 @@ function renderDashboardBreakdownChart({
         backgroundColor: displayedRows.map((_, index) => DASHBOARD_CHART_COLORS[index % DASHBOARD_CHART_COLORS.length]),
         borderColor: isDoughnut ? '#ffffff' : 'transparent',
         borderWidth: isDoughnut ? 3 : 0,
-        borderRadius: isDoughnut ? 0 : 7,
+        borderRadius: isDoughnut ? 0 : 5,
         borderSkipped: false,
-        hoverOffset: isDoughnut ? 8 : 0,
-        maxBarThickness: 28
+        hoverOffset: isDoughnut ? 6 : 0,
+        maxBarThickness: 24
       }]
     },
     options: {
       responsive: true,
       maintainAspectRatio: false,
       indexAxis: isDoughnut ? undefined : 'y',
-      cutout: isDoughnut ? '66%' : undefined,
+      cutout: isDoughnut ? '68%' : undefined,
       layout: { padding: isDoughnut ? 4 : { right: 14 } },
       plugins: {
         legend: isDoughnut
-          ? { position: 'bottom', labels: { usePointStyle: true, pointStyle: 'circle', boxWidth: 8, boxHeight: 8, padding: 14, color: '#475569', font: { size: 10, weight: '600' } } }
+          ? { position: 'bottom', labels: { usePointStyle: true, pointStyle: 'circle', boxWidth: 7, boxHeight: 7, padding: 12, color: '#475467', font: { family: DASHBOARD_CHART_FONT, size: 10, weight: '500' } } }
           : { display: false },
         tooltip: commonTooltip
       },
       scales: isDoughnut ? undefined : {
         x: {
           beginAtZero: true,
-          grid: { color: 'rgba(148,163,184,.14)', drawBorder: false },
+          grid: { color: DASHBOARD_CHART_GRID, drawTicks: false },
           border: { display: false },
-          ticks: { color: '#64748b', maxTicksLimit: 5, callback: value => formatCompactDashboardCurrency(value), font: { size: 10 } }
+          ticks: { color: DASHBOARD_CHART_TEXT, maxTicksLimit: 5, padding: 8, callback: value => formatCompactDashboardCurrency(value), font: { family: DASHBOARD_CHART_FONT, size: 10, weight: '500' } }
         },
         y: {
           grid: { display: false },
           border: { display: false },
-          ticks: { color: '#334155', autoSkip: false, font: { size: 10, weight: '600' }, callback: (_value, index) => labels[index]?.length > 24 ? `${labels[index].slice(0, 23)}…` : labels[index] }
+          ticks: { color: '#344054', autoSkip: false, padding: 7, font: { family: DASHBOARD_CHART_FONT, size: 10, weight: '500' }, callback: (_value, index) => labels[index]?.length > 24 ? `${labels[index].slice(0, 23)}…` : labels[index] }
         }
       },
-      animation: { duration: 450 }
+      animation: { duration: 360 }
     }
   });
   dashboardBreakdownCharts.set(key, chart);
@@ -693,9 +695,12 @@ function renderServerRevenueChart(payload) {
   }
 
   const chartContext = chartCanvas.getContext('2d');
+  const chartGradient = chartContext.createLinearGradient(0, 0, 0, 280);
+  chartGradient.addColorStop(0, 'rgba(37, 99, 235, .18)');
+  chartGradient.addColorStop(1, 'rgba(37, 99, 235, .01)');
   revenueChartInstance = new Chart(chartContext, {
     type: 'line',
-    data: { labels: chartSeries.labels, datasets: [{ label: salesModeLabel, data: chartSeries.dataPoints, borderColor: '#10b981', backgroundColor: 'rgba(16,185,129,.15)', borderWidth: 3, pointBackgroundColor: '#10b981', pointBorderColor: 'rgba(255,255,255,.8)', pointBorderWidth: 1, pointRadius: 4, pointHoverRadius: 6, tension: .35, fill: true }] },
+    data: { labels: chartSeries.labels, datasets: [{ label: salesModeLabel, data: chartSeries.dataPoints, borderColor: '#2563eb', backgroundColor: chartGradient, borderWidth: 2.5, pointBackgroundColor: '#ffffff', pointBorderColor: '#2563eb', pointBorderWidth: 2, pointRadius: 2.5, pointHoverRadius: 5, tension: .34, fill: true }] },
     options: {
       responsive: true,
       maintainAspectRatio: false,
@@ -705,8 +710,11 @@ function renderServerRevenueChart(payload) {
         resize: { animation: { duration: 250 } }
       },
       interaction: { intersect: false, mode: 'index' },
-      plugins: { legend: { display: false }, tooltip: { displayColors: false } },
-      scales: { y: { beginAtZero: true, ticks: { callback: value => formatCurrency(value) } } }
+      plugins: { legend: { display: false }, tooltip: { ...DASHBOARD_CHART_TOOLTIP, displayColors: false, callbacks: { label: context => `${salesModeLabel}: ${formatCurrency(context.raw)}` } } },
+      scales: {
+        x: { grid: { display: false }, border: { display: false }, ticks: { color: DASHBOARD_CHART_TEXT, maxRotation: 0, padding: 8, font: { family: DASHBOARD_CHART_FONT, size: 10, weight: '500' } } },
+        y: { beginAtZero: true, grid: { color: DASHBOARD_CHART_GRID, drawTicks: false }, border: { display: false }, ticks: { color: DASHBOARD_CHART_TEXT, padding: 9, callback: value => formatCompactDashboardCurrency(value), font: { family: DASHBOARD_CHART_FONT, size: 10, weight: '500' } } }
+      }
     }
   });
 }
@@ -758,7 +766,7 @@ function renderServerDashboard(payload) {
   setText('stat-total-debt', formatCurrency(summary.current_debt));
   setText('stat-total-sold-products', summary.sold_quantity || 0);
   renderDashboardBreakdownChart({ key: 'company', canvasId: 'company-revenue-chart', emptyId: 'company-revenue-chart-empty', metaId: 'company-revenue-chart-meta', rows: payload.by_company, labelResolver: companyId => getCompanyNameById(companyId, state.companies), type: 'doughnut', limit: 6, metaLabel: 'công ty' });
-  renderDashboardBreakdownChart({ key: 'brand', canvasId: 'brand-revenue-chart', emptyId: 'brand-revenue-chart-empty', metaId: 'brand-revenue-chart-meta', rows: payload.by_brand, labelResolver: brandId => (state.brands || []).find(brand => String(brand.id) === String(brandId))?.name || brandId, limit: 8, metaLabel: 'nhãn sơn' });
+  renderDashboardBreakdownChart({ key: 'brand', canvasId: 'brand-revenue-chart', emptyId: 'brand-revenue-chart-empty', metaId: 'brand-revenue-chart-meta', rows: payload.by_brand, labelResolver: brandId => (state.brands || []).find(brand => String(brand.id) === String(brandId))?.name || brandId, limit: 8, metaLabel: 'thương hiệu' });
   renderDashboardBreakdownChart({ key: 'salesperson', canvasId: 'salesperson-revenue-chart', emptyId: 'salesperson-revenue-chart-empty', metaId: 'salesperson-revenue-chart-meta', rows: filterLoginEmployeeRevenueRows(payload.by_salesperson, state.users), labelResolver: userId => getUserDisplayName(userId, 'Chưa phân công', state.users), limit: 8, metaLabel: 'nhân viên' });
   renderDashboardBreakdownChart({ key: 'customer', canvasId: 'customer-revenue-chart', emptyId: 'customer-revenue-chart-empty', metaId: 'customer-revenue-chart-meta', rows: payload.by_customer, labelResolver: (_customerId, row) => row.name || row.key, limit: 8, metaLabel: 'khách hàng' });
 
@@ -839,6 +847,9 @@ function updateDashboardStatsLegacy() {
   } else if (state.dashboardFilter.saleUser && state.dashboardFilter.saleUser !== 'all') {
     userCustomers = state.customers.filter(c => isSameUser(c.managedBy, state.dashboardFilter.saleUser));
   }
+  if (state.dashboardFilter.customerId && state.dashboardFilter.customerId !== 'all') {
+    userCustomers = userCustomers.filter(customer => String(customer.id) === String(state.dashboardFilter.customerId));
+  }
 
   const labelSuffix = state.dashboardFilter.timeRange === 'custom' 
     ? '(Tùy chỉnh)' 
@@ -862,8 +873,6 @@ function updateDashboardStatsLegacy() {
   const salespersonRevenueMap = {};
   const customerRevenueMap = {};
   const customerNameMap = {};
-  const festivalAllocationMap = {};
-  let totalFestivalRevenue = 0;
 
   const revenueRows = buildDashboardRevenueRows(filteredOrders);
   let actualRevenue = 0;
@@ -875,10 +884,6 @@ function updateDashboardStatsLegacy() {
     salespersonRevenueMap[row.spKey] = (salespersonRevenueMap[row.spKey] || 0) + row.amount;
     customerRevenueMap[row.custKey] = (customerRevenueMap[row.custKey] || 0) + row.amount;
     customerNameMap[row.custKey] = row.customerName;
-    if (row.isFestival) {
-      totalFestivalRevenue += row.amount;
-      festivalAllocationMap[row.rBrand] = (festivalAllocationMap[row.rBrand] || 0) + row.amount;
-    }
   });
   const totalOrdersCount = filteredOrders.length;
   const totalDebt = userCustomers.reduce((sum, c) => sum + (c.debt || 0), 0);
@@ -904,27 +909,8 @@ function updateDashboardStatsLegacy() {
   renderDashboardBreakdownChart({
     key: 'brand', canvasId: 'brand-revenue-chart', emptyId: 'brand-revenue-chart-empty', metaId: 'brand-revenue-chart-meta',
     rows: Object.entries(brandRevenueMap).map(([key, amount]) => ({ key, amount })),
-    limit: 8, metaLabel: 'nhãn sơn'
+    limit: 8, metaLabel: 'thương hiệu'
   });
-
-  // Render bảng Phân bổ hàng FESTIVAL
-  const festivalBody = document.getElementById('festival-allocation-breakdown-body');
-  const festivalBadge = document.getElementById('festival-total-revenue-badge');
-  if (festivalBadge) festivalBadge.innerText = formatCurrency(totalFestivalRevenue);
-
-  if (festivalBody) {
-    const festEntries = Object.entries(festivalAllocationMap).sort((a, b) => b[1] - a[1]);
-    if (festEntries.length === 0) {
-      festivalBody.innerHTML = `<tr><td colspan="2" style="text-align: center; color: var(--text-muted);">Không có dữ liệu FESTIVAL xuất bán</td></tr>`;
-    } else {
-      festivalBody.innerHTML = festEntries.map(([agencyB, amount]) => `
-        <tr>
-          <td style="font-weight: 500; color: #f59e0b;">Đại lý ${agencyB}</td>
-          <td style="text-align: right; font-weight: 600; color: #f59e0b;">${formatCurrency(amount)}</td>
-        </tr>
-      `).join('');
-    }
-  }
 
   renderDashboardBreakdownChart({
     key: 'salesperson', canvasId: 'salesperson-revenue-chart', emptyId: 'salesperson-revenue-chart-empty', metaId: 'salesperson-revenue-chart-meta',
@@ -1007,7 +993,6 @@ export function setupDashboardFilters() {
   const customDatesDiv = document.getElementById('dashboard-custom-dates');
   const companyFilter = document.getElementById('dashboard-company-filter');
   const brandFilter = document.getElementById('dashboard-brand-filter');
-  const festCheck = document.getElementById('dashboard-include-festival-allocation');
   const modeFilter = document.getElementById('dashboard-sales-mode-filter');
   const resetBtn = document.getElementById('btn-reset-dashboard-filters');
   const refreshBtn = document.getElementById('btn-refresh-dashboard-data');
@@ -1059,14 +1044,6 @@ export function setupDashboardFilters() {
     });
   }
 
-  if (festCheck) {
-    festCheck.addEventListener('change', () => {
-      state.dashboardFilter.includeFestivalAllocation = festCheck.checked;
-      saveDashboardFilterToStorage();
-      updateDashboardStats();
-    });
-  }
-
   if (modeFilter) {
     modeFilter.addEventListener('change', () => {
       state.dashboardSalesMode = modeFilter.value;
@@ -1083,7 +1060,6 @@ export function setupDashboardFilters() {
         endDate: '',
         companyId: 'all',
         brand: 'all',
-        includeFestivalAllocation: true,
         saleUser: 'all',
         customerId: 'all'
       };
@@ -1091,6 +1067,7 @@ export function setupDashboardFilters() {
       saveDashboardFilterToStorage();
       populateDashboardFilters();
       setupSaleAutocomplete();
+      setupCustomerAutocomplete();
       updateDashboardStats();
       showToast('Đã đặt lại toàn bộ bộ lọc về mặc định!');
     };
@@ -1105,6 +1082,7 @@ export function setupDashboardFilters() {
   }
 
   setupSaleAutocomplete();
+  setupCustomerAutocomplete();
 
   document.querySelectorAll('.chart-view-btn').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -1138,6 +1116,8 @@ function setupSaleAutocomplete() {
   };
 
   updateInputDisplay();
+  if (input.dataset.dashboardAutocompleteBound === 'true') return;
+  input.dataset.dashboardAutocompleteBound = 'true';
 
   const renderSuggestions = (query = '') => {
     const cleanQuery = removeVietnameseTones(query.trim().toLowerCase());
@@ -1220,8 +1200,10 @@ function setupCustomerAutocomplete() {
 
   const updateInputDisplay = () => {
     if (state.dashboardFilter.customerId && state.dashboardFilter.customerId !== 'all') {
-      const found = (state.customers || []).find(c => c.id === state.dashboardFilter.customerId);
-      input.value = found ? `${found.name} (${found.code})` : state.dashboardFilter.customerId;
+      const found = (state.customers || []).find(c => String(c.id) === String(state.dashboardFilter.customerId));
+      input.value = found
+        ? `${found.name || 'Khách hàng'}${found.code ? ` (${found.code})` : ''}`
+        : state.dashboardFilter.customerId;
       if (clearBtn) clearBtn.style.display = 'block';
     } else {
       input.value = '';
@@ -1231,10 +1213,18 @@ function setupCustomerAutocomplete() {
   };
 
   updateInputDisplay();
+  if (input.dataset.dashboardAutocompleteBound === 'true') return;
+  input.dataset.dashboardAutocompleteBound = 'true';
 
   const renderSuggestions = (query = '') => {
     const cleanQuery = removeVietnameseTones(query.trim().toLowerCase());
-    const custs = state.customers || [];
+    const custs = (state.customers || []).filter(customer => {
+      if (state.currentUser?.role === 'sale') return isSameUser(customer.managedBy || customer.managed_by, state.currentUser.username);
+      if (state.dashboardFilter.saleUser && state.dashboardFilter.saleUser !== 'all') {
+        return isSameUser(customer.managedBy || customer.managed_by, state.dashboardFilter.saleUser);
+      }
+      return true;
+    });
     
     let filtered = custs;
     if (cleanQuery) {
@@ -1251,10 +1241,10 @@ function setupCustomerAutocomplete() {
     let html = `<li class="suggestion-item select-cust-opt" data-id="all" style="padding: 8px 12px; cursor: pointer; color: var(--color-primary); font-weight: 600;">-- Tất cả khách hàng --</li>`;
     if (filtered.length > 0) {
       html += filtered.map(c => `
-        <li class="suggestion-item select-cust-opt" data-id="${c.id}" style="padding: 8px 12px; cursor: pointer; display: flex; justify-content: space-between; align-items: center;">
+        <li class="suggestion-item select-cust-opt" data-id="${escapeHtml(c.id)}" style="padding: 8px 12px; cursor: pointer; display: flex; justify-content: space-between; align-items: center;">
           <div>
-            <span style="font-weight: 500; color: var(--text-primary);">${c.name}</span>
-            <span style="font-size: 0.75rem; color: var(--text-secondary); display: block;">Mã: ${c.code} • ${c.phone || 'N/A'}</span>
+            <span style="font-weight: 500; color: var(--text-primary);">${escapeHtml(c.name || 'Khách hàng')}</span>
+            <span style="font-size: 0.75rem; color: var(--text-secondary); display: block;">Mã: ${escapeHtml(c.code || '—')} • ${escapeHtml(c.phone || 'N/A')}</span>
           </div>
         </li>
       `).join('');

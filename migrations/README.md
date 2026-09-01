@@ -583,3 +583,7 @@ checks both organization slugs and reserved workspace hostnames; capability
 provisioning fails atomically instead of silently omitting a conflicting
 `*.sovie.vn` domain; and the platform RPC verifies settings, domain,
 membership and subscription completeness before returning success.
+
+Migration `0099` makes the dashboard customer and salesperson filters apply
+consistently to order payments, debt collections and current customer debt.
+The reporting RPC remains owned by the tenant-scoped, non-BYPASSRLS executor.

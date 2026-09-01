@@ -10,6 +10,7 @@ const dashboard = read('js/components/dashboard.js');
 const html = read('index.html');
 const css = read('style.css');
 const migration = read('migrations/0033_dashboard_revenue_attribution.sql');
+const customerFilterMigration = read('migrations/0099_dashboard_customer_filter.sql');
 
 test('company revenue is attributed from each item paint brand', () => {
   assert.match(dashboard, /getCompanyIdByBrand\(rBrand, state\.brands\)/);
@@ -35,9 +36,18 @@ test('unused manager and province cards are removed and revenue insights use cha
   assert.match(css, /\.dashboard-insights-grid\s*\{[\s\S]*?grid-template-columns:\s*repeat\(12/);
 });
 
-test('salesperson and customer rankings stay compact and preserve the FESTIVAL detail table', () => {
+test('salesperson and customer rankings stay compact without tenant-specific allocation cards', () => {
   assert.match(html, /dashboard-insight-salesperson[\s\S]*?salesperson-revenue-chart/);
   assert.match(html, /dashboard-insight-customer[\s\S]*?customer-revenue-chart/);
   assert.match(css, /\.dashboard-breakdown-chart-tall\s*\{\s*height:\s*310px/);
-  assert.match(html, /festival-allocation-breakdown-body/);
+  assert.doesNotMatch(html, /festival-allocation-breakdown-body|dashboard-insight-festival|Phân bổ FESTIVAL/);
+});
+
+test('customer filter scopes authoritative debt and payment summaries', () => {
+  const customerScope = customerFilterMigration.match(/customer_scope AS \([\s\S]*?\n  \)/)?.[0] || '';
+  assert.match(customerScope, /p_filters->>'customer_id'/);
+  assert.match(customerScope, /p_filters->>'salesperson_id'/);
+  assert.match(customerFilterMigration, /current_debt'[\s\S]*?sum\(debt\) FROM customer_scope/);
+  assert.match(customerFilterMigration, /valid_payments[\s\S]*?EXISTS \(SELECT 1 FROM visible_orders/);
+  assert.match(customerFilterMigration, /OWNER TO saas_rpc_executor/);
 });

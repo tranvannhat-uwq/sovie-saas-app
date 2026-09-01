@@ -25,6 +25,7 @@ test('SoVie is the primary project brand in navigation and login', () => {
 
 test('project logo presentation is prominent and responsive', () => {
   const css = read('style.css');
+  const uiCss = read('ui-system.css');
 
   assert.match(css, /\.brand-project-logo\s*\{[\s\S]*background:\s*#ffffff;[\s\S]*box-shadow:/);
   assert.match(css, /\.login-story-brand\s*\{[\s\S]*width:\s*142px;[\s\S]*background:\s*#fff;[\s\S]*box-shadow:/);
@@ -32,4 +33,7 @@ test('project logo presentation is prominent and responsive', () => {
   assert.match(css, /@media \(max-width: 768px\)[\s\S]*\.brand-project-logo\s*\{[\s\S]*width:\s*112px;/);
   assert.match(css, /\.brand-project-logo img[\s\S]*object-fit:\s*contain;/);
   assert.match(css, /\.login-brand-lockup img[\s\S]*object-fit:\s*contain;/);
+  assert.match(uiCss, /data-nav-layout="horizontal"[\s\S]*linear-gradient\(90deg,[\s\S]*#ffffff 0%[\s\S]*#235dcc 100%/);
+  assert.match(uiCss, /#app-layout \.brand-project-logo\s*\{[\s\S]*padding:\s*0 !important;[\s\S]*background:\s*transparent !important;[\s\S]*box-shadow:\s*none !important;/);
+  assert.match(uiCss, /#app-layout \.brand-project-logo img\s*\{[\s\S]*object-position:\s*left center !important;[\s\S]*filter:\s*none !important;/);
 });

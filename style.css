@@ -2826,12 +2826,6 @@ select option {
 .dashboard-insight-brand { grid-column: span 8; }
 .dashboard-insight-salesperson,
 .dashboard-insight-customer { grid-column: span 6; }
-.dashboard-insight-festival {
-  grid-column: 1 / -1;
-  order: 3;
-  border-color: rgba(245, 158, 11, 0.28);
-  background: linear-gradient(135deg, rgba(245, 158, 11, 0.06), rgba(255, 255, 255, 0.96));
-}
 .dashboard-insight-salesperson,
 .dashboard-insight-customer { order: 2; }
 
@@ -2852,8 +2846,7 @@ select option {
   line-height: 1.4;
 }
 
-.dashboard-insight-badge,
-.dashboard-festival-total {
+.dashboard-insight-badge {
   flex: 0 0 auto;
   padding: 0.35rem 0.6rem;
   border: 1px solid rgba(16, 185, 129, 0.16);
@@ -2863,13 +2856,6 @@ select option {
   font-size: 0.72rem;
   font-weight: 700;
   white-space: nowrap;
-}
-
-.dashboard-festival-title { color: #d97706; }
-.dashboard-festival-total {
-  border-color: rgba(245, 158, 11, 0.22);
-  background: rgba(245, 158, 11, 0.1);
-  color: #b45309;
 }
 
 .dashboard-breakdown-chart {
@@ -2897,14 +2883,6 @@ select option {
   text-align: center;
 }
 
-.dashboard-festival-table {
-  max-height: 210px;
-  overflow: auto;
-}
-
-.dashboard-festival-table .table th,
-.dashboard-festival-table .table td { padding: 0.7rem 0.85rem; }
-
 @media (max-width: 1100px) {
   .dashboard-insight-company,
   .dashboard-insight-brand,
@@ -2917,8 +2895,7 @@ select option {
   .dashboard-insight-company,
   .dashboard-insight-brand,
   .dashboard-insight-salesperson,
-  .dashboard-insight-customer,
-  .dashboard-insight-festival { grid-column: 1; }
+  .dashboard-insight-customer { grid-column: 1; }
   .dashboard-insight-header { align-items: center; }
   .dashboard-insight-header p { display: none; }
   .dashboard-breakdown-chart,

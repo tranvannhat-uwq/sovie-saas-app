@@ -18,6 +18,7 @@ import { showToast, safeCreateIcons, updateDbStatusUI } from './utils.js';
 import { startRealtimeSync, stopRealtimeSync } from './services/realtime.js?v=20260831-provisioning-v2';
 import { setupActivityLog, renderActivityLog } from './components/activity-log.js?v=20260831-provisioning-v2';
 import { setupNavigationColorSettings, setupNavigationDropdowns } from './components/navigation-theme.js?v=20260831-provisioning-v2';
+import { setupModuleFilterLayouts } from './components/module-filter-layout.js?v=20260831-provisioning-v2';
 import { openWorkspaceOnboarding, renderWorkspaceSwitcher, renderSubscriptionAccessNotice, setupWorkspaceManagement } from './components/workspaces.js?v=20260831-provisioning-v2';
 import { hydratePlatformAdmin, renderPlatformAdmin, setupPlatformAdmin } from './components/platform-admin.js?v=20260831-provisioning-v2';
 
@@ -453,6 +454,7 @@ async function initApp() {
   const dateLbl = document.getElementById('current-date-lbl');
   if (dateLbl) dateLbl.innerText = today.toLocaleDateString('vi-VN');
 
+  setupModuleFilterLayouts();
   setupNavigationColorSettings();
   setupNavigation();
   setupProductManagement();

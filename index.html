@@ -41,9 +41,9 @@
   <!-- Chart.js CDN -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <!-- Style CSS -->
-  <link rel="stylesheet" href="style.css?v=20260829-login-center-v1">
+  <link rel="stylesheet" href="style.css?v=20260901-quick-customer-modal-v7">
   <link rel="stylesheet" href="landing.css?v=20260817-saas-platform-v1">
-  <link rel="stylesheet" href="ui-system.css?v=20260901-search-alignment-v7">
+  <link rel="stylesheet" href="ui-system.css?v=20260901-quick-customer-modal-v7">
   <link rel="stylesheet" href="landing-premium.css?v=20260829-auth-flow-v1">
 </head>
 <body>
@@ -344,7 +344,7 @@
             <!-- Dropdown Nav Links -->
             <button class="dropdown-item dropdown-nav-link" data-target="brands-panel" style="width: 100%; text-align: left; padding: 0.65rem 1rem; border: none; background: transparent; font-family: var(--font-sans); font-size: 0.85rem; color: var(--text-secondary); cursor: pointer; display: flex; align-items: center; gap: 0.5rem; font-weight: 600;">
               <i data-lucide="palette" style="width: 16px; height: 16px; color: var(--color-primary);"></i>
-              Hãng sơn
+              Thương hiệu
             </button>
             <button class="dropdown-item dropdown-nav-link" data-target="settings-panel" style="width: 100%; text-align: left; padding: 0.65rem 1rem; border: none; background: transparent; font-family: var(--font-sans); font-size: 0.85rem; color: var(--text-secondary); cursor: pointer; display: flex; align-items: center; gap: 0.5rem; font-weight: 600;">
               <i data-lucide="settings" style="width: 16px; height: 16px; color: var(--color-primary);"></i>
@@ -382,7 +382,7 @@
             <span class="header-role-chip" id="header-role-chip"><i data-lucide="shield-check"></i><span>Quản lý</span></span>
           </div>
           <div class="page-context-row">
-            <p style="color: var(--text-secondary); font-size: 0.85rem; margin: 0;">Hôm nay: <span id="current-date-lbl">23/06/2026</span></p>
+            <p style="color: var(--text-secondary); font-size: 0.85rem; margin: 0; display: inline-flex; align-items: center; gap: 0.35rem;"><i data-lucide="calendar" style="width: 14px; height: 14px; color: var(--color-primary);"></i> Hôm nay: <span id="current-date-lbl">23/06/2026</span></p>
             <span class="db-status-badge status-local" id="db-status-badge">Cục bộ (LocalStorage)</span>
           </div>
         </div>
@@ -558,80 +558,108 @@
           <div class="saas-onboarding-progress" aria-hidden="true"><span id="saas-onboarding-progress-bar"></span></div>
           <div class="saas-onboarding-steps" id="saas-onboarding-steps"></div>
         </section>
-        <!-- Dashboard Filter Toolbar -->
-        <div class="dashboard-toolbar glass-panel">
-          <!-- Row 1: Primary Filters & Action Buttons -->
-          <div class="filter-row-1" style="display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center; justify-content: space-between; width: 100%;">
-            <div style="display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center; flex: 1;">
-              <div class="filter-group" style="display: flex; align-items: center; gap: 0.4rem;">
-                <label class="filter-label" style="font-size: 0.85rem; font-weight: 500; margin: 0; white-space: nowrap;"><i data-lucide="calendar"></i> Thời gian:</label>
-                <select class="form-control dashboard-filter-control" id="dashboard-time-filter">
-                  <option value="month" selected>Tháng này</option>
-                  <option value="day">Hôm nay</option>
-                  <option value="week">Tuần này</option>
-                  <option value="year">Năm nay</option>
-                  <option value="custom">Tùy chỉnh...</option>
-                </select>
-              </div>
-              
-              <div id="dashboard-custom-dates" style="display: none; align-items: center; gap: 0.4rem;">
-                <input type="date" class="form-control dashboard-filter-control" id="dashboard-start-date">
-                <span style="color: var(--text-secondary); font-size: 0.85rem;">đến</span>
-                <input type="date" class="form-control dashboard-filter-control" id="dashboard-end-date">
-              </div>
 
-              <div class="filter-group" id="dashboard-company-filter-group" style="display: flex; align-items: center; gap: 0.4rem;">
-                <label class="filter-label" style="font-size: 0.85rem; font-weight: 500; margin: 0; white-space: nowrap;"><i data-lucide="building-2"></i> Công ty:</label>
-                <select class="form-control dashboard-filter-control dashboard-filter-control-wide" id="dashboard-company-filter">
-                  <option value="all" selected>-- Tất cả công ty --</option>
-                </select>
-              </div>
-
-              <div class="filter-group" style="display: flex; align-items: center; gap: 0.4rem;">
-                <label class="filter-label" style="font-size: 0.85rem; font-weight: 500; margin: 0; white-space: nowrap;"><i data-lucide="award"></i> Thương hiệu:</label>
-                <select class="form-control dashboard-filter-control" id="dashboard-brand-filter">
-                  <option value="all" selected>-- Tất cả thương hiệu --</option>
-                </select>
-              </div>
-
-              <div class="filter-group" style="display: flex; align-items: center; gap: 0.4rem;">
-                <label class="filter-label" style="font-size: 0.85rem; font-weight: 500; margin: 0; white-space: nowrap;"><i data-lucide="calculator"></i> Chế độ:</label>
-                <select class="form-control dashboard-filter-control dashboard-filter-control-wide" id="dashboard-sales-mode-filter">
-                  <option value="net" selected>Doanh số ròng (Sau trả)</option>
-                  <option value="gross">Doanh số gốc (Chưa trừ trả)</option>
-                </select>
-              </div>
-            </div>
-
-            <!-- Action Buttons Right Aligned -->
-            <div style="display: flex; align-items: center; gap: 0.5rem; margin-left: auto;">
-              <button class="btn btn-secondary btn-sm dashboard-filter-action" id="btn-reset-dashboard-filters" title="Đặt lại bộ lọc về mặc định">
-                <i data-lucide="rotate-ccw" style="width: 14px; height: 14px;"></i> Đặt lại
-              </button>
-              <button class="btn btn-primary btn-sm dashboard-filter-action" id="btn-refresh-dashboard-data" title="Làm mới dữ liệu">
-                <i data-lucide="refresh-cw" style="width: 14px; height: 14px;"></i> Làm mới
-              </button>
-            </div>
+        <!-- Dashboard Compact Action Bar -->
+        <div class="dashboard-compact-bar glass-panel">
+          <div class="dashboard-filter-summary" id="dashboard-filter-summary" aria-label="Bộ lọc đang áp dụng">
+            <span class="dashboard-summary-chip"><i data-lucide="calendar"></i> <span id="dashboard-summary-time">Tháng này</span></span>
+            <span class="dashboard-summary-chip"><i data-lucide="calculator"></i> <span id="dashboard-summary-mode">Doanh số ròng</span></span>
+            <span class="dashboard-summary-chip" id="dashboard-summary-extra" style="display: none;"></span>
           </div>
+          <div class="dashboard-compact-actions">
+            <button class="btn btn-secondary btn-sm" id="btn-open-dashboard-filter" type="button" aria-haspopup="dialog" aria-expanded="false" title="Mở bộ lọc tổng quan">
+              <i data-lucide="sliders-horizontal"></i>
+              <span>Bộ lọc</span>
+              <span class="dashboard-filter-badge" id="dashboard-filter-count" style="display: none;">0</span>
+            </button>
+            <button class="btn btn-secondary btn-sm" id="btn-refresh-dashboard-data" type="button" title="Làm mới dữ liệu">
+              <i data-lucide="refresh-cw"></i>
+              <span>Làm mới</span>
+            </button>
+          </div>
+        </div>
 
-          <!-- Row 2: Customer and salesperson autocomplete filters -->
-          <div class="filter-row-2" style="display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center; width: 100%; position: relative; z-index: 101;">
-            <div class="filter-group" id="dashboard-sale-filter-group" style="position: relative; flex: 1; min-width: 220px; display: flex; align-items: center; gap: 0.4rem;">
-              <label class="filter-label" style="font-size: 0.85rem; font-weight: 500; margin: 0; white-space: nowrap;"><i data-lucide="users"></i> Sale:</label>
-              <div style="position: relative; flex: 1; display: flex; align-items: center;">
-                <input type="text" class="form-control dashboard-filter-control" id="dashboard-sale-search-input" placeholder="-- Tất cả nhân viên --" autocomplete="off" style="width: 100%; padding-right: 28px;">
-                <button type="button" id="btn-clear-sale-search" aria-label="Xóa bộ lọc nhân viên" title="Xóa bộ lọc nhân viên" style="display: none; position: absolute; right: 8px; background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 1rem;">✕</button>
-                <ul class="suggestions-list" id="dashboard-sale-suggestions" style="display: none; position: absolute; top: 42px; left: 0; right: 0; z-index: 1050; max-height: 220px; overflow-y: auto; background: #ffffff; border: 1px solid var(--border-color); border-radius: 6px; padding: 0.25rem 0; margin: 0; box-shadow: 0 10px 25px rgba(0,0,0,0.15);"></ul>
+        <!-- Dashboard Filter Modal Popup -->
+        <div class="modal-overlay" id="dashboard-filter-modal" aria-hidden="true">
+          <div class="modal-content dashboard-filter-modal-content" role="dialog" aria-modal="true" aria-labelledby="dashboard-filter-modal-title">
+            <div class="modal-header">
+              <div class="dashboard-filter-modal-header-text">
+                <div class="dashboard-filter-modal-icon"><i data-lucide="sliders-horizontal"></i></div>
+                <div>
+                  <h3 class="modal-title" id="dashboard-filter-modal-title">Bộ lọc tổng quan</h3>
+                  <p class="dashboard-filter-modal-subtitle">Tùy chỉnh thời gian, chế độ doanh số và phạm vi phân tích</p>
+                </div>
+              </div>
+              <button type="button" class="modal-close" id="btn-close-dashboard-filter-modal" aria-label="Đóng"><i data-lucide="x"></i></button>
+            </div>
+            <div class="modal-body dashboard-filter-modal-body">
+              <div class="dashboard-filter-grid">
+                <!-- Field 1: Time filter -->
+                <div class="dashboard-filter-field">
+                  <label class="module-filter-field-label" for="dashboard-time-filter"><i data-lucide="calendar"></i> Thời gian</label>
+                  <select class="form-control" id="dashboard-time-filter">
+                    <option value="month" selected>Tháng này</option>
+                    <option value="day">Hôm nay</option>
+                    <option value="week">Tuần này</option>
+                    <option value="year">Năm nay</option>
+                    <option value="custom">Tùy chọn...</option>
+                  </select>
+                  <div id="dashboard-custom-dates" style="display: none; grid-template-columns: 1fr auto 1fr; gap: 6px; align-items: center; margin-top: 6px;">
+                    <input type="date" class="form-control" id="dashboard-start-date">
+                    <span style="color: var(--text-secondary); font-size: 0.82rem;">đến</span>
+                    <input type="date" class="form-control" id="dashboard-end-date">
+                  </div>
+                </div>
+
+                <!-- Field 2: Sales mode -->
+                <div class="dashboard-filter-field">
+                  <label class="module-filter-field-label" for="dashboard-sales-mode-filter"><i data-lucide="calculator"></i> Chế độ doanh số</label>
+                  <select class="form-control" id="dashboard-sales-mode-filter">
+                    <option value="net" selected>Doanh số ròng (Sau trả)</option>
+                    <option value="gross">Doanh số gốc (Chưa trừ trả)</option>
+                  </select>
+                </div>
+
+                <!-- Field 3: Company filter -->
+                <div class="dashboard-filter-field" id="dashboard-company-filter-group">
+                  <label class="module-filter-field-label" for="dashboard-company-filter"><i data-lucide="building-2"></i> Công ty</label>
+                  <select class="form-control" id="dashboard-company-filter">
+                    <option value="all" selected>-- Tất cả công ty --</option>
+                  </select>
+                </div>
+
+                <!-- Field 4: Brand filter -->
+                <div class="dashboard-filter-field">
+                  <label class="module-filter-field-label" for="dashboard-brand-filter"><i data-lucide="award"></i> Thương hiệu</label>
+                  <select class="form-control" id="dashboard-brand-filter">
+                    <option value="all" selected>-- Tất cả thương hiệu --</option>
+                  </select>
+                </div>
+
+                <!-- Field 5: Sale salesperson autocomplete -->
+                <div class="dashboard-filter-field" id="dashboard-sale-filter-group" style="position: relative;">
+                  <label class="module-filter-field-label" for="dashboard-sale-search-input"><i data-lucide="users"></i> Nhân viên (Sale)</label>
+                  <div style="position: relative; width: 100%;">
+                    <input type="text" class="form-control" id="dashboard-sale-search-input" placeholder="-- Tất cả nhân viên --" autocomplete="off" style="width: 100%; padding-right: 28px;">
+                    <button type="button" id="btn-clear-sale-search" aria-label="Xóa bộ lọc nhân viên" title="Xóa bộ lọc nhân viên" style="display: none; position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 1rem;">✕</button>
+                    <ul class="suggestions-list" id="dashboard-sale-suggestions" style="display: none; position: absolute; top: 42px; left: 0; right: 0; z-index: 1050; max-height: 200px; overflow-y: auto; background: #ffffff; border: 1px solid var(--border-color); border-radius: 6px; padding: 0.25rem 0; margin: 0; box-shadow: 0 10px 25px rgba(0,0,0,0.15);"></ul>
+                  </div>
+                </div>
+
+                <!-- Field 6: Customer autocomplete -->
+                <div class="dashboard-filter-field" id="dashboard-customer-filter-group" style="position: relative;">
+                  <label class="module-filter-field-label" for="dashboard-customer-search-input"><i data-lucide="contact"></i> Khách hàng / Đại lý</label>
+                  <div style="position: relative; width: 100%;">
+                    <input type="text" class="form-control" id="dashboard-customer-search-input" placeholder="-- Tất cả khách hàng --" autocomplete="off" style="width: 100%; padding-right: 28px;">
+                    <button type="button" id="btn-clear-customer-search" aria-label="Xóa bộ lọc khách hàng" title="Xóa bộ lọc khách hàng" style="display: none; position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 1rem;">✕</button>
+                    <ul class="suggestions-list" id="dashboard-customer-suggestions" style="display: none; position: absolute; top: 42px; left: 0; right: 0; z-index: 1050; max-height: 200px; overflow-y: auto; background: #ffffff; border: 1px solid var(--border-color); border-radius: 6px; padding: 0.25rem 0; margin: 0; box-shadow: 0 10px 25px rgba(0,0,0,0.15);"></ul>
+                  </div>
+                </div>
               </div>
             </div>
-
-            <div class="filter-group" id="dashboard-customer-filter-group" style="position: relative; flex: 1; min-width: 260px; display: flex; align-items: center; gap: 0.4rem;">
-              <label class="filter-label" style="font-size: 0.85rem; font-weight: 500; margin: 0; white-space: nowrap;"><i data-lucide="contact"></i> Khách hàng:</label>
-              <div style="position: relative; flex: 1; display: flex; align-items: center;">
-                <input type="text" class="form-control dashboard-filter-control" id="dashboard-customer-search-input" placeholder="-- Tất cả khách hàng --" autocomplete="off" style="width: 100%; padding-right: 28px;">
-                <button type="button" id="btn-clear-customer-search" aria-label="Xóa bộ lọc khách hàng" title="Xóa bộ lọc khách hàng" style="display: none; position: absolute; right: 8px; background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 1rem;">✕</button>
-                <ul class="suggestions-list" id="dashboard-customer-suggestions" style="display: none; position: absolute; top: 42px; left: 0; right: 0; z-index: 1050; max-height: 220px; overflow-y: auto; background: #ffffff; border: 1px solid var(--border-color); border-radius: 6px; padding: 0.25rem 0; margin: 0; box-shadow: 0 10px 25px rgba(0,0,0,0.15);"></ul>
-              </div>
+            <div class="modal-footer dashboard-filter-modal-footer">
+              <button type="button" class="btn btn-secondary" id="btn-reset-dashboard-filters"><i data-lucide="rotate-ccw"></i> Đặt lại</button>
+              <button type="button" class="btn btn-primary" id="btn-apply-dashboard-filters"><i data-lucide="check"></i> Áp dụng</button>
             </div>
           </div>
         </div>
@@ -850,7 +878,7 @@
             </div>
             <div class="filter-wrapper" style="width: 200px;">
               <select class="form-control" id="product-brand-filter" style="height: 42px; padding: 0.5rem 1rem; border-radius: 8px; cursor: pointer;">
-                <option value="">Tất cả hãng sơn</option>
+                <option value="">Tất cả thương hiệu</option>
               </select>
             </div>
             <div class="filter-wrapper" style="width: 180px;">
@@ -885,7 +913,7 @@
                   <th style="text-align: center;">STT</th>
                   <th>Mã gốc</th>
                   <th>Tên sản phẩm</th>
-                  <th>Hãng sơn</th>
+                  <th>Thương hiệu</th>
                   <th>Đóng gói</th>
                   <th>Khối lượng</th>
                   <th>Các SKU</th>
@@ -1011,7 +1039,7 @@
                 </div>
                 <div style="width: 200px;">
                   <select class="form-control" id="finished-stock-brand-filter" style="height: 42px;">
-                    <option value="">-- Tất cả hãng sơn --</option>
+                    <option value="">-- Tất cả thương hiệu --</option>
                   </select>
                 </div>
               </div>
@@ -1022,7 +1050,7 @@
                       <th style="width: 50px; text-align: center;">STT</th>
                       <th>Mã sản phẩm</th>
                       <th>Tên sản phẩm</th>
-                      <th>Hãng sơn</th>
+                      <th>Thương hiệu</th>
                       <th style="text-align: right; width: 100px;">Tồn Thùng</th>
                       <th style="text-align: right; width: 100px;">Tồn Lon</th>
                       <th style="text-align: right; width: 100px;">Tồn Hộp</th>
@@ -1148,28 +1176,139 @@
       <!-- Invoice / Order Panel -->
       <section id="invoice-panel" class="panel">
         <div class="invoice-grid">
-          <!-- Left side: Items builder -->
+          <!-- Left side: Items builder & Top 3 Cards -->
           <div class="invoice-builder">
-            <div class="glass-panel">
-              <h2 class="panel-title" style="margin-bottom: 1.25rem;"><i data-lucide="shopping-bag"></i> Chọn sản phẩm vào hóa đơn</h2>
+            <div class="glass-panel invoice-main-card">
+              <!-- Header: Chọn sản phẩm vào hóa đơn | BƯỚC 1 -->
+              <div class="invoice-builder-header">
+                <h2 class="panel-title invoice-panel-title">
+                  <span class="invoice-title-icon-badge">
+                    <i data-lucide="shopping-bag"></i>
+                  </span>
+                  Chọn sản phẩm vào hóa đơn
+                </h2>
+                <span class="invoice-step-badge step-1">BƯỚC 1</span>
+              </div>
               
-              <div class="product-select-row" style="max-width: 550px; display: flex; gap: 0.5rem; margin-bottom: 1.5rem;">
-                <div class="product-dropdown-container" style="flex: 1;">
+              <!-- 3 Top Info Cards: Khách hàng | Ngày lên đơn | Ghi chú -->
+              <div class="invoice-top-cards-row">
+                
+                <!-- Card 1: Thông tin khách hàng -->
+                <div class="invoice-info-card invoice-customer-card">
+                  <div class="info-card-header">
+                    <div class="info-card-title">
+                      <span class="info-card-icon-wrap">
+                        <i data-lucide="user"></i>
+                      </span>
+                      <span>Thông tin khách hàng</span>
+                    </div>
+                    <div class="info-card-actions">
+                      <button type="button" class="btn btn-secondary btn-sm" id="btn-clear-invoice-customer" title="Bỏ khách hiện tại và chọn khách khác" style="display: none;">
+                        <i data-lucide="refresh-cw"></i> Chọn khách khác
+                      </button>
+                      <button type="button" class="btn-info-card-add" id="btn-quick-customer-toggle" title="Thêm khách hàng mới (Thêm nhanh)">
+                        <i data-lucide="plus"></i>
+                      </button>
+                    </div>
+                  </div>
+
+                  <!-- Customer search field -->
+                  <div class="form-group" id="invoice-customer-search-group">
+                    <div class="custom-input-group">
+                      <i data-lucide="user"></i>
+                      <input type="text" class="form-control" id="invoice-customer-search" placeholder="Nhập tên hoặc số điện thoại..." autocomplete="off">
+                    </div>
+                    <ul class="suggestions-list" id="invoice-customer-suggestions" style="display: none; position: absolute; z-index: 1000; width: 100%; top: 100%; left: 0;">
+                      <!-- Auto populated customer suggestions -->
+                    </ul>
+                    <input type="hidden" id="invoice-customer-id" value="">
+                  </div>
+
+                  <!-- Price list selector -->
+                  <div id="invoice-pricelist-placeholder">
+                    <div class="form-group" id="invoice-pricelist-group">
+                      <div class="pricelist-sub-label-row">
+                        <label class="form-label">Bảng giá áp dụng</label>
+                        <span id="invoice-pricelist-source-lbl" class="pricelist-source-badge">Nhập tay</span>
+                      </div>
+                      <div class="custom-input-group">
+                        <i data-lucide="tags"></i>
+                        <select class="form-control pricelist-select-control" id="invoice-pricelist-select">
+                          <option value="">-- Chọn bảng giá --</option>
+                          <option value="retail" selected>Tự động theo khách hàng</option>
+                          <option value="custom">Chiết khấu riêng của đại lý</option>
+                          <!-- Dynamic price lists will be loaded here -->
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Customer info card (when selected) -->
+                  <div id="invoice-customer-info-card" class="glass-panel" style="display: none;">
+                    <div style="font-weight: 700; color: #1e3a8a; margin-bottom: 0.2rem;" id="selected-customer-name-lbl">Khách hàng vãng lai</div>
+                    <div style="color: #475569;">SĐT: <span id="selected-customer-phone-lbl">N/A</span></div>
+                    <div style="color: #475569;">Địa chỉ: <span id="selected-customer-address-lbl">N/A</span></div>
+                    <div style="color: #475569;">Ghi chú: <span id="selected-customer-notes-lbl">Không có</span></div>
+                    <div style="color: #475569;">Đại lý: <span id="selected-customer-brand-lbl" style="font-weight: 600; color: #2563eb;">Tất cả</span></div>
+                    <div style="color: #475569;">Bảng giá: <span id="selected-customer-pricelist-lbl" style="font-weight: 600; color: #d97706;">N/A</span></div>
+                    <div style="color: #475569;">Nợ: <span id="selected-customer-debt-lbl" style="color: #dc2626; font-weight: 700;">0 ₫</span></div>
+                  </div>
+                </div>
+
+                <!-- Card 2: Ngày lên đơn -->
+                <div class="invoice-info-card invoice-date-card">
+                  <div class="info-card-header">
+                    <div class="info-card-title">
+                      <span class="info-card-icon-wrap">
+                        <i data-lucide="calendar"></i>
+                      </span>
+                      <span>Ngày lên đơn</span>
+                    </div>
+                  </div>
+                  <div class="form-group" id="invoice-business-date-group">
+                    <input type="date" class="form-control invoice-date-input" id="invoice-business-date">
+                    <small class="invoice-date-helper">
+                      Đúng ngày khách thực tế mua/nhận hàng. Ngày này được dùng trong lịch sử, báo cáo và bản in.
+                    </small>
+                  </div>
+                </div>
+
+                <!-- Card 3: Ghi chú riêng của đơn hàng -->
+                <div class="invoice-info-card invoice-notes-card">
+                  <div class="info-card-header">
+                    <div class="info-card-title">
+                      <span class="info-card-icon-wrap">
+                        <i data-lucide="file-text"></i>
+                      </span>
+                      <span>Ghi chú riêng của đơn hàng</span>
+                    </div>
+                  </div>
+                  <div class="form-group invoice-notes-group">
+                    <textarea class="form-control invoice-notes-textarea" id="invoice-notes" placeholder="Ví dụ: Giao hàng tận nơi, gọi trước khi giao...."></textarea>
+                  </div>
+                </div>
+
+              </div>
+
+              <!-- Product Search Bar -->
+              <div class="product-select-row">
+                <div class="product-dropdown-container">
                   <div class="custom-input-group">
-                    <i data-lucide="search" style="margin-left: 0.75rem; color: var(--text-muted); width: 18px;"></i>
+                    <i data-lucide="search"></i>
                     <input type="text" class="form-control" id="invoice-product-search" placeholder="Nhập mã hoặc tên sản phẩm để tìm kiếm..." autocomplete="off">
                   </div>
                   <ul class="suggestions-list" id="invoice-product-suggestions" style="display: none; position: absolute; z-index: 1000; width: 100%; top: 100%; left: 0;">
                     <!-- Auto populated suggestions -->
                   </ul>
                 </div>
-                <button class="btn btn-primary" id="btn-add-to-invoice-table">
+                <button class="btn btn-primary btn-add-invoice-product" id="btn-add-to-invoice-table">
                   <i data-lucide="plus"></i> Thêm
                 </button>
               </div>
 
+              <!-- Product Table -->
               <div class="table-responsive">
-                <table class="table invoice-items-table" style="table-layout: fixed; min-width: 1185px;">
+                <table class="table invoice-items-table" style="table-layout: fixed; min-width: 980px;">
                   <colgroup>
                     <col style="width: 110px;">  <!-- Kéo thả + Mã SP -->
                     <col style="width: auto;">   <!-- Tên SP (flexible, includes màu sắc) -->
@@ -1184,182 +1323,52 @@
                   </colgroup>
                   <thead>
                     <tr>
-                      <th>Mã SP</th>
-                      <th>Tên sản phẩm</th>
-                      <th id="invoice-color-header" style="text-align: center;">Mã màu</th>
-                      <th>Quy cách</th>
+                      <th>MÃ SP</th>
+                      <th>TÊN SẢN PHẨM</th>
+                      <th id="invoice-color-header" style="text-align: center;">MÃ MÀU</th>
+                      <th>QUY CÁCH</th>
                       <th style="text-align: center;">SL</th>
-                      <th id="invoice-adjustment-header" style="text-align: right;">Đơn giá</th>
+                      <th id="invoice-adjustment-header" style="text-align: right;">ĐƠN GIÁ</th>
                       <th id="invoice-discount-header" style="text-align: center; display: none;">Chiết khấu (%)</th>
-                      <th style="text-align: center;">Ghi chú</th>
-                      <th style="text-align: right;">Thành tiền</th>
-                      <th style="text-align: center;">Xóa</th>
+                      <th style="text-align: center;">GHI CHÚ</th>
+                      <th style="text-align: right;">THÀNH TIỀN</th>
+                      <th style="text-align: center;">XÓA</th>
                     </tr>
                   </thead>
                   <tbody id="invoice-items-body">
                     <tr id="invoice-empty-row">
-                      <td colspan="10" style="text-align: center; color: var(--text-muted); padding: 3rem;">
+                      <td colspan="10" style="text-align: center; color: var(--text-muted); padding: 3.5rem;">
                         Chưa chọn sản phẩm nào. Tìm kiếm sản phẩm ở trên để thêm vào hóa đơn.
                       </td>
                     </tr>
                   </tbody>
                 </table>
               </div>
+
             </div>
           </div>
 
-          <!-- Right side: Bill summary -->
+          <!-- Right side: Bill summary (Sidebar) -->
           <div class="glass-panel summary-card">
-            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 0.75rem; margin-bottom: 1.25rem;">
-              <h2 class="summary-heading" style="margin-bottom: 0; border-bottom: none; padding-bottom: 0; display: inline-flex; align-items: center; gap: 0.5rem;"><i data-lucide="receipt"></i> Tổng quan đơn hàng</h2>
-              <button class="btn btn-secondary btn-sm" id="btn-reset-order" title="Làm mới toàn bộ đơn hàng" style="height: 32px; padding: 0 0.75rem; display: inline-flex; align-items: center; gap: 0.35rem; white-space: nowrap;">
-                <i data-lucide="rotate-ccw" style="width: 14px; height: 14px;"></i> Làm Mới Đơn
-              </button>
+            <!-- Header: Tổng quan đơn hàng | bước 2 | ↻ Làm Mới Đơn -->
+            <div class="summary-card-header">
+              <h2 class="summary-heading">
+                <span class="summary-heading-icon-badge">
+                  <i data-lucide="receipt"></i>
+                </span>
+                Tổng quan đơn hàng
+              </h2>
+              <div class="summary-header-actions">
+                <span class="invoice-step-badge step-2">bước 2</span>
+                <button class="btn btn-secondary btn-sm btn-reset-order-custom" id="btn-reset-order" title="Làm mới toàn bộ đơn hàng">
+                  <i data-lucide="rotate-ccw"></i> Làm Mới Đơn
+                </button>
+              </div>
             </div>
             
-            <div class="summary-card-grid">
-              <!-- Left column: Customer details & Notes -->
-              <div class="summary-card-left" style="display: flex; flex-direction: column; gap: 0.5rem;">
-                <div class="form-group" style="position: relative; margin-bottom: 0.75rem;" id="invoice-customer-search-group">
-                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem;">
-                    <label class="form-label" style="margin-bottom: 0;">Tìm khách hàng (Tên hoặc SĐT) *</label>
-                    <div style="display: inline-flex; align-items: center; gap: 0.35rem;">
-                      <button type="button" class="btn btn-secondary btn-sm" id="btn-clear-invoice-customer" title="Bỏ khách hiện tại và chọn khách khác" style="height: 26px; padding: 0 0.55rem; display: none; align-items: center; gap: 0.3rem; white-space: nowrap; font-size: 0.75rem;">
-                        <i data-lucide="refresh-cw" style="width: 13px; height: 13px;"></i> Chọn khách khác
-                      </button>
-                      <button type="button" class="btn btn-secondary btn-circle btn-sm" id="btn-quick-customer-toggle" title="Thêm khách hàng mới (Thêm nhanh)" style="width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center; padding: 0;">
-                        <i data-lucide="plus" style="width: 14px; height: 14px;"></i>
-                      </button>
-                    </div>
-                  </div>
-                  <div class="custom-input-group">
-                    <i data-lucide="user" style="margin-left: 0.75rem; color: var(--text-muted); width: 18px;"></i>
-                    <input type="text" class="form-control" id="invoice-customer-search" placeholder="Nhập tên hoặc số điện thoại..." autocomplete="off">
-                  </div>
-                  <ul class="suggestions-list" id="invoice-customer-suggestions" style="display: none; position: absolute; z-index: 1000; width: 100%; top: 100%; left: 0;">
-                    <!-- Auto populated customer suggestions -->
-                  </ul>
-                  <input type="hidden" id="invoice-customer-id" value="">
-                </div>
-
-                <!-- Quick Customer Form Fields -->
-                <div id="invoice-quick-customer-fields" style="display: none; background: rgba(255, 255, 255, 0.03); border: 1px dashed var(--border-color); border-radius: 8px; padding: 0.75rem; margin-bottom: 0.75rem; flex-direction: column; gap: 0.5rem;">
-                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem;">
-                    <span style="font-size: 0.8rem; font-weight: 600; color: var(--color-primary); display: inline-flex; align-items: center; gap: 4px;">
-                      <i data-lucide="user-plus" style="width: 14px; height: 14px;"></i> Thêm nhanh khách mới
-                    </span>
-                    <button type="button" id="btn-quick-customer-cancel" style="background: none; border: none; font-size: 0.75rem; color: var(--text-muted); cursor: pointer; padding: 0; font-family: inherit;">Hủy</button>
-                  </div>
-                  <div class="form-group" style="margin-bottom: 0.5rem;">
-                    <label class="form-label" style="font-size: 0.75rem; margin-bottom: 0.25rem;">Tên khách hàng *</label>
-                    <input type="text" class="form-control" id="quick-cust-name" placeholder="Ví dụ: Nguyễn Văn A">
-                  </div>
-                  <div class="form-row-2" style="margin-bottom: 0.5rem; display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
-                    <div class="form-group" style="margin-bottom: 0;">
-                      <label class="form-label" style="font-size: 0.75rem; margin-bottom: 0.25rem;">Số điện thoại</label>
-                      <input type="text" class="form-control" id="quick-cust-phone" placeholder="Ví dụ: 0909123456">
-                    </div>
-                    <div class="form-group" style="margin-bottom: 0;">
-                      <label class="form-label" style="font-size: 0.75rem; margin-bottom: 0.25rem;">Nhãn đại lý độc quyền</label>
-                      <select class="form-control default-red" id="quick-cust-assigned-brand">
-                        <option value="Tất cả" selected>Chọn nhãn sơn</option>
-                        <option value="Nano10*">Nano10*</option>
-                        <option value="Hatacco nano">Hatacco nano</option>
-                        <option value="mutsutec">mutsutec</option>
-                        <option value="tdkaw">tdkaw</option>
-                        <option value="cova">cova</option>
-                        <option value="festivanano">festivanano</option>
-                      </select>
-                    </div>
-                  </div>
-                  <div class="form-row-2" style="margin-bottom: 0.5rem; display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
-                    <div class="form-group" style="margin-bottom: 0;">
-                      <label class="form-label" style="font-size: 0.75rem; margin-bottom: 0.25rem;">Tỉnh/Thành phố *</label>
-                      <select class="form-control" id="quick-cust-province" style="width: 100%;">
-                        <option value="">-- Chọn Tỉnh/Thành --</option>
-                        <option value="HN">Hà Nội</option>
-                        <option value="HP">Hải Phòng</option>
-                        <option value="HD">Hải Dương</option>
-                        <option value="HNam">Hà Nam</option>
-                        <option value="ND">Nam Định</option>
-                        <option value="TB">Thái Bình</option>
-                        <option value="NBi">Ninh Bình</option>
-                        <option value="TN">Thái Nguyên</option>
-                        <option value="VP">Vĩnh Phúc</option>
-                        <option value="BN">Bắc Ninh</option>
-                        <option value="BG">Bắc Giang</option>
-                        <option value="QN">Quảng Ninh</option>
-                        <option value="HY">Hưng Yên</option>
-                        <option value="HCM">Hồ Chí Minh</option>
-                        <option value="DN">Đà Nẵng</option>
-                        <option value="BD">Bình Dương</option>
-                        <option value="DNai">Đồng Nai</option>
-                        <option value="LA">Long An</option>
-                        <option value="OTHER">Khác</option>
-                      </select>
-                    </div>
-                    <div class="form-group" style="margin-bottom: 0;">
-                      <label class="form-label" style="font-size: 0.75rem; margin-bottom: 0.25rem;">Địa chỉ chi tiết</label>
-                      <input type="text" class="form-control" id="quick-cust-address" placeholder="Ví dụ: Kè Sặt, Bình Giang">
-                    </div>
-                  </div>
-                  
-                  <div class="form-group" id="quick-cust-manager-container" style="margin-bottom: 0.5rem;">
-                    <label class="form-label" style="font-size: 0.75rem; margin-bottom: 0.25rem;">Nhân viên quản lý *</label>
-                    <select class="form-control" id="quick-cust-manager" style="width: 100%; color: #dc2626 !important; font-weight: 800 !important; cursor: pointer;">
-                      <option value="">-- Chọn nhân viên quản lý --</option>
-                    </select>
-                  </div>
-
-                </div>
-
-                <!-- Thẻ thông tin khách hàng đã chọn -->
-                <div id="invoice-customer-info-card" class="glass-panel" style="display: none; padding: 0.75rem; margin-bottom: 0.75rem; background: rgba(59, 130, 246, 0.05); border: 1px solid rgba(59, 130, 246, 0.2); border-radius: 8px; font-size: 0.8rem; line-height: 1.4;">
-                  <div style="font-weight: 600; color: #fff; margin-bottom: 0.25rem;" id="selected-customer-name-lbl">Khách hàng vãng lai</div>
-                  <div style="color: var(--text-secondary);">SĐT: <span id="selected-customer-phone-lbl">N/A</span></div>
-                  <div style="color: var(--text-secondary);">Địa chỉ: <span id="selected-customer-address-lbl">N/A</span></div>
-                  <div style="color: var(--text-secondary);">Ghi chú khách hàng: <span id="selected-customer-notes-lbl">Không có</span></div>
-                  <div style="color: var(--text-secondary);">Đại lý nhãn: <span id="selected-customer-brand-lbl" style="font-weight: 600; color: var(--color-primary);">Tất cả</span></div>
-                  <div style="color: var(--text-secondary);">Bảng giá: <span id="selected-customer-pricelist-lbl" style="font-weight: 600; color: var(--color-warning);">N/A</span></div>
-                  <div style="color: var(--text-secondary);">Nợ hiện tại: <span id="selected-customer-debt-lbl" style="color: var(--color-danger); font-weight: 600;">0 ₫</span></div>
-                </div>
-   
-                <!-- Price List Selector (KiotViet style) -->
-                <div id="invoice-pricelist-placeholder">
-                  <div class="form-group" id="invoice-pricelist-group" style="margin-bottom: 0.75rem;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.25rem;">
-                      <label class="form-label" style="margin-bottom: 0;">Bảng giá bán áp dụng</label>
-                      <span id="invoice-pricelist-source-lbl" style="font-size: 0.7rem; font-weight: 600; color: var(--color-primary); background: rgba(59, 130, 246, 0.1); padding: 1px 6px; border-radius: 4px;">Nhập tay</span>
-                    </div>
-                    <div class="custom-input-group">
-                      <i data-lucide="tags" style="margin-left: 0.75rem; color: var(--text-muted); width: 18px;"></i>
-                      <select class="form-control" id="invoice-pricelist-select" style="width: 100%;">
-                        <option value="">-- Chọn bảng giá --</option>
-                        <option value="retail">Nhập tay (Khách lẻ)</option>
-                        <option value="custom">Chiết khấu riêng của đại lý</option>
-                        <!-- Dynamic price lists will be loaded here -->
-                      </select>
-                    </div>
-                  </div>
-                </div>
-
-                <div class="form-group" id="invoice-business-date-group" style="display: none; margin-bottom: 0.75rem; padding: 0.75rem; background: rgba(34, 197, 94, 0.06); border: 1px solid rgba(34, 197, 94, 0.22); border-radius: 8px;">
-                  <label class="form-label" for="invoice-business-date" style="display: inline-flex; align-items: center; gap: 0.4rem; margin-bottom: 0.3rem;">
-                    <i data-lucide="calendar-days" style="width: 16px; height: 16px; color: var(--color-primary);"></i>
-                    Ngày lên đơn
-                  </label>
-                  <input type="date" class="form-control" id="invoice-business-date" style="width: 100%;">
-                  <small style="display: block; margin-top: 0.35rem; color: var(--text-muted); line-height: 1.35;">Dùng ngày khách thực tế mua/nhận hàng. Ngày này được dùng trong lịch sử, báo cáo và bản in.</small>
-                </div>
-
-                <div class="form-group" style="margin-bottom: 0.75rem;">
-                  <label class="form-label" for="invoice-notes">Ghi chú riêng của đơn hàng</label>
-                  <input type="text" class="form-control" id="invoice-notes" placeholder="Ví dụ: Giao hàng tận nơi, gọi trước khi giao...">
-                </div>
-              </div>
-
-              <!-- Right column: Totals & Checkout -->
-              <div class="summary-card-right" style="display: flex; flex-direction: column; gap: 0.5rem;">
+            <div class="summary-card-body">
+              <!-- Top Breakdown Box -->
+              <div class="summary-box-card">
                 <div class="summary-row">
                   <span class="label">Tổng số lượng SP:</span>
                   <span class="value" id="summary-total-qty">0</span>
@@ -1372,70 +1381,167 @@
 
                 <div class="summary-row">
                   <span class="label">Tổng tiền chiết khấu:</span>
-                  <span class="value" style="color: var(--color-danger); font-weight: 500;" id="summary-discount-total">-0 ₫</span>
+                  <span class="value summary-val-danger" id="summary-discount-total">-0 ₫</span>
                 </div>
 
                 <!-- Tạm tính -->
-                <div class="summary-row" style="border-top: 1px dashed var(--border-color); padding-top: 0.35rem; margin-top: 0.25rem;">
-                  <span class="label" style="font-weight: 600;">Tạm tính:</span>
-                  <span class="value" style="font-weight: 600; color: var(--text-primary);" id="summary-subtotal">0 ₫</span>
-                </div>
-
-                <!-- 1. Giảm giá -->
-                <div class="summary-row summary-input-row" style="display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; margin-top: 0.25rem;">
-                  <span class="label" style="font-weight: 500; font-size: 0.85rem; white-space: nowrap;">Giảm giá:</span>
-                  <div style="display: flex; align-items: center; gap: 0.25rem; width: 65%; max-width: 200px; justify-content: flex-end;">
-                    <input type="text" id="invoice-discount-value" class="form-control" value="0" style="text-align: right; padding: 0.3rem 0.5rem; font-size: 0.85rem; width: 100%; min-width: 0;" placeholder="0">
-                    <select id="invoice-discount-type" class="form-control" style="width: auto; min-width: 78px; padding: 0.3rem 0.45rem; font-size: 0.8rem; font-weight: 600; cursor: pointer; text-align: center;">
-                      <option value="percent" selected>%</option>
-                      <option value="amount">VNĐ</option>
-                    </select>
-                  </div>
-                </div>
-                <div class="summary-row" id="summary-discount-actual-row" style="display: flex; justify-content: space-between; font-size: 0.8rem; color: var(--text-secondary); padding-left: 0.5rem;">
-                  <span class="label" style="font-size: 0.75rem; color: var(--text-muted);">Số tiền giảm:</span>
-                  <span class="value" style="color: var(--color-danger); font-weight: 500;" id="summary-discount-actual">-0 ₫</span>
-                </div>
-
-                <div class="summary-row summary-input-row" style="display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; margin-top: 0.25rem;">
-                  <span class="label" style="font-weight: 500; font-size: 0.85rem; white-space: nowrap;">Thu Khác:</span>
-                  <div style="display: flex; align-items: center; gap: 0.25rem; width: 65%; max-width: 200px; justify-content: flex-end;">
-                    <input type="text" id="invoice-shipping-fee-value" class="form-control" value="0" style="text-align: right; padding: 0.3rem 0.5rem; font-size: 0.85rem; width: 100%; min-width: 0;" placeholder="0">
-                  </div>
-                </div>
-                <div class="summary-row" id="summary-shipping-fee-row" style="display: flex; justify-content: space-between; font-size: 0.8rem; color: var(--text-secondary); padding-left: 0.5rem;">
-                  <span class="label" style="font-size: 0.75rem; color: var(--text-muted);">Số tiền thu khác:</span>
-                  <span class="value" style="color: var(--color-warning); font-weight: 500;" id="summary-shipping-fee-actual">+0 ₫</span>
-                </div>
-
-                <div class="saving-badge" id="summary-saving-badge" style="display: none; margin-bottom: 1rem;">
-                  Tiết kiệm được 0%
-                </div>
-
-                <div class="summary-row total-row" style="margin-bottom: 1.25rem;">
-                  <span class="label">Tổng thanh toán:</span>
-                  <div style="text-align: right;">
-                    <span class="value-market" id="summary-final-market-crossed"></span>
-                    <span class="value-final" id="summary-final-total">0 ₫</span>
-                  </div>
-                </div>
-
-                <div style="display: flex; flex-direction: column; gap: 0.75rem;">
-                  <div id="invoice-print-only-notice" style="display: none; padding: 0.65rem 0.75rem; border-radius: 7px; color: #92400e; background: #fef3c7; border: 1px solid #f59e0b; font-size: 0.8rem; font-weight: 600; line-height: 1.35;">
-                    Bảng giá này chỉ dùng để in và chưa được Kế toán cho phép lưu. Đơn này không thể lưu hoặc phát sinh công nợ.
-                  </div>
-                  <button class="btn btn-primary" id="btn-save-order" style="width: 100%;">
-                    <i data-lucide="credit-card"></i> Thanh toán
-                  </button>
-                  <button class="btn btn-secondary" id="btn-draft-order" style="width: 100%;">
-                    <i data-lucide="file-text"></i> Lưu đơn nháp
-                  </button>
-                  <button class="btn btn-indigo" id="btn-print-order" style="width: 100%;">
-                    <i data-lucide="printer"></i> In đơn
-                  </button>
+                <div class="summary-row summary-subtotal-row">
+                  <span class="label">Tạm tính:</span>
+                  <span class="value summary-subtotal-val" id="summary-subtotal">0 ₫</span>
                 </div>
               </div>
+
+              <!-- 1. Giảm giá Box -->
+              <div class="summary-input-box">
+                <span class="label">Giảm giá:</span>
+                <div class="summary-discount-controls">
+                  <input type="text" id="invoice-discount-value" class="form-control" value="0" placeholder="0">
+                  <select id="invoice-discount-type" class="form-control">
+                    <option value="percent" selected>%</option>
+                    <option value="amount">VNĐ</option>
+                  </select>
+                </div>
+              </div>
+              <div class="summary-sub-row" id="summary-discount-actual-row">
+                <span class="label">Số tiền giảm:</span>
+                <span class="value" id="summary-discount-actual">-0 ₫</span>
+              </div>
+
+              <!-- 2. Thu Khác Box -->
+              <div class="summary-input-box">
+                <span class="label">Thu Khác:</span>
+                <div class="summary-fee-controls">
+                  <input type="text" id="invoice-shipping-fee-value" class="form-control" value="0" placeholder="0">
+                </div>
+              </div>
+              <div class="summary-sub-row" id="summary-shipping-fee-row">
+                <span class="label">Số tiền thu khác:</span>
+                <span class="value" id="summary-shipping-fee-actual">+0 ₫</span>
+              </div>
+
+              <div class="saving-badge" id="summary-saving-badge" style="display: none;">
+                Tiết kiệm được 0%
+              </div>
+
+              <!-- Tổng thanh toán Highlight Box -->
+              <div class="summary-total-banner">
+                <span class="total-banner-label">Tổng thanh toán:</span>
+                <div class="total-banner-val-wrap">
+                  <span class="value-market" id="summary-final-market-crossed"></span>
+                  <span class="value-final" id="summary-final-total">0 ₫</span>
+                </div>
+              </div>
+
+              <!-- Action Buttons Stack -->
+              <div class="summary-actions-stack">
+                <div id="invoice-print-only-notice" style="display: none;">
+                  Bảng giá này chỉ dùng để in và chưa được Kế toán cho phép lưu. Đơn này không thể lưu hoặc phát sinh công nợ.
+                </div>
+                <button class="btn btn-invoice-pay" id="btn-save-order">
+                  <i data-lucide="credit-card"></i> Thanh toán
+                </button>
+                <button class="btn btn-invoice-draft" id="btn-draft-order">
+                  <i data-lucide="file-text"></i> Lưu đơn nháp
+                </button>
+                <button class="btn btn-invoice-print" id="btn-print-order">
+                  <i data-lucide="printer"></i> In đơn
+                </button>
+              </div>
+
             </div>
+          </div>
+        </div>
+
+        <!-- Quick Customer Modal Dialog (Image 2) -->
+        <div id="quick-customer-modal" class="modal-overlay" style="display: none;">
+          <div class="modal-card quick-customer-modal-card">
+            
+            <!-- Modal Header -->
+            <div class="quick-modal-header">
+              <div class="quick-modal-title-group">
+                <span class="quick-modal-icon-badge">
+                  <i data-lucide="user-plus"></i>
+                </span>
+                <div>
+                  <h3 class="quick-modal-title">Thêm nhanh khách hàng</h3>
+                  <p class="quick-modal-subtitle">Điền thông tin cơ bản để tiếp tục lên đơn</p>
+                </div>
+              </div>
+              <button type="button" class="quick-modal-close-btn" id="btn-quick-customer-cancel" title="Đóng">✕</button>
+            </div>
+
+            <!-- Modal Body (2 rows x 3 columns) -->
+            <div class="quick-modal-grid" id="invoice-quick-customer-fields">
+              <div class="form-group">
+                <label class="form-label">Tên khách hàng *</label>
+                <input type="text" class="form-control" id="quick-cust-name" placeholder="Ví dụ: Nguyễn Văn A">
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Số điện thoại</label>
+                <input type="text" class="form-control" id="quick-cust-phone" placeholder="Ví dụ: 0909123456">
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Thương hiệu độc quyền</label>
+                <select class="form-control default-red" id="quick-cust-assigned-brand">
+                  <option value="Tất cả" selected>Chọn thương hiệu</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Tỉnh/Thành phố *</label>
+                <select class="form-control" id="quick-cust-province">
+                  <option value="">-- Chọn Tỉnh/Thành --</option>
+                  <option value="HN">Hà Nội</option>
+                  <option value="HP">Hải Phòng</option>
+                  <option value="HD">Hải Dương</option>
+                  <option value="HNam">Hà Nam</option>
+                  <option value="ND">Nam Định</option>
+                  <option value="TB">Thái Bình</option>
+                  <option value="NBi">Ninh Bình</option>
+                  <option value="TN">Thái Nguyên</option>
+                  <option value="VP">Vĩnh Phúc</option>
+                  <option value="BN">Bắc Ninh</option>
+                  <option value="BG">Bắc Giang</option>
+                  <option value="QN">Quảng Ninh</option>
+                  <option value="HY">Hưng Yên</option>
+                  <option value="HCM">Hồ Chí Minh</option>
+                  <option value="DN">Đà Nẵng</option>
+                  <option value="BD">Bình Dương</option>
+                  <option value="DNai">Đồng Nai</option>
+                  <option value="LA">Long An</option>
+                  <option value="OTHER">Khác</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Địa chỉ chi tiết</label>
+                <input type="text" class="form-control" id="quick-cust-address" placeholder="Ví dụ: Kè Sặt, Bình Giang">
+              </div>
+
+              <div class="form-group" id="quick-cust-manager-container">
+                <label class="form-label">Nhân viên quản lý *</label>
+                <select class="form-control" id="quick-cust-manager">
+                  <option value="">-- Chọn nhân viên quản lý --</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="quick-modal-footer">
+              <div class="quick-modal-footer-info">
+                <i data-lucide="shield-check"></i>
+                <span>Thông tin được lưu cùng đơn hàng</span>
+              </div>
+              <div class="quick-modal-footer-buttons">
+                <button type="button" class="btn btn-secondary btn-sm" id="btn-quick-customer-cancel-footer">Hủy bỏ</button>
+                <button type="button" class="btn btn-primary btn-sm" id="btn-quick-customer-submit">
+                  <i data-lucide="check"></i> Thêm vào đơn
+                </button>
+              </div>
+            </div>
+
           </div>
         </div>
       </section>
@@ -1507,7 +1613,7 @@
                 <option value="all">Tất cả công ty</option>
               </select>
               <select class="form-control" id="history-brand-filter" style="width: 170px; height: 42px; border-radius: 8px; cursor: pointer;">
-                <option value="all">Tất cả nhãn sơn</option>
+                <option value="all">Tất cả thương hiệu</option>
               </select>
               <div class="history-status-multi-filter" id="history-status-filter" role="group" aria-label="Lọc trạng thái đơn hàng">
                 <label><input type="checkbox" class="history-status-filter-check" value="settled" checked><span>Đã chốt</span></label>
@@ -1752,7 +1858,7 @@
                       <th style="width: 40px; text-align: center;">
                         <input type="checkbox" id="so-quy-select-all" style="cursor: pointer; width: 14px; height: 14px;">
                       </th>
-                      <th style="width: 40px; text-align: center;">⭐</th>
+                      <th style="width: 40px; text-align: center;" title="Đánh dấu"><i data-lucide="star" style="width: 14px; height: 14px; color: #f59e0b;"></i></th>
                       <th style="width: 120px; text-align: center;">Mã phiếu</th>
                       <th style="width: 140px; text-align: center;">Thời gian</th>
                       <th>Loại thu chi</th>
@@ -1863,7 +1969,7 @@
               <option value="name">Tên khách hàng</option>
               <option value="code">Mã khách hàng</option>
               <option value="manager">Người quản lý</option>
-              <option value="brand">Nhãn sơn</option>
+              <option value="brand">Thương hiệu</option>
               <option value="pricelist">Bảng giá</option>
               <option value="province">Tỉnh/Thành</option>
               <option value="missing">Mức thiếu thông tin</option>
@@ -1931,7 +2037,7 @@
             <div class="customer-filter-section customer-filter-span-2">
               <strong>Phân loại khách hàng</strong>
               <div class="customer-filter-multi-grid">
-                <label>Nhãn sơn<select class="form-control" id="customer-filter-brands" multiple></select></label>
+                <label>Thương hiệu<select class="form-control" id="customer-filter-brands" multiple></select></label>
                 <label>Bảng giá<select class="form-control" id="customer-filter-pricelists" multiple></select></label>
                 <label>Người quản lý<select class="form-control" id="customer-filter-managers" multiple></select></label>
                 <label>Tỉnh/Thành<select class="form-control" id="customer-filter-provinces" multiple></select></label>
@@ -1945,7 +2051,7 @@
                 <label>Địa chỉ<select class="form-control" id="customer-address-state"><option value="">Tất cả</option><option value="has">Có</option><option value="missing">Không có</option></select></label>
                 <label>Bảng giá<select class="form-control" id="customer-pricelist-state"><option value="">Tất cả</option><option value="has">Có</option><option value="missing">Không có</option></select></label>
                 <label>Quản lý<select class="form-control" id="customer-manager-state"><option value="">Tất cả</option><option value="has">Có</option><option value="missing">Không có</option></select></label>
-                <label>Nhãn sơn<select class="form-control" id="customer-brand-state"><option value="">Tất cả</option><option value="has">Có</option><option value="missing">Không có</option></select></label>
+                <label>Thương hiệu<select class="form-control" id="customer-brand-state"><option value="">Tất cả</option><option value="has">Có</option><option value="missing">Không có</option></select></label>
                 <label>Ghi chú<select class="form-control" id="customer-notes-state"><option value="">Tất cả</option><option value="has">Có</option><option value="missing">Không có</option></select></label>
               </div>
             </div>
@@ -2094,7 +2200,7 @@
               </button>
               <input type="file" id="pricelist-excel-file-input" accept=".xlsx,.xls" hidden>
               <button class="btn btn-success btn-sm" id="btn-save-price-matrix" disabled>
-                <i data-lucide="save"></i> Luu gia da sua
+                <i data-lucide="save"></i> Lưu giá đã sửa
               </button>
               <button class="btn btn-primary btn-sm" id="btn-open-add-pricelist-modal">
                 <i data-lucide="plus-circle"></i> Thêm bảng giá mới
@@ -2102,13 +2208,13 @@
             </div>
           </div>
 
-          <div class="controls-row" style="display: grid; grid-template-columns: minmax(240px, 1.2fr) minmax(220px, 1fr) repeat(3, minmax(150px, 0.7fr)); gap: 0.75rem; align-items: center;">
+          <div class="controls-row">
             <div class="search-wrapper">
               <i data-lucide="search" class="search-icon"></i>
               <input type="text" class="form-control-search" id="price-matrix-product-search" placeholder="Tìm SKU theo mã, tên, hãng, quy cách...">
             </div>
             <details class="price-list-picker" id="pricelist-visible-picker">
-              <summary id="pricelist-visible-summary">Chon bang gia hien thi</summary>
+              <summary id="pricelist-visible-summary">Chọn bảng giá hiển thị</summary>
               <div class="price-list-picker-menu" id="pricelist-visible-select"></div>
             </details>
             <select class="form-control" id="price-matrix-brand-filter"></select>
@@ -2142,10 +2248,10 @@
       <section id="brands-panel" class="panel">
         <div class="glass-panel">
           <div class="panel-header">
-            <h2 class="panel-title"><i data-lucide="palette"></i> Danh sách hãng sơn & công ty quản lý</h2>
+            <h2 class="panel-title"><i data-lucide="palette"></i> Danh sách thương hiệu & công ty quản lý</h2>
             <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
               <button class="btn btn-primary btn-sm admin-only" id="btn-open-add-brand-modal">
-                <i data-lucide="plus-circle"></i> Thêm hãng sơn
+                <i data-lucide="plus-circle"></i> Thêm thương hiệu
               </button>
             </div>
           </div>
@@ -2154,7 +2260,7 @@
             <table class="table">
               <thead>
                 <tr>
-                  <th>Tên hãng sơn</th>
+                  <th>Tên thương hiệu</th>
                   <th>Công ty quản lý</th>
                   <th>Tệp Logo</th>
                   <th>Hotline</th>
@@ -2232,7 +2338,7 @@
             <input id="activity-search" class="form-control" type="search" placeholder="Tìm theo mã đơn, nhân viên, khách hàng...">
             <select id="activity-actor-filter" class="form-control"><option value="all">Tất cả nhân viên</option></select>
             <select id="activity-action-filter" class="form-control"><option value="all">Tất cả hành động</option><option value="create_order">Tạo mới</option><option value="update_order">Chỉnh sửa</option><option value="change_order_status">Đổi trạng thái</option><option value="confirm_payment">Thanh toán</option><option value="cancel_order">Hủy</option></select>
-            <select id="activity-module-filter" class="form-control"><option value="all">Tất cả module</option><option value="orders">Đơn hàng</option><option value="customers">Khách hàng</option><option value="employees">Nhân viên</option><option value="payments">Thanh toán</option><option value="returns">Trả hàng</option><option value="cashbook">Sổ quỹ</option><option value="suppliers">Nhà cung cấp</option><option value="purchases">Mua hàng</option><option value="products">Sản phẩm</option><option value="brands">Hãng sơn</option><option value="pricelists">Bảng giá</option></select>
+            <select id="activity-module-filter" class="form-control"><option value="all">Tất cả module</option><option value="orders">Đơn hàng</option><option value="customers">Khách hàng</option><option value="employees">Nhân viên</option><option value="payments">Thanh toán</option><option value="returns">Trả hàng</option><option value="cashbook">Sổ quỹ</option><option value="suppliers">Nhà cung cấp</option><option value="purchases">Mua hàng</option><option value="products">Sản phẩm</option><option value="brands">Thương hiệu</option><option value="pricelists">Bảng giá</option></select>
             <input id="activity-start-filter" class="form-control" type="date" title="Từ ngày"><input id="activity-end-filter" class="form-control" type="date" title="Đến ngày">
           </div>
           <div class="table-responsive"><table class="table activity-table"><thead><tr><th>Người thực hiện</th><th>Hoạt động</th><th>Module</th><th>Thời gian</th><th></th></tr></thead><tbody id="activity-log-body"><tr><td colspan="5" class="activity-empty">Đang tải lịch sử...</td></tr></tbody></table></div>
@@ -2340,7 +2446,7 @@
             </h3>
             <p style="color: var(--text-secondary); font-size: 0.85rem; line-height: 1.55; margin-bottom: 1.25rem;">
               <strong style="color: var(--color-danger);">Sẽ xóa:</strong> đơn hàng, phiếu nhập hàng, trả hàng, Sổ quỹ, số dư đầu kỳ, doanh số và các phát sinh liên quan.<br>
-              <strong style="color: var(--text-primary);">Giữ nguyên:</strong> sản phẩm, bảng giá, khách hàng, tài khoản, nhà cung cấp, nhãn sơn và danh mục nguyên vật liệu.
+              <strong style="color: var(--text-primary);">Giữ nguyên:</strong> sản phẩm, bảng giá, khách hàng, tài khoản, nhà cung cấp, thương hiệu và danh mục hàng hóa.
             </p>
             <button type="button" class="btn btn-danger" id="btn-clear-sample-data" style="display: inline-flex; align-items: center; gap: 0.5rem;">
               <i data-lucide="trash-2"></i> Xóa dữ liệu thử nghiệm
@@ -2667,7 +2773,7 @@
             </div>
             <div class="form-row-2">
               <div class="form-group" style="margin-bottom: 0;">
-                <label class="form-label" for="prod-brand">Hãng sơn *</label>
+                <label class="form-label" for="prod-brand">Thương hiệu *</label>
                 <select class="form-control" id="prod-brand"></select>
               </div>
               <div class="form-group" style="margin-bottom: 0;">
@@ -2676,8 +2782,8 @@
               </div>
             </div>
           <div class="form-group" id="prod-brand-custom-group" style="margin-bottom: 0; display: none;">
-            <label class="form-label" for="prod-brand-custom">Nhập tên hãng sơn khác *</label>
-            <input type="text" class="form-control" id="prod-brand-custom" placeholder="Ví dụ: Dulux, Jotun..." style="width: 100%;">
+            <label class="form-label" for="prod-brand-custom">Nhập tên thương hiệu khác *</label>
+            <input type="text" class="form-control" id="prod-brand-custom" placeholder="Ví dụ: Thương hiệu mới..." style="width: 100%;">
           </div>
             <div class="form-group" style="margin-bottom: 0;">
               <label class="form-label" for="prod-description">Mô tả</label>
@@ -2749,15 +2855,9 @@
               <input type="text" class="form-control" id="cust-phone" required placeholder="Ví dụ: 0909123456" style="width: 100%;">
             </div>
             <div class="form-group" style="margin-bottom: 0;">
-              <label class="form-label" for="cust-assigned-brand">Nhãn đại lý độc quyền</label>
+              <label class="form-label" for="cust-assigned-brand">Thương hiệu độc quyền</label>
               <select class="form-control default-red" id="cust-assigned-brand" style="width: 100%;">
-                <option value="Tất cả" selected>Chọn nhãn sơn</option>
-                <option value="Nano10*">Nano10*</option>
-                <option value="Hatacco nano">Hatacco nano</option>
-                <option value="mutsutec">mutsutec</option>
-                <option value="tdkaw">tdkaw</option>
-                <option value="cova">cova</option>
-                <option value="festivanano">festivanano</option>
+                <option value="Tất cả" selected>Chọn thương hiệu</option>
               </select>
             </div>
           </div>
@@ -2819,34 +2919,9 @@
           
           <div style="border-top: 1px dashed var(--border-color); margin-top: 0.5rem; padding-top: 0.75rem;" id="cust-brand-discounts-section">
             <h4 style="font-size: 0.85rem; font-weight: 600; color: var(--color-primary); margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.35rem;">
-              <i data-lucide="percent" style="width: 16px;"></i> Thiết lập tỷ lệ chiết khấu (%) theo nhãn sơn
+              <i data-lucide="percent" style="width: 16px;"></i> Thiết lập tỷ lệ chiết khấu (%) theo thương hiệu
             </h4>
-            <div id="customer-brand-discounts-container" style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
-              <div class="form-group" style="margin-bottom: 0;">
-                <label class="form-label">Chiết khấu Nano10* (%)</label>
-                <input type="number" class="form-control cust-brand-disc" data-brand="Nano10*" value="0" min="0" max="100" step="any">
-              </div>
-              <div class="form-group" style="margin-bottom: 0;">
-                <label class="form-label">Chiết khấu Hatacco nano (%)</label>
-                <input type="number" class="form-control cust-brand-disc" data-brand="Hatacco nano" value="0" min="0" max="100" step="any">
-              </div>
-              <div class="form-group" style="margin-bottom: 0;">
-                <label class="form-label">Chiết khấu mutsutec (%)</label>
-                <input type="number" class="form-control cust-brand-disc" data-brand="mutsutec" value="0" min="0" max="100" step="any">
-              </div>
-              <div class="form-group" style="margin-bottom: 0;">
-                <label class="form-label">Chiết khấu tdkaw (%)</label>
-                <input type="number" class="form-control cust-brand-disc" data-brand="tdkaw" value="0" min="0" max="100" step="any">
-              </div>
-              <div class="form-group" style="margin-bottom: 0;">
-                <label class="form-label">Chiết khấu cova (%)</label>
-                <input type="number" class="form-control cust-brand-disc" data-brand="cova" value="0" min="0" max="100" step="any">
-              </div>
-              <div class="form-group" style="margin-bottom: 0;">
-                <label class="form-label">Chiết khấu festivanano (%)</label>
-                <input type="number" class="form-control cust-brand-disc" data-brand="festivanano" value="0" min="0" max="100" step="any">
-              </div>
-            </div>
+            <div id="customer-brand-discounts-container" style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;"></div>
           </div>
         </div>
         <div class="modal-footer">
@@ -2966,7 +3041,7 @@
                 <div id="detail-cust-pricelist" style="font-weight: 500; color: var(--text-secondary); margin-top: 2px; font-size: 0.95rem;"></div>
               </div>
               <div>
-                <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight: 500;">Nhãn sơn độc quyền</div>
+                <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; font-weight: 500;">Thương hiệu độc quyền</div>
                 <div id="detail-cust-brand" style="margin-top: 4px;"></div>
               </div>
               <div>
@@ -3280,7 +3355,7 @@
 
     <!-- Phần tiêu đề hóa đơn dưới đường gạch ngang -->
     <div class="print-title-section" style="margin-top: 15px; margin-bottom: 25px; color: #000;">
-      <div id="print-company-name-large" style="font-size: 13pt; font-weight: bold; text-transform: uppercase; margin-bottom: 5px;">CÔNG TY CỔ PHẦN ABS JAPAN</div>
+      <div id="print-company-name-large" style="font-size: 13pt; font-weight: bold; text-transform: uppercase; margin-bottom: 5px;"></div>
       <h1 id="print-invoice-title-large" style="text-align: center; font-size: 22pt; font-weight: bold; margin: 15px 0 5px 0; text-transform: uppercase; color: #000;">HÓA ĐƠN BÁN HÀNG</h1>
       <!-- Mã hóa đơn và Ngày lập cùng hàng -->
       <div style="text-align: center; font-size: 12pt; line-height: 1.4; display: flex; justify-content: center; gap: 30px;">
@@ -3300,7 +3375,7 @@
         <span>- <strong>Địa chỉ:</strong> <span id="print-customer-address">N/A</span></span>
         <span id="print-payment-method-wrap" style="display: none;"><strong>Hình thức thanh toán:</strong> <span id="print-payment-method"></span></span>
       </div>
-      <p id="print-warehouse-row" style="margin: 0; margin-top: 2px;">- <strong id="print-warehouse-text">Xuất Tại kho số 03 Chi nhánh Thái Nguyên</strong></p>
+      <p id="print-warehouse-row" style="margin: 0; margin-top: 2px;">- <strong id="print-warehouse-text">Xuất tại kho</strong></p>
       <div style="display: flex; justify-content: space-between; margin-top: 2px;">
         <span>- <strong>Nhân viên bán hàng:</strong> <span id="print-creator-name">admin</span><span id="print-sales-phone-group">&nbsp;&nbsp; <strong>SĐT:</strong> <span id="print-sales-phone">N/A</span></span></span>
         <span id="print-customer-manager" style="font-weight: bold;">NVKD: N/A</span>
@@ -3376,7 +3451,7 @@
   <div class="modal-overlay" id="brand-modal">
     <div class="modal-content" style="max-width: 550px;">
       <div class="modal-header">
-        <h3 class="modal-title" id="brand-modal-title">Thêm hãng sơn mới</h3>
+        <h3 class="modal-title" id="brand-modal-title">Thêm thương hiệu mới</h3>
         <button class="modal-close" id="btn-close-brand-modal">
           <i data-lucide="x"></i>
         </button>
@@ -3390,13 +3465,13 @@
             <input type="text" class="form-control" id="brand-id-display" readonly placeholder="Tự động tạo" style="width: 100%; opacity: 0.75; background: rgba(255,255,255,0.05); font-family: monospace;">
           </div>
           <div class="form-group" style="margin-bottom: 0;">
-            <label class="form-label" for="brand-name">Tên hãng sơn *</label>
-            <input type="text" class="form-control" id="brand-name" required placeholder="Ví dụ: Hatacco nano, Nano10*" style="width: 100%;">
+            <label class="form-label" for="brand-name">Tên thương hiệu *</label>
+            <input type="text" class="form-control" id="brand-name" required placeholder="Ví dụ: Thương hiệu A, B..." style="width: 100%;">
           </div>
           <div class="form-group" style="margin-bottom: 0;">
             <label class="form-label" for="brand-company-id">Công ty quản lý</label>
             <select class="form-control" id="brand-company-id" style="width: 100%; height: 38px; border-radius: 6px;">
-              <option value="">-- Nhãn dùng chung (Không thuộc công ty riêng) --</option>
+              <option value="">-- Thương hiệu dùng chung (Không thuộc công ty riêng) --</option>
             </select>
           </div>
           <div class="form-group" style="margin-bottom: 0;">
@@ -3514,9 +3589,7 @@
           <div class="form-group" style="margin-bottom: 0;">
             <label class="form-label" for="user-company">Công ty trực thuộc *</label>
             <select class="form-control" id="user-company" required style="width: 100%;">
-              <option value="ABS_NORTH">Công ty Cổ phần ABS JAPAN (Miền Bắc)</option>
-              <option value="ABS_SOUTH">Công ty Cổ phần ABS JAPAN - Chi nhánh Miền Nam</option>
-              <option value="EMP_USA">Công ty Cổ phần EMP Hoa Kỳ</option>
+              <option value="main">Trụ sở chính</option>
             </select>
           </div>
         </div>
@@ -3698,7 +3771,7 @@
                   <th style="width: 50px; text-align: center;">STT</th>
                   <th>Mã SKU</th>
                   <th>Tên sản phẩm</th>
-                  <th>Hãng sơn</th>
+                  <th>Thương hiệu</th>
                   <th>Quy cách</th>
                   <th>Nguồn giá</th>
                 </tr>
@@ -4002,8 +4075,8 @@
   <div class="modal-overlay" id="supplier-modal">
     <div class="modal-content" style="max-width: 500px;">
       <div class="modal-header">
-        <h3 class="modal-title" id="supplier-modal-title">Thêm nhà cung cấp</h3>
-        <button class="modal-close" id="btn-close-supplier-modal">&times;</button>
+        <h3 class="modal-title" id="supplier-modal-title"><i data-lucide="truck"></i> Thêm nhà cung cấp</h3>
+        <button class="modal-close" id="btn-close-supplier-modal" aria-label="Đóng"><i data-lucide="x"></i></button>
       </div>
       <form id="supplier-form">
         <div class="modal-body" style="display: flex; flex-direction: column; gap: 1rem;">
@@ -4124,10 +4197,10 @@
     <div class="modal-content workspace-onboarding-content">
       <div class="modal-header">
         <div>
-          <h3 class="modal-title" id="workspace-onboarding-title">Thiết lập doanh nghiệp</h3>
+          <h3 class="modal-title" id="workspace-onboarding-title"><i data-lucide="building-2"></i> Thiết lập doanh nghiệp</h3>
           <p id="workspace-onboarding-intro" class="workspace-onboarding-intro"></p>
         </div>
-        <button type="button" class="modal-close" id="btn-close-workspace-onboarding" aria-label="Đóng">&times;</button>
+        <button type="button" class="modal-close" id="btn-close-workspace-onboarding" aria-label="Đóng"><i data-lucide="x"></i></button>
       </div>
       <form id="workspace-onboarding-form">
         <div class="modal-body workspace-onboarding-body">
@@ -4184,10 +4257,10 @@
     <div class="modal-content cashbook-create-modal-content cashbook-create-receipt">
       <div class="modal-header cashbook-create-header">
         <div>
-          <h3 class="modal-title">Tạo phiếu thu</h3>
+          <h3 class="modal-title"><i data-lucide="arrow-down-left" style="color: #0e9f67;"></i> Tạo phiếu thu</h3>
           <p>Ghi nhận khoản tiền nhận vào quỹ</p>
         </div>
-        <button class="modal-close" id="btn-close-receipt-modal">&times;</button>
+        <button class="modal-close" id="btn-close-receipt-modal" aria-label="Đóng"><i data-lucide="x"></i></button>
       </div>
       <form id="so-quy-receipt-form" class="cashbook-create-form">
         <div class="modal-body cashbook-create-body">
@@ -4266,7 +4339,7 @@
         </div>
         <div class="modal-footer cashbook-create-footer">
           <button type="button" class="btn btn-secondary" id="btn-cancel-receipt-modal">Hủy bỏ</button>
-          <button type="submit" class="btn btn-primary cashbook-create-submit">Lưu phiếu thu</button>
+          <button type="submit" class="btn btn-primary cashbook-create-submit"><i data-lucide="save"></i> Lưu phiếu thu</button>
         </div>
       </form>
     </div>
@@ -4277,10 +4350,10 @@
     <div class="modal-content cashbook-create-modal-content cashbook-create-payment">
       <div class="modal-header cashbook-create-header">
         <div>
-          <h3 class="modal-title">Tạo phiếu chi</h3>
+          <h3 class="modal-title"><i data-lucide="arrow-up-right" style="color: #dc2626;"></i> Tạo phiếu chi</h3>
           <p>Ghi nhận khoản tiền chi ra khỏi quỹ</p>
         </div>
-        <button class="modal-close" id="btn-close-payment-modal">&times;</button>
+        <button class="modal-close" id="btn-close-payment-modal" aria-label="Đóng"><i data-lucide="x"></i></button>
       </div>
       <form id="so-quy-payment-form" class="cashbook-create-form">
         <div class="modal-body cashbook-create-body">
@@ -4356,7 +4429,7 @@
         </div>
         <div class="modal-footer cashbook-create-footer">
           <button type="button" class="btn btn-secondary" id="btn-cancel-payment-modal">Hủy bỏ</button>
-          <button type="submit" class="btn btn-primary cashbook-create-submit">Lưu phiếu chi</button>
+          <button type="submit" class="btn btn-primary cashbook-create-submit"><i data-lucide="save"></i> Lưu phiếu chi</button>
         </div>
       </form>
     </div>
@@ -4366,10 +4439,10 @@
     <div class="modal-content cashbook-edit-modal-content">
       <div class="modal-header cashbook-edit-header">
         <div>
-          <h3 class="modal-title" id="cashbook-edit-title">Sửa phiếu thu/chi</h3>
+          <h3 class="modal-title" id="cashbook-edit-title"><i data-lucide="edit-3"></i> Sửa phiếu thu/chi</h3>
           <p>Cập nhật thông tin chứng từ và đối tượng giao dịch</p>
         </div>
-        <button type="button" class="modal-close" id="btn-close-cashbook-edit">&times;</button>
+        <button type="button" class="modal-close" id="btn-close-cashbook-edit" aria-label="Đóng"><i data-lucide="x"></i></button>
       </div>
       <form id="so-quy-edit-form" class="cashbook-edit-form">
         <input type="hidden" id="cashbook-edit-id">
@@ -4470,7 +4543,7 @@
         </div>
         <div class="modal-footer cashbook-edit-footer">
           <button type="button" class="btn btn-secondary" id="btn-cancel-cashbook-edit">Hủy</button>
-          <button type="submit" class="btn btn-primary" id="btn-save-cashbook-edit">Lưu thay đổi</button>
+          <button type="submit" class="btn btn-primary" id="btn-save-cashbook-edit"><i data-lucide="save"></i> Lưu thay đổi</button>
         </div>
       </form>
     </div>
@@ -4480,8 +4553,8 @@
 
     <div class="modal-content" style="max-width: 1050px; width: 95%;">
       <div class="modal-header">
-        <h3 class="modal-title" id="sales-return-modal-title">Tạo phiếu trả hàng</h3>
-        <button type="button" class="modal-close" onclick="document.getElementById('sales-return-modal').classList.remove('active')">&times;</button>
+        <h3 class="modal-title" id="sales-return-modal-title"><i data-lucide="rotate-ccw"></i> Tạo phiếu trả hàng</h3>
+        <button type="button" class="modal-close" onclick="document.getElementById('sales-return-modal').classList.remove('active')" aria-label="Đóng"><i data-lucide="x"></i></button>
       </div>
       <form id="sales-return-form">
         <input type="hidden" id="return-order-id">
@@ -4556,8 +4629,8 @@
   <div class="modal-overlay" id="raw-material-modal">
     <div class="modal-content" style="max-width: 450px;">
       <div class="modal-header">
-        <h3 class="modal-title" id="raw-material-modal-title">Thêm nguyên liệu mới</h3>
-        <button class="modal-close" id="btn-close-raw-material-modal">&times;</button>
+        <h3 class="modal-title" id="raw-material-modal-title"><i data-lucide="box"></i> Thêm nguyên liệu mới</h3>
+        <button class="modal-close" id="btn-close-raw-material-modal" aria-label="Đóng"><i data-lucide="x"></i></button>
       </div>
       <form id="raw-material-form">
         <div class="modal-body" style="display: flex; flex-direction: column; gap: 1rem;">
@@ -4589,7 +4662,7 @@
         </div>
         <div class="modal-footer" style="padding-top: 1rem; border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1rem;">
           <button type="button" class="btn btn-secondary btn-sm" id="btn-cancel-raw-material-modal">Hủy bỏ</button>
-          <button type="submit" class="btn btn-primary btn-sm">Lưu</button>
+          <button type="submit" class="btn btn-primary btn-sm"><i data-lucide="save"></i> Lưu</button>
         </div>
       </form>
     </div>
@@ -4599,8 +4672,8 @@
   <div class="modal-overlay" id="semi-finished-modal">
     <div class="modal-content" style="max-width: 450px;">
       <div class="modal-header">
-        <h3 class="modal-title" id="semi-finished-modal-title">Thêm bán thành phẩm mới</h3>
-        <button class="modal-close" id="btn-close-semi-finished-modal">&times;</button>
+        <h3 class="modal-title" id="semi-finished-modal-title"><i data-lucide="layers"></i> Thêm bán thành phẩm mới</h3>
+        <button class="modal-close" id="btn-close-semi-finished-modal" aria-label="Đóng"><i data-lucide="x"></i></button>
       </div>
       <form id="semi-finished-form">
         <div class="modal-body" style="display: flex; flex-direction: column; gap: 1rem;">
@@ -4628,7 +4701,7 @@
         </div>
         <div class="modal-footer" style="padding-top: 1rem; border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1rem;">
           <button type="button" class="btn btn-secondary btn-sm" id="btn-cancel-semi-finished-modal">Hủy bỏ</button>
-          <button type="submit" class="btn btn-primary btn-sm">Lưu</button>
+          <button type="submit" class="btn btn-primary btn-sm"><i data-lucide="save"></i> Lưu</button>
         </div>
       </form>
     </div>
@@ -4638,8 +4711,8 @@
   <div class="modal-overlay" id="recipe-modal">
     <div class="modal-content" style="max-width: 650px;">
       <div class="modal-header">
-        <h3 class="modal-title" id="recipe-modal-title">Tạo công thức sản xuất</h3>
-        <button class="modal-close" id="btn-close-recipe-modal">&times;</button>
+        <h3 class="modal-title" id="recipe-modal-title"><i data-lucide="factory"></i> Tạo công thức sản xuất</h3>
+        <button class="modal-close" id="btn-close-recipe-modal" aria-label="Đóng"><i data-lucide="x"></i></button>
       </div>
       <form id="recipe-form">
         <div class="modal-body" style="display: flex; flex-direction: column; gap: 1rem; max-height: 60vh; overflow-y: auto;">
@@ -4693,7 +4766,7 @@
         </div>
         <div class="modal-footer" style="padding-top: 1rem; border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1rem;">
           <button type="button" class="btn btn-secondary btn-sm" id="btn-cancel-recipe-modal">Hủy bỏ</button>
-          <button type="submit" class="btn btn-primary btn-sm">Lưu công thức</button>
+          <button type="submit" class="btn btn-primary btn-sm"><i data-lucide="save"></i> Lưu công thức</button>
         </div>
       </form>
     </div>
@@ -4703,8 +4776,8 @@
   <div class="modal-overlay" id="finished-stock-adjust-modal">
     <div class="modal-content" style="max-width: 480px;">
       <div class="modal-header">
-        <h3 class="modal-title">Điều chỉnh tồn kho thành phẩm</h3>
-        <button class="modal-close" id="btn-close-finished-stock-modal">&times;</button>
+        <h3 class="modal-title"><i data-lucide="package-check"></i> Điều chỉnh tồn kho thành phẩm</h3>
+        <button class="modal-close" id="btn-close-finished-stock-modal" aria-label="Đóng"><i data-lucide="x"></i></button>
       </div>
       <form id="finished-stock-adjust-form">
         <div class="modal-body" style="display: flex; flex-direction: column; gap: 1rem;">
@@ -4753,6 +4826,6 @@
 
   <!-- App logic -->
   <script type="module" src="js/landing-motion.js?v=20260817-saas-platform-v1"></script>
-  <script type="module" src="js/main.js?v=20260901-customer-filter-v2"></script>
+  <script type="module" src="js/main.js?v=20260831-provisioning-v2"></script>
 </body>
 </html>

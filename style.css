@@ -5,6 +5,14 @@
   padding: 0;
 }
 
+/* Modern vector icon system (stroke-width: 2.2px, rounded caps & joins) */
+svg.lucide,
+.lucide {
+  stroke-width: 2.2px;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
 .price-matrix-wrap {
   overflow: auto;
   max-height: 68vh;
@@ -860,9 +868,9 @@ body {
 
 .staff-menu {
   display: none;
-  position: fixed;
-  top: 56px;
-  left: 8px;
+  position: absolute;
+  top: calc(100% + 0.45rem);
+  left: 0;
   min-width: 230px;
   background: #ffffff;
   border: 1px solid var(--border-color);
@@ -1100,7 +1108,7 @@ body {
 
 .form-control-search {
   width: 100%;
-  padding: 0.625rem 1rem 0.625rem 2.5rem;
+  padding: 0.625rem 1rem 0.625rem 2.6rem !important;
   background-color: #ffffff;
   border: 1px solid var(--border-color);
   border-radius: 8px;
@@ -1710,11 +1718,8 @@ select option {
 .summary-heading {
   font-family: var(--font-heading);
   font-size: 1.1rem;
-  font-weight: 600;
-  color: #fff;
-  border-bottom: 1px solid var(--border-color);
-  padding-bottom: 0.75rem;
-  margin-bottom: 1rem;
+  font-weight: 700;
+  color: inherit;
 }
 
 .summary-row {
@@ -3041,12 +3046,14 @@ select option {
   letter-spacing: -.018em;
 }
 #app-layout .panel-title > svg {
-  width: 34px;
-  height: 34px;
-  padding: 8px;
-  color: var(--role-accent);
-  background: var(--role-accent-soft);
-  border-radius: 10px;
+  width: 22px;
+  height: 22px;
+  min-width: 22px;
+  min-height: 22px;
+  padding: 0;
+  color: currentColor;
+  background: transparent;
+  border-radius: 0;
 }
 
 #app-layout .widgets-grid { gap: 1rem; }
@@ -4505,18 +4512,26 @@ select.form-control {
   display: inline-flex !important;
   align-items: center !important;
 }
-.custom-input-group .form-control {
+.custom-input-group .form-control,
+.custom-input-group select,
+.custom-input-group input {
   background-color: transparent !important;
   background: transparent !important;
   border: none !important;
+  border-radius: 0 !important;
   box-shadow: none !important;
+  outline: none !important;
   padding-left: 0.25rem !important;
 }
-.custom-input-group .form-control:focus {
+.custom-input-group .form-control:focus,
+.custom-input-group select:focus,
+.custom-input-group input:focus {
   background-color: transparent !important;
   background: transparent !important;
   border: none !important;
+  border-radius: 0 !important;
   box-shadow: none !important;
+  outline: none !important;
 }
 
 /* Table light mode overrides */

@@ -61,9 +61,12 @@ export function renderUsersTable() {
         <td style="font-weight: 600; color: #fff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${u.username}">${u.username}</td>
         <td>${dName}</td>
         <td>
-          <span style="color: ${roleColor}; font-weight: 500;">${roleText}</span>
+          <span class="role-badge ${u.isExternal ? 'role-warehouse' : (u.role === 'owner' ? 'role-owner' : u.role === 'admin' ? 'role-admin' : u.role === 'accounting' ? 'role-accounting' : 'role-sales')}">
+            <i data-lucide="${u.role === 'owner' ? 'crown' : (u.role === 'admin' ? 'shield-check' : u.role === 'accounting' ? 'calculator' : u.role === 'sale' ? 'briefcase' : 'user')}"></i>
+            ${roleText}
+          </span>
         </td>
-        <td><span class="status-badge ${statusClass}">${statusText}</span></td>
+        <td><span class="status-badge ${statusClass}"><i data-lucide="${membershipStatus === 'invited' ? 'mail' : (active ? 'check-circle-2' : 'lock')}"></i> ${statusText}</span></td>
         <td style="font-size: 0.8rem; color: var(--text-secondary);">${compName}</td>
         <td style="text-align: center;">
           <div style="display: inline-flex; gap: 0.5rem; justify-content: center;">
@@ -120,6 +123,24 @@ function syncUserTypeFields(isExternal) {
   }
 }
 
+function getAvailableCompaniesForUserForm() {
+  const orgName = state.saasContext?.organizationName;
+  const isLegacyTenant = state.saasContext?.organizationId === '00000000-0000-4000-8000-000000000001';
+
+  if (state.companies && state.companies.length > 0) {
+    if (orgName && !isLegacyTenant) {
+      const customCompanies = state.companies.filter(c => c.id !== 'ABS_NORTH' && c.id !== 'ABS_SOUTH' && c.id !== 'EMP_USA');
+      if (customCompanies.length > 0) return customCompanies;
+      return [{ id: state.saasContext.organizationId || 'main', name: orgName }];
+    }
+    return state.companies;
+  }
+  if (orgName) {
+    return [{ id: state.saasContext?.organizationId || 'main', name: orgName }];
+  }
+  return [{ id: 'main', name: 'Trụ sở chính' }];
+}
+
 export function openUserModal(userId = '') {
   const modal = document.getElementById('user-modal');
   const title = document.getElementById('user-modal-title');
@@ -137,8 +158,9 @@ export function openUserModal(userId = '') {
   form.reset();
   
   const compSelect = document.getElementById('user-company');
-  if (compSelect && state.companies && state.companies.length > 0) {
-    compSelect.innerHTML = state.companies.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+  const availableCompanies = getAvailableCompaniesForUserForm();
+  if (compSelect) {
+    compSelect.innerHTML = availableCompanies.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
   }
   
   if (!userId) {
@@ -154,7 +176,7 @@ export function openUserModal(userId = '') {
     if (roleSelect) roleSelect.disabled = false;
     if (statusSelect) statusSelect.value = 'active';
     if (statusGroup) statusGroup.style.display = 'none';
-    if (compSelect) compSelect.value = 'ABS_NORTH';
+    if (compSelect) compSelect.value = availableCompanies[0]?.id || 'main';
   } else {
     title.innerText = 'Chỉnh sửa tài khoản';
     document.getElementById('user-edit-id').value = userId;
@@ -167,7 +189,16 @@ export function openUserModal(userId = '') {
       if (roleSelect) roleSelect.value = user.role;
       if (statusSelect) statusSelect.value = user.membershipStatus || (user.isActive === false ? 'suspended' : 'active');
       if (statusGroup) statusGroup.style.display = 'block';
-      if (compSelect) compSelect.value = user.companyId || user.company_id || 'ABS_NORTH';
+      const targetCompany = user.companyId || user.company_id || availableCompanies[0]?.id || 'main';
+      if (compSelect) {
+        if (!availableCompanies.some(c => c.id === targetCompany)) {
+          const opt = document.createElement('option');
+          opt.value = targetCompany;
+          opt.textContent = getCompanyNameById(targetCompany, state.companies) || targetCompany;
+          compSelect.appendChild(opt);
+        }
+        compSelect.value = targetCompany;
+      }
       
       const isExt = user.isExternal || false;
       if (isExternalSelect) isExternalSelect.value = isExt ? 'true' : 'false';

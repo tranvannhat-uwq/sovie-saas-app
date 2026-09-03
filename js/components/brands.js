@@ -12,7 +12,7 @@ export function renderBrandsTable() {
     tableBody.innerHTML = `
       <tr>
         <td colspan="12" style="text-align: center; color: var(--text-muted); padding: 2rem;">
-          Không tìm thấy hãng sơn nào.
+          Không tìm thấy thương hiệu nào.
         </td>
       </tr>
     `;
@@ -99,7 +99,7 @@ function openBrandModal(brandName = null) {
   
   const idDisplay = document.getElementById('brand-id-display');
   if (brandName) {
-    title.innerText = 'Chỉnh sửa hãng sơn';
+    title.innerText = 'Chỉnh sửa thương hiệu';
     document.getElementById('brand-edit-is-new').value = 'false';
     document.getElementById('brand-old-name').value = brandName;
     nameInput.value = brandName;
@@ -118,16 +118,16 @@ function openBrandModal(brandName = null) {
       document.getElementById('brand-address-main').value = brand.addressMain;
       document.getElementById('brand-address-factory').value = brand.addressFactory;
       document.getElementById('brand-address-business').value = brand.addressBusiness || '';
-      document.getElementById('brand-invoice-warehouse-text').value = brand.invoiceWarehouseText || 'Xuất Tại kho số 03 Chi nhánh Thái Nguyên';
+      document.getElementById('brand-invoice-warehouse-text').value = brand.invoiceWarehouseText || 'Xuất tại kho';
       document.getElementById('brand-sales-phone').value = brand.salesPhone || '';
     }
   } else {
-    title.innerText = 'Thêm hãng sơn mới';
+    title.innerText = 'Thêm thương hiệu mới';
     document.getElementById('brand-edit-is-new').value = 'true';
     document.getElementById('brand-old-name').value = '';
     nameInput.removeAttribute('disabled');
     if (idDisplay) idDisplay.value = '(Tự động sinh mã ID khi lưu)';
-    document.getElementById('brand-invoice-warehouse-text').value = 'Xuất Tại kho số 03 Chi nhánh Thái Nguyên';
+    document.getElementById('brand-invoice-warehouse-text').value = 'Xuất tại kho';
   }
   
   modal.classList.add('active');
@@ -179,17 +179,17 @@ async function saveBrand() {
     salesPhone
   };
   
-  // Nếu thêm mới hãng sơn, kiểm tra trùng tên hãng sơn
+  // Nếu thêm mới thương hiệu, kiểm tra trùng tên thương hiệu
   if (isNew) {
     const exists = state.brands.some(b => b.name.toLowerCase() === name.toLowerCase());
     if (exists) {
-      showToast(`Hãng sơn "${name}" đã tồn tại!`, 'danger');
+      showToast(`Thương hiệu "${name}" đã tồn tại!`, 'danger');
       return;
     }
   } else if (oldName && oldName !== name) {
     const exists = state.brands.some(b => b.name.toLowerCase() === name.toLowerCase() && b.id !== id);
     if (exists) {
-      showToast(`Tên hãng sơn "${name}" đã tồn tại!`, 'danger');
+      showToast(`Tên thương hiệu "${name}" đã tồn tại!`, 'danger');
       return;
     }
   }
@@ -198,7 +198,7 @@ async function saveBrand() {
   if (success) {
     if (isNew) {
       state.brands.push(brandObj);
-      showToast(`Đã thêm hãng sơn "${name}" thành công!`);
+      showToast(`Đã thêm thương hiệu "${name}" thành công!`);
     } else {
       state.brands = (state.brands || []).filter(b => 
         b.id !== id && 
@@ -207,7 +207,7 @@ async function saveBrand() {
       );
       state.brands.push(brandObj);
 
-      // Cập nhật liên kết nếu đổi tên hãng sơn
+      // Cập nhật liên kết nếu đổi tên thương hiệu
       if (oldName && oldName !== name) {
         // Cập nhật Sản phẩm
         (state.products || []).forEach(p => {
@@ -252,7 +252,7 @@ async function saveBrand() {
         }
       }
 
-      showToast(`Đã cập nhật hãng sơn "${name}" thành công!`);
+      showToast(`Đã cập nhật thương hiệu "${name}" thành công!`);
     }
     
     // Đồng bộ lại local storage
@@ -264,12 +264,12 @@ async function saveBrand() {
 }
 
 async function deleteBrand(name) {
-  if (confirm(`Bạn có chắc chắn muốn xóa hãng sơn "${name}" không? Mọi sản phẩm thuộc hãng sơn này có thể không tìm thấy logo/thông tin liên kết.`)) {
+  if (confirm(`Bạn có chắc chắn muốn xóa thương hiệu "${name}" không? Mọi sản phẩm thuộc thương hiệu này có thể không tìm thấy logo/thông tin liên kết.`)) {
     const success = await dbDeleteBrand(name);
     if (success) {
       state.brands = state.brands.filter(b => b.name !== name);
       tenantStorage.setItem('billing_system_brands', JSON.stringify(state.brands));
-      showToast(`Đã xóa hãng sơn "${name}"!`);
+      showToast(`Đã xóa thương hiệu "${name}"!`);
       renderAll();
     }
   }

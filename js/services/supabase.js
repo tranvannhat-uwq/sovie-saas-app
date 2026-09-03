@@ -544,9 +544,10 @@ export function loadLocalStorageBackup() {
   if (storedSuppliers && JSON.parse(storedSuppliers).length > 0) {
     state.suppliers = JSON.parse(storedSuppliers);
   } else {
-    state.suppliers = [
+    const isLegacyTenant = state.saasContext?.organizationId === '00000000-0000-4000-8000-000000000001';
+    state.suppliers = isLegacyTenant ? [
       { id: 'supplier-abs', code: 'NCC001', name: 'CÔNG TY CỔ PHẦN ABS JAPAN', phone: '088.603.7878', address: 'Tiên Kha - Phúc Thịnh - Hà Nội', debt: 0, notes: 'Nhà máy cung cấp sơn chính hãng Nano10*' }
-    ];
+    ] : [];
     tenantStorage.setItem('billing_system_suppliers', JSON.stringify(state.suppliers));
   }
 
@@ -592,7 +593,8 @@ export function loadLocalStorageBackup() {
   if (storedBrands) {
     state.brands = JSON.parse(storedBrands);
   } else {
-    state.brands = [
+    const isLegacyTenant = state.saasContext?.organizationId === '00000000-0000-4000-8000-000000000001';
+    state.brands = isLegacyTenant ? [
       { name: 'COVA NANO', companyName: 'Công ty Cổ phần ABS JAPAN (Miền Bắc)', companyId: 'ABS_NORTH', logoFilename: 'absjapan.png' },
       { name: 'FESTIVA NANO', companyName: 'Công ty Cổ phần EMP Hoa Kỳ', companyId: 'EMP_USA', logoFilename: 'festiva.png' },
       { name: 'HATACCO NANO', companyName: 'Công ty Cổ phần EMP Hoa Kỳ', companyId: 'EMP_USA', logoFilename: 'hatacco.png' },
@@ -600,7 +602,7 @@ export function loadLocalStorageBackup() {
       { name: 'NANO10 MB', companyName: 'Công ty Cổ phần ABS JAPAN (Miền Bắc)', companyId: 'ABS_NORTH', logoFilename: 'absjapan.png' },
       { name: 'NANO10 MN', companyName: 'Công ty Cổ phần ABS JAPAN - Chi nhánh Miền Nam', companyId: 'ABS_SOUTH', logoFilename: 'absjapan.png' },
       { name: 'TDKAW NANO', companyName: 'Công ty Cổ phần ABS JAPAN (Miền Bắc)', companyId: 'ABS_NORTH', logoFilename: 'absjapan.png' }
-    ];
+    ] : [];
     tenantStorage.setItem('billing_system_brands', JSON.stringify(state.brands));
   }
 
@@ -3967,7 +3969,7 @@ export async function dbSaveBrand(brand, oldName = null) {
       return true;
     } catch(err) {
       console.error(err);
-      showToast('Không thể lưu hãng sơn lên đám mây: ' + err.message, 'danger');
+      showToast('Không thể lưu thương hiệu lên đám mây: ' + err.message, 'danger');
       return false;
     }
   }

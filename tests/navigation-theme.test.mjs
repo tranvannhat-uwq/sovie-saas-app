@@ -45,3 +45,10 @@ test('gear menu keeps layout controls but hides obsolete navigation colour contr
   assert.match(css, /\.staff-menu \.staff-menu-link\s*\{[\s\S]*color:\s*var\(--text-primary\)/);
   assert.match(read('tests/navigation-theme-harness.html'), /window\.__app_initialized\s*=\s*true/);
 });
+
+test('horizontal navigation uses soft light green style with defined border for active page', () => {
+  const uiCss = read('ui-system.css');
+  assert.match(uiCss, /#app-layout\[data-nav-layout="horizontal"\] \.nav-link\.active\s*\{[\s\S]*background:\s*linear-gradient\(135deg,\s*#ecfdf5\s*0%,\s*#dcfce7\s*100%\)/);
+  assert.match(uiCss, /#app-layout\[data-nav-layout="horizontal"\] \.nav-link\.active\s*\{[\s\S]*border:\s*1px solid #10b981/);
+  assert.match(uiCss, /#app-layout\[data-nav-layout="horizontal"\] \.nav-link\.active\s*\{[\s\S]*color:\s*#065f46/);
+});

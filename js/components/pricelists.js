@@ -24,7 +24,7 @@ import { isPrintOnlyPriceList } from '../domain/invoice-discount.js?v=20260831-p
 
 const pendingChanges = new Map();
 const pendingDeletes = new Set();
-const PRICE_MATRIX_FIXED_HEADERS = ['Mã SKU', 'Tên sản phẩm', 'Hãng sơn', 'Quy cách'];
+const PRICE_MATRIX_FIXED_HEADERS = ['Mã SKU', 'Tên sản phẩm', 'Thương hiệu', 'Quy cách'];
 
 function canManagePriceLists() {
   return isPrivilegedPricingRole(state.currentUser);
@@ -177,7 +177,7 @@ function buildPriceListSelector() {
 function populateMatrixFilters() {
   const skuProducts = (state.products || []).filter(product => product.id && product.packageType && !product.isLegacy);
   const definitions = [
-    ['price-matrix-brand-filter', 'Tất cả hãng sơn', [...new Set(skuProducts.map(product => getBrandName(product.brandId || product.brand, product.brand)).filter(Boolean))]],
+    ['price-matrix-brand-filter', 'Tất cả thương hiệu', [...new Set(skuProducts.map(product => getBrandName(product.brandId || product.brand, product.brand)).filter(Boolean))]],
     ['price-matrix-package-filter', 'Tất cả loại bao bì', [...new Set(skuProducts.map(product => product.packageType).filter(Boolean))]],
     ['price-matrix-group-filter', 'Tất cả nhóm sản phẩm', [...new Set(skuProducts.map(product => product.group).filter(Boolean))]]
   ];
@@ -268,7 +268,7 @@ export function renderPricelistsTable() {
       <tr>
         <th class="sticky-col sticky-code">Mã sản phẩm</th>
         <th class="sticky-col sticky-name">Tên sản phẩm</th>
-        <th class="sticky-col sticky-brand">Hãng sơn</th>
+        <th class="sticky-col sticky-brand">Thương hiệu</th>
         <th class="sticky-col sticky-package">Quy cách</th>
         ${selectedLists.map(priceList => `
           <th class="price-col">

@@ -347,7 +347,7 @@ function populateHistoryCompanyAndBrandFilters() {
       .sort((a, b) => a.localeCompare(b, 'vi'))
       .map(name => `<option value="${name}">${name}</option>`)
       .join('');
-    brandSelect.innerHTML = `<option value="all">Tất cả nhãn sơn</option>${brandOptions}`;
+    brandSelect.innerHTML = `<option value="all">Tất cả thương hiệu</option>${brandOptions}`;
     brandSelect.value = Array.from(brandSelect.options).some(opt => opt.value === currentBrand) ? currentBrand : 'all';
   }
 }
@@ -418,21 +418,18 @@ export function setupHistoryPanel() {
 
 
 
-    dateModeSelect.addEventListener('change', () => {
+    const syncDateModeVisibility = () => {
       const mode = dateModeSelect.value;
-      
-      // Ẩn tất cả trước
-      filterDateInput.style.display = 'none';
-      filterMonthInput.style.display = 'none';
-      filterYearSelect.style.display = 'none';
-      filterRangeDiv.style.display = 'none';
-      
-      // Hiện cái tương ứng
-      if (mode === 'date') filterDateInput.style.display = 'block';
-      else if (mode === 'month') filterMonthInput.style.display = 'block';
-      else if (mode === 'year') filterYearSelect.style.display = 'block';
-      else if (mode === 'range') filterRangeDiv.style.display = 'flex';
-      
+      filterDateInput.style.display = mode === 'date' ? 'block' : 'none';
+      filterMonthInput.style.display = mode === 'month' ? 'block' : 'none';
+      filterYearSelect.style.display = mode === 'year' ? 'block' : 'none';
+      filterRangeDiv.style.display = mode === 'range' ? 'flex' : 'none';
+    };
+
+    syncDateModeVisibility();
+
+    dateModeSelect.addEventListener('change', () => {
+      syncDateModeVisibility();
       onDateFilterChange();
     });
     
@@ -851,15 +848,15 @@ export function renderHistoryOrders({ reuseFiltered = false } = {}) {
 
       let statusBadge = '';
       if (['cancelled', 'canceled'].includes(String(order.status || '').toLowerCase())) {
-        statusBadge = `<span style="background: rgba(107, 114, 128, 0.14); color: #6b7280; border: 1px solid rgba(107, 114, 128, 0.28); font-size: 0.7rem; font-weight: 600; padding: 1px 6px; border-radius: 4px;">Đã hủy</span>`;
+        statusBadge = `<span class="status-badge status-cancelled"><i data-lucide="ban"></i> Đã hủy</span>`;
       } else if (order.status === 'draft') {
-        statusBadge = `<span style="background: var(--color-danger-light); color: var(--color-danger); font-size: 0.7rem; font-weight: 600; padding: 1px 6px; border-radius: 4px;">Đơn nháp</span>`;
+        statusBadge = `<span class="status-badge status-draft"><i data-lucide="file-edit"></i> Đơn nháp</span>`;
       } else if (order.status === 'partially_returned') {
-        statusBadge = `<span style="background: rgba(245, 158, 11, 0.15); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.3); font-size: 0.7rem; font-weight: 600; padding: 1px 6px; border-radius: 4px;">Trả 1 phần</span>`;
+        statusBadge = `<span class="status-badge status-partial"><i data-lucide="corner-down-left"></i> Trả 1 phần</span>`;
       } else if (order.status === 'returned') {
-        statusBadge = `<span style="background: rgba(168, 85, 247, 0.15); color: #a855f7; border: 1px solid rgba(168, 85, 247, 0.3); font-size: 0.7rem; font-weight: 600; padding: 1px 6px; border-radius: 4px;">Đã trả toàn bộ</span>`;
+        statusBadge = `<span class="status-badge status-returned"><i data-lucide="rotate-ccw"></i> Đã trả toàn bộ</span>`;
       } else {
-        statusBadge = `<span style="background: var(--color-primary-light); color: var(--color-primary); font-size: 0.7rem; font-weight: 600; padding: 1px 6px; border-radius: 4px;">Đã chốt</span>`;
+        statusBadge = `<span class="status-badge status-completed"><i data-lucide="check-circle-2"></i> Đã chốt</span>`;
       }
 
       const {
@@ -1031,15 +1028,15 @@ export function renderHistoryOrders({ reuseFiltered = false } = {}) {
       const displayOrderCode = getOrderDisplayCode(order);
       let statusBadge = '';
       if (['cancelled', 'canceled'].includes(String(order.status || '').toLowerCase())) {
-        statusBadge = `<span style="background: rgba(107, 114, 128, 0.14); color: #6b7280; border: 1px solid rgba(107, 114, 128, 0.28); font-size: 0.7rem; font-weight: 600; padding: 1px 6px; border-radius: 4px;">Đã hủy</span>`;
+        statusBadge = `<span class="status-badge status-cancelled"><i data-lucide="ban"></i> Đã hủy</span>`;
       } else if (order.status === 'draft') {
-        statusBadge = `<span style="background: var(--color-danger-light); color: var(--color-danger); font-size: 0.7rem; font-weight: 600; padding: 1px 6px; border-radius: 4px;">Đơn nháp</span>`;
+        statusBadge = `<span class="status-badge status-draft"><i data-lucide="file-edit"></i> Đơn nháp</span>`;
       } else if (order.status === 'partially_returned') {
-        statusBadge = `<span style="background: rgba(245, 158, 11, 0.15); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.3); font-size: 0.7rem; font-weight: 600; padding: 1px 6px; border-radius: 4px;">Trả 1 phần</span>`;
+        statusBadge = `<span class="status-badge status-partial"><i data-lucide="corner-down-left"></i> Trả 1 phần</span>`;
       } else if (order.status === 'returned') {
-        statusBadge = `<span style="background: rgba(168, 85, 247, 0.15); color: #a855f7; border: 1px solid rgba(168, 85, 247, 0.3); font-size: 0.7rem; font-weight: 600; padding: 1px 6px; border-radius: 4px;">Đã trả toàn bộ</span>`;
+        statusBadge = `<span class="status-badge status-returned"><i data-lucide="rotate-ccw"></i> Đã trả toàn bộ</span>`;
       } else {
-        statusBadge = `<span style="background: var(--color-primary-light); color: var(--color-primary); font-size: 0.7rem; font-weight: 600; padding: 1px 6px; border-radius: 4px;">Đã chốt</span>`;
+        statusBadge = `<span class="status-badge status-completed"><i data-lucide="check-circle-2"></i> Đã chốt</span>`;
       }
         
       const creatorName = getUserDisplayName(order.createdBy, 'Không xác định', state.users);

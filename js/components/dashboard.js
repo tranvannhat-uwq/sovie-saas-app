@@ -571,9 +571,16 @@ export function renderTopProducts(orders) {
   salesList.sort((a, b) => b.quantity - a.quantity);
   const top5 = salesList.slice(0, 5);
   const maxQty = top5[0].quantity || 1;
-  topProductsList.innerHTML = top5.map(p => {
+  topProductsList.innerHTML = top5.map((p, rankIdx) => {
     const percent = Math.round((p.quantity / maxQty) * 100);
-    return `<div class="top-product-item"><div class="top-product-info"><span class="top-product-name" title="${p.name}">${p.name}</span><span class="top-product-sales">${p.quantity} đã bán</span></div><div class="top-product-progress-bg"><div class="top-product-progress-bar" style="width: ${percent}%;"></div></div><div class="top-product-meta"><span>Mã: ${p.code}</span><span style="font-weight: 500; color: #fff;">${formatCurrency(p.revenue)}</span></div></div>`;
+    const rankBadge = rankIdx === 0
+      ? '<span class="top-product-rank rank-1" style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:#fef3c7;color:#b45309;font-weight:800;font-size:0.75rem;border:1px solid #fde68a;">1</span>'
+      : (rankIdx === 1
+        ? '<span class="top-product-rank rank-2" style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:#f1f5f9;color:#475569;font-weight:800;font-size:0.75rem;border:1px solid #cbd5e1;">2</span>'
+        : (rankIdx === 2
+          ? '<span class="top-product-rank rank-3" style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:#ffedd5;color:#c2410c;font-weight:800;font-size:0.75rem;border:1px solid #fed7aa;">3</span>'
+          : `<span class="top-product-rank" style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:#f8fafc;color:#94a3b8;font-weight:700;font-size:0.75rem;border:1px solid #e2e8f0;">${rankIdx + 1}</span>`));
+    return `<div class="top-product-item"><div class="top-product-info"><div style="display:flex;align-items:center;gap:0.4rem;min-width:0;">${rankBadge}<span class="top-product-name" title="${escapeHtml(p.name)}">${escapeHtml(p.name)}</span></div><span class="top-product-sales">${p.quantity} đã bán</span></div><div class="top-product-progress-bg"><div class="top-product-progress-bar" style="width: ${percent}%;"></div></div><div class="top-product-meta"><span>Mã: ${escapeHtml(p.code)}</span><span style="font-weight: 600; color: #0e9f67;">${formatCurrency(p.revenue)}</span></div></div>`;
   }).join('');
 }
 function formatCompactDashboardCurrency(value) {
@@ -972,6 +979,7 @@ function updateDashboardStatsLegacy() {
   renderRevenueChart(filteredOrders);
   renderTopProducts(filteredOrders);
   safeCreateIcons();
+  updateDashboardFilterSummary();
 }
 
 export function updateChartViewActiveButton(view) {
@@ -1081,8 +1089,33 @@ export function setupDashboardFilters() {
     };
   }
 
+  const openFilterBtn = document.getElementById('btn-open-dashboard-filter');
+  const closeFilterBtn = document.getElementById('btn-close-dashboard-filter-modal');
+  const applyFilterBtn = document.getElementById('btn-apply-dashboard-filters');
+  const filterModal = document.getElementById('dashboard-filter-modal');
+
+  if (openFilterBtn) openFilterBtn.onclick = openDashboardFilterModal;
+  if (closeFilterBtn) closeFilterBtn.onclick = closeDashboardFilterModal;
+  if (applyFilterBtn) {
+    applyFilterBtn.onclick = () => {
+      closeDashboardFilterModal();
+      updateDashboardStats();
+    };
+  }
+  if (filterModal) {
+    filterModal.addEventListener('click', (e) => {
+      if (e.target === filterModal) closeDashboardFilterModal();
+    });
+  }
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && filterModal?.classList.contains('active')) {
+      closeDashboardFilterModal();
+    }
+  });
+
   setupSaleAutocomplete();
   setupCustomerAutocomplete();
+  updateDashboardFilterSummary();
 
   document.querySelectorAll('.chart-view-btn').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -1092,6 +1125,93 @@ export function setupDashboardFilters() {
       updateRevenueChartForView(view);
     });
   });
+}
+
+export function openDashboardFilterModal() {
+  const modal = document.getElementById('dashboard-filter-modal');
+  if (!modal) return;
+  modal.classList.add('active');
+  modal.setAttribute('aria-hidden', 'false');
+  document.getElementById('btn-open-dashboard-filter')?.setAttribute('aria-expanded', 'true');
+  safeCreateIcons();
+}
+
+export function closeDashboardFilterModal() {
+  const modal = document.getElementById('dashboard-filter-modal');
+  if (!modal) return;
+  modal.classList.remove('active');
+  modal.setAttribute('aria-hidden', 'true');
+  document.getElementById('btn-open-dashboard-filter')?.setAttribute('aria-expanded', 'false');
+}
+
+export function updateDashboardFilterSummary() {
+  const timeLabel = document.getElementById('dashboard-summary-time');
+  const modeLabel = document.getElementById('dashboard-summary-mode');
+  const extraLabel = document.getElementById('dashboard-summary-extra');
+  const badge = document.getElementById('dashboard-filter-count');
+  const openBtn = document.getElementById('btn-open-dashboard-filter');
+
+  const filter = state.dashboardFilter || {};
+  const timeRange = filter.timeRange || 'month';
+  const timeNames = {
+    month: 'Tháng này',
+    day: 'Hôm nay',
+    week: 'Tuần này',
+    year: 'Năm nay',
+    custom: filter.startDate ? `${filter.startDate} → ${filter.endDate || '...'}` : 'Tùy chọn ngày'
+  };
+  if (timeLabel) timeLabel.textContent = timeNames[timeRange] || 'Tháng này';
+
+  const mode = state.dashboardSalesMode || 'net';
+  if (modeLabel) modeLabel.textContent = mode === 'gross' ? 'Doanh số gốc' : 'Doanh số ròng';
+
+  let activeCount = 0;
+  const extras = [];
+
+  if (timeRange !== 'month') activeCount++;
+  if (mode !== 'net') activeCount++;
+
+  if (filter.companyId && filter.companyId !== 'all') {
+    activeCount++;
+    const comp = (state.companies || []).find(c => c.id === filter.companyId);
+    extras.push(comp ? comp.name : 'Công ty');
+  }
+
+  if (filter.brand && filter.brand !== 'all') {
+    activeCount++;
+    extras.push(filter.brand);
+  }
+
+  if (filter.saleUser && filter.saleUser !== 'all') {
+    activeCount++;
+    const user = (state.users || []).find(u => isSameUser(u.username, filter.saleUser));
+    extras.push(user ? user.displayName : filter.saleUser);
+  }
+
+  if (filter.customerId && filter.customerId !== 'all') {
+    activeCount++;
+    const cust = (state.customers || []).find(c => String(c.id) === String(filter.customerId));
+    extras.push(cust ? cust.name : 'Khách hàng');
+  }
+
+  if (badge) {
+    badge.textContent = String(activeCount);
+    badge.style.display = activeCount > 0 ? 'inline-flex' : 'none';
+  }
+
+  if (openBtn) {
+    openBtn.classList.toggle('btn-primary', activeCount > 0);
+    openBtn.classList.toggle('btn-secondary', activeCount === 0);
+  }
+
+  if (extraLabel) {
+    if (extras.length > 0) {
+      extraLabel.textContent = `+ ${extras.join(', ')}`;
+      extraLabel.style.display = 'inline-flex';
+    } else {
+      extraLabel.style.display = 'none';
+    }
+  }
 }
 
 let saleDebounceTimer = null;

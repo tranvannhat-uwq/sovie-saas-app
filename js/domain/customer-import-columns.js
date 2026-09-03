@@ -19,7 +19,7 @@ export const CUSTOMER_IMPORT_COLUMNS = Object.freeze([
   { key: 'name', label: 'Tên khách hàng', databaseField: 'customers.name', aliases: ['Tên khách hàng'] },
   { key: 'phone', label: 'Điện thoại', databaseField: 'customers.phone', aliases: ['Điện thoại', 'Số điện thoại'] },
   { key: 'address', label: 'Địa chỉ', databaseField: 'customers.address', aliases: ['Địa chỉ', 'Địa chỉ (Khách hàng)'] },
-  { key: 'excelBrand', label: 'Nhãn sơn', databaseField: 'customers.assigned_brand / assigned_brand_id', aliases: ['Nhãn sơn', 'Nhãn đại lý'] },
+  { key: 'excelBrand', label: 'Thương hiệu', databaseField: 'customers.assigned_brand / assigned_brand_id', aliases: ['Thương hiệu', 'Nhãn sơn', 'Nhãn đại lý', 'Nhãn hàng'] },
   { key: 'excelPricelist', label: 'Bảng giá', databaseField: 'customers.pricelist_id / default_price_list_id', aliases: ['Bảng giá'] },
   { key: 'excelManager', label: 'Người quản lý', databaseField: 'customers.managed_by', aliases: ['Người quản lý', 'Người tạo', 'Nhóm khách hàng'] },
   { key: 'totalTransaction', label: 'Tổng doanh số', databaseField: 'customers.total_transaction', aliases: ['Tổng doanh số', 'Tổng bán', 'Doanh số gốc'] },

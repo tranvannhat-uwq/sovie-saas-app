@@ -134,7 +134,7 @@ export function renderProductsTable() {
         <td>${packageNames || '-'}</td>
         <td title="${weights}">${weights || '-'}</td>
         <td><strong>${family.variants.length} quy cách</strong><br><small>${family.variants.map(variant => variant.code).join(', ')}</small></td>
-        <td><span class="status-badge ${activeVariants.length ? 'active' : 'inactive'}">${activeVariants.length ? `${activeVariants.length} hoạt động` : 'Ngừng áp dụng'}</span></td>
+        <td><span class="status-badge ${activeVariants.length ? 'status-completed' : 'status-cancelled'}"><i data-lucide="${activeVariants.length ? 'check-circle-2' : 'ban'}"></i> ${activeVariants.length ? `${activeVariants.length} hoạt động` : 'Ngừng áp dụng'}</span></td>
         <td class="text-center">
           <div class="actions-cell">
             <button class="btn btn-secondary btn-sm btn-circle edit-prod-btn" data-family-key="${family.key}" title="Sửa sản phẩm và quy cách">
@@ -376,8 +376,8 @@ export async function deleteProduct(code, brand) {
 
 export function downloadExcelTemplate() {
   const rows = [
-    ['Mã SKU *', 'Tên sản phẩm *', 'Hãng sơn *', 'Mã sản phẩm gốc', 'Loại bao bì *', 'Khối lượng *', 'Đơn vị *', 'Quy cách hiển thị', 'Nhóm sản phẩm', 'Giá nhập', 'Đang áp dụng'],
-    ['BA-46-LON', 'Sơn siêu bóng ngoại thất đặc biệt Nano', 'MUTSUTEC NANO', 'BA-46', 'Lon', 5.3, 'kg', 'Lon 5,3 kg', '', 0, true]
+    ['Mã SKU *', 'Tên sản phẩm *', 'Thương hiệu *', 'Mã sản phẩm gốc', 'Loại bao bì *', 'Khối lượng *', 'Đơn vị *', 'Quy cách hiển thị', 'Nhóm sản phẩm', 'Giá nhập', 'Đang áp dụng'],
+    ['SKU-001', 'Sản phẩm mẫu', 'Thương hiệu A', 'SP-001', 'Hộp', 1, 'kg', 'Hộp 1 kg', '', 0, true]
   ];
   const workbook = XLSX.utils.book_new();
   const sheet = XLSX.utils.aoa_to_sheet(rows);
@@ -392,7 +392,7 @@ export function exportProductsExcel() {
     return {
       'Mã SKU *': product.code,
       'Tên sản phẩm *': product.name,
-      'Hãng sơn *': getBrandName(product.brandId || product.brand, product.brand || ''),
+      'Thương hiệu *': getBrandName(product.brandId || product.brand, product.brand || ''),
       'Mã sản phẩm gốc': getProductBaseCode(product, state.products),
       'Loại bao bì *': product.packageType,
       'Khối lượng *': Number(product.packageWeight),
@@ -405,7 +405,7 @@ export function exportProductsExcel() {
   });
   const workbook = XLSX.utils.book_new();
   const sheet = XLSX.utils.json_to_sheet(rows, {
-    header: ['Mã SKU *', 'Tên sản phẩm *', 'Hãng sơn *', 'Mã sản phẩm gốc', 'Loại bao bì *', 'Khối lượng *', 'Đơn vị *', 'Quy cách hiển thị', 'Nhóm sản phẩm', 'Giá nhập', 'Đang áp dụng']
+    header: ['Mã SKU *', 'Tên sản phẩm *', 'Thương hiệu *', 'Mã sản phẩm gốc', 'Loại bao bì *', 'Khối lượng *', 'Đơn vị *', 'Quy cách hiển thị', 'Nhóm sản phẩm', 'Giá nhập', 'Đang áp dụng']
   });
   sheet['!cols'] = [{ wch: 18 }, { wch: 45 }, { wch: 22 }, { wch: 20 }, { wch: 16 }, { wch: 13 }, { wch: 11 }, { wch: 24 }, { wch: 20 }, { wch: 14 }, { wch: 15 }];
   sheet['!autofilter'] = { ref: `A1:K${Math.max(1, products.length + 1)}` };

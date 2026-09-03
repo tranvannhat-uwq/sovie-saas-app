@@ -443,10 +443,46 @@ function setupSupabaseSettings() {
 
 // loadLocalStorageBackup đã được chuyển sang services/supabase.js để tối ưu hóa
 
+function setupLoginInteractions() {
+  const loginScreen = document.getElementById('login-screen');
+  const loginForm = document.getElementById('login-form');
+  if (loginForm && !loginForm.dataset.loginListenerReady) {
+    loginForm.dataset.loginListenerReady = 'true';
+    loginForm.addEventListener('submit', handleLogin);
+  }
+
+  document.querySelectorAll('.js-open-login').forEach(button => {
+    button.addEventListener('click', () => {
+      if (loginScreen) loginScreen.style.display = 'flex';
+      document.getElementById('login-username')?.focus();
+    });
+  });
+
+  if (!document.documentElement?.dataset?.loginDelegationReady) {
+    if (document.documentElement) document.documentElement.dataset.loginDelegationReady = 'true';
+    document.addEventListener('click', event => {
+      const openBtn = event.target.closest('.js-open-login');
+      if (openBtn) {
+        if (loginScreen) loginScreen.style.display = 'flex';
+        document.getElementById('login-username')?.focus();
+      }
+    });
+  }
+
+  document.getElementById('btn-close-login')?.addEventListener('click', () => {
+    if (loginScreen) loginScreen.style.display = 'none';
+  });
+
+  loginScreen?.addEventListener('click', event => {
+    if (event.target === loginScreen) loginScreen.style.display = 'none';
+  });
+}
+
 // Khởi chạy ứng dụng
 async function initApp() {
   if (window.__app_initialized) return;
   window.__app_initialized = true;
+  setupLoginInteractions();
   const authFlowMatch = window.location.href.match(/(?:#|[?&])type=(invite|recovery)(?:&|$)/);
   const passwordSetupAuthFlow = authFlowMatch?.[1] || '';
 
@@ -685,4 +721,8 @@ document.addEventListener('click', async (e) => {
   }
 });
 
-window.addEventListener('DOMContentLoaded', initApp);
+if (document.readyState === 'loading') {
+  window.addEventListener('DOMContentLoaded', initApp);
+} else {
+  initApp();
+}

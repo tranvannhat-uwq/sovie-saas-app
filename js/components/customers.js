@@ -45,7 +45,7 @@ const CUSTOMER_EXPORT_COLUMNS = Object.freeze([
   { key: 'index', label: 'STT', default: true }, { key: 'code', label: 'Mã khách hàng', default: true, text: true },
   { key: 'name', label: 'Tên khách hàng', default: true }, { key: 'phone', label: 'Điện thoại', default: true, text: true },
   { key: 'address', label: 'Địa chỉ', default: true }, { key: 'provinceName', label: 'Tỉnh/Thành phố', default: true },
-  { key: 'brand', label: 'Nhãn sơn', default: true }, { key: 'pricelistName', label: 'Bảng giá', default: true },
+  { key: 'brand', label: 'Thương hiệu', default: true }, { key: 'pricelistName', label: 'Bảng giá', default: true },
   { key: 'managerName', label: 'Người quản lý', default: true }, { key: 'grossSales', label: 'Tổng doanh số', default: true, money: true },
   { key: 'totalReturns', label: 'Tổng giá trị trả hàng', default: true, money: true }, { key: 'netSales', label: 'Doanh số sau trả hàng', default: true, money: true },
   { key: 'debt', label: 'Công nợ hiện tại', default: true, money: true }, { key: 'lastTransactionAt', label: 'Ngày giao dịch gần nhất', default: true, date: true },
@@ -61,7 +61,7 @@ const CUSTOMER_COLUMN_DEFINITIONS = [
   { key: 'phone', label: 'Số điện thoại', width: 105 },
   { key: 'address', label: 'Địa chỉ', width: 280 },
   { key: 'notes', label: 'Ghi chú', width: 220 },
-  { key: 'brand', label: 'Nhãn sơn', width: 90 },
+  { key: 'brand', label: 'Thương hiệu', width: 90 },
   { key: 'manager', label: 'KD quản lý', width: 125 },
   { key: 'pricelist', label: 'Bảng giá', width: 125 },
   { key: 'debt', label: 'Công nợ', width: 115 },
@@ -486,7 +486,7 @@ function selectedValues(select) {
 }
 
 const CUSTOMER_MULTI_SELECT_CONFIG = Object.freeze({
-  'customer-filter-brands': 'Chọn nhãn sơn',
+  'customer-filter-brands': 'Chọn thương hiệu',
   'customer-filter-pricelists': 'Chọn bảng giá',
   'customer-filter-managers': 'Chọn người quản lý',
   'customer-filter-provinces': 'Chọn Tỉnh/Thành'
@@ -1056,17 +1056,18 @@ export function openCustomerModal(index = -1) {
 
   // Dynamic rendering of brand discount inputs in customer modal
   const container = document.getElementById('customer-brand-discounts-container');
+  const isLegacyTenant = state.saasContext?.organizationId === '00000000-0000-4000-8000-000000000001';
   if (container) {
     const brands = state.brands && state.brands.length > 0
       ? state.brands
-      : [
+      : (isLegacyTenant ? [
           { name: 'Nano10*' },
           { name: 'Hatacco nano' },
           { name: 'mutsutec' },
           { name: 'tdkaw' },
           { name: 'cova' },
           { name: 'festivanano' }
-        ];
+        ] : []);
         
     container.innerHTML = brands.map(b => `
       <div class="form-group" style="margin-bottom: 0;">
@@ -1081,10 +1082,10 @@ export function openCustomerModal(index = -1) {
   if (assignedBrandSelect) {
     const brands = state.brands && state.brands.length > 0
       ? state.brands.map(b => b.name)
-      : ['Nano10*', 'Hatacco nano', 'mutsutec', 'tdkaw', 'cova', 'festivanano'];
+      : (isLegacyTenant ? ['Nano10*', 'Hatacco nano', 'mutsutec', 'tdkaw', 'cova', 'festivanano'] : []);
       
     assignedBrandSelect.innerHTML = `
-      <option value="Tất cả">Chọn nhãn sơn</option>
+      <option value="Tất cả">Chọn thương hiệu</option>
       ${brands.map(b => `<option value="${b}">${b}</option>`).join('')}
     `;
   }
@@ -1147,7 +1148,7 @@ export function openCustomerModal(index = -1) {
     }
     
     document.getElementById('cust-assigned-brand').value = 'Tất cả';
-    makeSelectSearchable('cust-assigned-brand', 'Chọn nhãn sơn', false);
+    makeSelectSearchable('cust-assigned-brand', 'Chọn thương hiệu', false);
   } else {
     title.innerText = 'Chỉnh sửa khách hàng';
     const customer = state.customers[index];
@@ -1159,7 +1160,7 @@ export function openCustomerModal(index = -1) {
     document.getElementById('cust-phone').value = customer.phone || '';
     document.getElementById('cust-address').value = customer.address || '';
     document.getElementById('cust-assigned-brand').value = customer.assignedBrand || 'Tất cả';
-    makeSelectSearchable('cust-assigned-brand', 'Chọn nhãn sơn', false);
+    makeSelectSearchable('cust-assigned-brand', 'Chọn thương hiệu', false);
     document.getElementById('cust-debt').value = customer.debt || 0;
     document.getElementById('cust-notes').value = customer.notes || '';
     
@@ -1881,7 +1882,7 @@ export function setupCustomerManagement() {
     makeSelectSearchable('cust-province', '-- Chọn Tỉnh/Thành --');
   }
   
-  makeSelectSearchable('cust-assigned-brand', 'Chọn nhãn sơn', false);
+  makeSelectSearchable('cust-assigned-brand', 'Chọn thương hiệu', false);
 
   const closePayDebtBtn = document.getElementById('btn-close-pay-debt-modal');
   const cancelPayDebtBtn = document.getElementById('btn-cancel-pay-debt');

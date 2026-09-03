@@ -15,6 +15,8 @@ test('public SoVie landing page opens a closable login overlay', () => {
   assert.match(html, /class="landing-login-button js-open-login"/);
   assert.match(html, /id="btn-close-login"/);
   assert.match(main, /querySelectorAll\('\.js-open-login'\)/);
+  assert.match(main, /event\.target\.closest\('\.js-open-login'\)/);
+  assert.match(main, /document\.readyState === 'loading'/);
   assert.match(users, /landingPage\.style\.display = 'none'/);
 });
 

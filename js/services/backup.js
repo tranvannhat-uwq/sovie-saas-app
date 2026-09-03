@@ -108,7 +108,7 @@ async function legacyClearTestDataDisabled(onCompleteCallback) {
   const confirmed = confirm(
     'XÓA DỮ LIỆU THỬ NGHIỆM?\n\n' +
     'Sẽ xóa: đơn bán, đơn nháp, trả hàng, phiếu nhập hàng, Sổ quỹ, số dư đầu kỳ, tồn kho phát sinh, nhật ký sản xuất, hoa hồng và lịch sử công nợ phát sinh.\n\n' +
-    'Sẽ giữ nguyên: sản phẩm, bảng giá, khách hàng, tài khoản, nhà cung cấp, nhãn sơn và danh mục nguyên vật liệu.\n\n' +
+    'Sẽ giữ nguyên: sản phẩm, bảng giá, khách hàng, tài khoản, nhà cung cấp, thương hiệu và danh mục hàng hóa.\n\n' +
     'Thao tác này không thể hoàn tác nếu chưa có file sao lưu.'
   );
   if (!confirmed) {

@@ -50,3 +50,25 @@ test('catalog context is loaded with the authenticated tenant context', () => {
   assert.match(service, /rpc\('rpc_my_catalog_context'\)/);
   assert.match(service, /resolveCatalogContext\(catalogResponse\.data, context\.organizationId\)/);
 });
+
+test('generic SaaS UI removes legacy single-tenant paint strings and hardcoded companies', () => {
+  const indexHtml = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
+
+  // user-company dropdown does not have hardcoded legacy company options
+  assert.doesNotMatch(indexHtml, /<option value="ABS_NORTH">/);
+  assert.doesNotMatch(indexHtml, /<option value="ABS_SOUTH">/);
+  assert.doesNotMatch(indexHtml, /<option value="EMP_USA">/);
+
+  // Print template does not hardcode ABS company or Thai Nguyen warehouse
+  assert.doesNotMatch(indexHtml, /<div id="print-company-name-large"[^>]*>CÔNG TY CỔ PHẦN ABS JAPAN<\/div>/);
+  assert.doesNotMatch(indexHtml, /<strong id="print-warehouse-text">Xuất Tại kho số 03 Chi nhánh Thái Nguyên<\/strong>/);
+
+  // Navigation and primary table headers use industry-neutral 'Thương hiệu'
+  assert.doesNotMatch(indexHtml, /data-target="brands-panel"[^>]*>[\s\S]*?Hãng sơn/);
+  assert.match(indexHtml, /data-target="brands-panel"[^>]*>[\s\S]*?Thương hiệu/);
+  assert.doesNotMatch(indexHtml, /<th[^>]*>Hãng sơn<\/th>/i);
+  assert.doesNotMatch(indexHtml, /<th[^>]*>Nhãn sơn<\/th>/i);
+  assert.doesNotMatch(indexHtml, /<option[^>]*>Tất cả hãng sơn<\/option>/i);
+  assert.doesNotMatch(indexHtml, /<option[^>]*>Tất cả nhãn sơn<\/option>/i);
+});
+

@@ -1526,74 +1526,96 @@ export function resetInvoiceBuilder() {
 }
 
 export function enableQuickCustomerMode() {
-  state.isQuickCustomerMode = true;
+  const modal = document.getElementById('quick-customer-modal');
+  if (modal) {
+    modal.style.display = 'flex';
+  }
   
-  // Hide search and show quick add fields
-  const searchGroup = document.getElementById('invoice-customer-search-group');
-  if (searchGroup) searchGroup.style.display = 'none';
-  
-  const toggleContainer = document.getElementById('invoice-quick-customer-toggle-container');
-  if (toggleContainer) toggleContainer.style.display = 'none';
-  
-  const quickFields = document.getElementById('invoice-quick-customer-fields');
-  if (quickFields) {
-    quickFields.style.display = 'flex';
-    // Pre-fill name with whatever is in search input
-    const searchInput = document.getElementById('invoice-customer-search');
-    const quickNameInput = document.getElementById('quick-cust-name');
-    if (searchInput && quickNameInput) {
-      quickNameInput.value = searchInput.value.trim();
-    }
+  const searchInput = document.getElementById('invoice-customer-search');
+  const quickNameInput = document.getElementById('quick-cust-name');
+  if (searchInput && quickNameInput && !quickNameInput.value) {
+    quickNameInput.value = searchInput.value.trim();
   }
   
   const quickBrandSelect = document.getElementById('quick-cust-assigned-brand');
   if (quickBrandSelect) {
+    const isLegacyTenant = state.saasContext?.organizationId === '00000000-0000-4000-8000-000000000001';
     const brands = state.brands && state.brands.length > 0
       ? state.brands.map(b => b.name)
-      : ['Nano10*', 'Hatacco nano', 'mutsutec', 'tdkaw', 'cova', 'festivanano'];
+      : (isLegacyTenant ? ['Nano10*', 'Hatacco nano', 'mutsutec', 'tdkaw', 'cova', 'festivanano'] : []);
     quickBrandSelect.innerHTML = `
-      <option value="Tất cả">Chọn nhãn sơn</option>
+      <option value="Tất cả">Chọn thương hiệu</option>
       ${brands.map(b => `<option value="${b}">${b}</option>`).join('')}
     `;
-    quickBrandSelect.value = 'Tất cả';
-    makeSelectSearchable('quick-cust-assigned-brand', 'Chọn nhãn sơn', false);
+    quickBrandSelect.value = state.activeCustomerBrand || 'Tất cả';
+    makeSelectSearchable('quick-cust-assigned-brand', 'Chọn thương hiệu', false);
   }
   
-  // Hide info card
-  const infoCard = document.getElementById('invoice-customer-info-card');
-  if (infoCard) infoCard.style.display = 'none';
+  const quickManagerSelect = document.getElementById('quick-cust-manager');
+  if (quickManagerSelect) {
+    const sales = (state.users && state.users.length > 0)
+      ? state.users.filter(u => u.role === 'sale' || u.role === 'admin')
+      : [];
+    if (sales.length > 0) {
+      quickManagerSelect.innerHTML = `
+        <option value="">-- Chọn nhân viên quản lý --</option>
+        ${sales.map(u => `<option value="${u.username}" ${state.currentUser?.username === u.username ? 'selected' : ''}>${u.name || u.username} (${u.role})</option>`).join('')}
+      `;
+    }
+    if (state.currentUser && !quickManagerSelect.value) {
+      quickManagerSelect.value = state.currentUser.username;
+    }
+  }
+
+  safeCreateIcons();
+}
+
+export function submitQuickCustomerModal() {
+  const qName = document.getElementById('quick-cust-name')?.value?.trim();
+  if (!qName) {
+    alert('Vui lòng nhập tên khách hàng!');
+    return;
+  }
   
-  // Update state active customer to represent quick customer
+  const qPhone = document.getElementById('quick-cust-phone')?.value?.trim() || '';
+  const qBrand = document.getElementById('quick-cust-assigned-brand')?.value || 'Tất cả';
+  
+  state.isQuickCustomerMode = true;
   state.activeCustomerId = '';
-  state.activeCustomerBrand = quickBrandSelect ? quickBrandSelect.value : 'Tất cả';
+  state.activeCustomerBrand = qBrand;
   
-  // Reset invoice item discounts to 0 since new customer has no predefined discounts
+  // Update customer search display
+  const searchInput = document.getElementById('invoice-customer-search');
+  if (searchInput) {
+    searchInput.value = qName + (qPhone ? ` - ${qPhone}` : '');
+    searchInput.disabled = true;
+  }
+  
+  // Show clear button
+  const clearBtn = document.getElementById('btn-clear-invoice-customer');
+  if (clearBtn) {
+    clearBtn.style.display = 'inline-flex';
+  }
+  
+  // Close modal
+  const modal = document.getElementById('quick-customer-modal');
+  if (modal) {
+    modal.style.display = 'none';
+  }
+  
+  // Reset invoice item discounts to 0 for new customer
   state.invoiceItems.forEach(item => {
     item.discountPercent = 0;
   });
-  
-  // Move the price list selector inside quick customer fields
-  const plGroup = document.getElementById('invoice-pricelist-group');
-  if (plGroup && quickFields) {
-    plGroup.style.display = 'block';
-    quickFields.appendChild(plGroup);
-  }
   
   renderInvoiceTable();
 }
 
 export function disableQuickCustomerMode() {
-  state.isQuickCustomerMode = false;
-  
-  // Show search and hide quick add fields
-  const searchGroup = document.getElementById('invoice-customer-search-group');
-  if (searchGroup) searchGroup.style.display = 'block';
-  
-  const toggleContainer = document.getElementById('invoice-quick-customer-toggle-container');
-  if (toggleContainer) toggleContainer.style.display = 'block';
-  
-  const quickFields = document.getElementById('invoice-quick-customer-fields');
-  if (quickFields) quickFields.style.display = 'none';
+  const modal = document.getElementById('quick-customer-modal');
+  if (modal) {
+    modal.style.display = 'none';
+  }
   
   // Clear inputs
   const qName = document.getElementById('quick-cust-name');
@@ -1607,7 +1629,7 @@ export function disableQuickCustomerMode() {
   const qBrand = document.getElementById('quick-cust-assigned-brand');
   if (qBrand) {
     qBrand.value = 'Tất cả';
-    makeSelectSearchable('quick-cust-assigned-brand', 'Chọn nhãn sơn', false);
+    makeSelectSearchable('quick-cust-assigned-brand', 'Chọn thương hiệu', false);
   }
   const qManager = document.getElementById('quick-cust-manager');
   if (qManager) {
@@ -1618,14 +1640,10 @@ export function disableQuickCustomerMode() {
     }
   }
   
-  // Restore the price list selector back to the placeholder
-  const placeholder = document.getElementById('invoice-pricelist-placeholder');
-  const plGroup = document.getElementById('invoice-pricelist-group');
-  if (placeholder && plGroup) {
-    placeholder.appendChild(plGroup);
+  if (state.isQuickCustomerMode) {
+    state.isQuickCustomerMode = false;
+    resetInvoiceCustomer();
   }
-  
-  resetInvoiceCustomer();
 }
 
 export function handleQuickCustomerBrandChange(newBrand) {
@@ -1637,12 +1655,12 @@ export function handleQuickCustomerBrandChange(newBrand) {
       return item.brand !== newBrand;
     });
     if (invalidItems.length > 0) {
-      const ok = confirm(`Khách hàng mới này được chỉ định nhãn sơn "${newBrand}". Chọn nhãn này sẽ loại bỏ ${invalidItems.length} sản phẩm khác nhãn sơn hiện có trong đơn hàng. Bạn có đồng ý không?`);
+      const ok = confirm(`Khách hàng mới này được chỉ định thương hiệu "${newBrand}". Chọn thương hiệu này sẽ loại bỏ ${invalidItems.length} sản phẩm khác thương hiệu hiện có trong đơn hàng. Bạn có đồng ý không?`);
       if (!ok) {
         const quickBrandSelect = document.getElementById('quick-cust-assigned-brand');
         if (quickBrandSelect) {
           quickBrandSelect.value = state.activeCustomerBrand;
-          makeSelectSearchable('quick-cust-assigned-brand', 'Chọn nhãn sơn', false);
+          makeSelectSearchable('quick-cust-assigned-brand', 'Chọn thương hiệu', false);
         }
         return;
       } else {
@@ -1768,8 +1786,9 @@ export async function renderAndPrintOrder(order, type = 'retail') {
     brandConfig = state.brands.find(b => brandName.toLowerCase().includes(b.name.toLowerCase()) || b.name.toLowerCase().includes(brandName.toLowerCase()));
   }
 
-  // Cấu hình mặc định (fallback) nếu hoàn toàn không tìm thấy hãng sơn trong bảng dữ liệu
-  const defaultBrandConfig = {
+  // Cấu hình mặc định (fallback) nếu không tìm thấy thương hiệu trong bảng dữ liệu
+  const isLegacyCompatibilityTenant = state.saasContext?.organizationId === '00000000-0000-4000-8000-000000000001';
+  const defaultBrandConfig = isLegacyCompatibilityTenant ? {
     name: brandName,
     companyName: 'CÔNG TY CỔ PHẦN ABS JAPAN',
     logoFilename: 'absjapan.png',
@@ -1780,6 +1799,18 @@ export async function renderAndPrintOrder(order, type = 'retail') {
     addressFactory: 'TDP Cầu Giao - P.Phúc Thuận - T.Thái Nguyên',
     addressBusiness: '228 Hoàng Hữu Nam - P.Long Bình - Hồ Chí Minh',
     invoiceWarehouseText: 'Xuất Tại kho số 03 Chi nhánh Thái Nguyên',
+    salesPhone: ''
+  } : {
+    name: brandName || 'Thương hiệu',
+    companyName: state.saasContext?.organizationName || 'DOANH NGHIỆP',
+    logoFilename: '',
+    hotline: '',
+    cskh: '',
+    email: '',
+    addressMain: '',
+    addressFactory: '',
+    addressBusiness: '',
+    invoiceWarehouseText: 'Xuất tại kho',
     salesPhone: ''
   };
 
@@ -2356,7 +2387,7 @@ export function setupInvoiceCreator() {
     makeSelectSearchable('quick-cust-province', '-- Chọn Tỉnh/Thành --');
   }
   
-  makeSelectSearchable('quick-cust-assigned-brand', 'Chọn nhãn sơn', false);
+  makeSelectSearchable('quick-cust-assigned-brand', 'Chọn thương hiệu', false);
 
   const searchInput = document.getElementById('invoice-product-search');
   const suggestionsList = document.getElementById('invoice-product-suggestions');
@@ -2522,6 +2553,25 @@ export function setupInvoiceCreator() {
   const quickCancelBtn = document.getElementById('btn-quick-customer-cancel');
   if (quickCancelBtn) {
     quickCancelBtn.addEventListener('click', disableQuickCustomerMode);
+  }
+
+  const quickCancelFooterBtn = document.getElementById('btn-quick-customer-cancel-footer');
+  if (quickCancelFooterBtn) {
+    quickCancelFooterBtn.addEventListener('click', disableQuickCustomerMode);
+  }
+
+  const quickSubmitBtn = document.getElementById('btn-quick-customer-submit');
+  if (quickSubmitBtn) {
+    quickSubmitBtn.addEventListener('click', submitQuickCustomerModal);
+  }
+
+  const quickModal = document.getElementById('quick-customer-modal');
+  if (quickModal) {
+    quickModal.addEventListener('click', (e) => {
+      if (e.target === quickModal) {
+        disableQuickCustomerMode();
+      }
+    });
   }
 
   const quickBrandSelect = document.getElementById('quick-cust-assigned-brand');

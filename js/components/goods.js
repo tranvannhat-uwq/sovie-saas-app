@@ -188,11 +188,22 @@ function renderPurchasePanel(panel) {
   const activeReceipt = visibleReceipts.find(r => String(r.id) === String(activeId)) || null;
   panel.dataset.activePurchaseId = activeReceipt ? activeReceipt.id : '';
   const totalPayable = visibleReceipts.reduce((sum, r) => sum + getPurchaseTotal(r), 0);
+  const activePurchaseFilterCount = [
+    Boolean(query),
+    !draftChecked,
+    !completedChecked,
+    cancelledChecked
+  ].filter(Boolean).length;
 
   panel.innerHTML = `
     <div class="purchase-page">
       <aside class="purchase-filters">
-        <h2>Nhập hàng</h2>
+        <div class="purchase-filter-heading">
+          <span class="purchase-filter-heading-icon"><i data-lucide="sliders-horizontal"></i></span>
+          <span><strong>Bộ lọc</strong><small>Danh sách nhập hàng</small></span>
+          ${activePurchaseFilterCount ? `<span class="purchase-filter-count">${activePurchaseFilterCount}</span>` : ''}
+          <button type="button" class="purchase-filter-reset" id="purchase-filter-reset" title="Đặt lại bộ lọc" aria-label="Đặt lại bộ lọc"><i data-lucide="rotate-ccw"></i></button>
+        </div>
         <div class="purchase-filter-block">
           <div class="purchase-filter-title">Trạng thái</div>
           <label><input type="checkbox" id="purchase-filter-draft" ${draftChecked ? 'checked' : ''}> Phiếu tạm</label>
@@ -500,6 +511,13 @@ function updatePurchaseEntryTotals(panel) {
 function attachPurchasePanelEvents(panel) {
   panel.querySelector('#purchase-search-input')?.addEventListener('input', (event) => {
     panel.dataset.purchaseSearch = normalizePurchaseSearch(event.target.value);
+    renderPurchasePanel(panel);
+  });
+  panel.querySelector('#purchase-filter-reset')?.addEventListener('click', () => {
+    panel.dataset.purchaseSearch = '';
+    panel.dataset.purchaseDraft = 'true';
+    panel.dataset.purchaseCompleted = 'true';
+    panel.dataset.purchaseCancelled = 'false';
     renderPurchasePanel(panel);
   });
   [
@@ -884,7 +902,7 @@ function renderFinishedGoodsStock() {
   safeCreateIcons();
 }
 
-// Điền hãng sơn vào bộ lọc hãng tồn thành phẩm
+// Điền thương hiệu vào bộ lọc thương hiệu tồn thành phẩm
 function populateBrandFilter() {
   const filter = document.getElementById('finished-stock-brand-filter');
   if (!filter) return;
@@ -892,7 +910,7 @@ function populateBrandFilter() {
   const uniqueBrands = [...new Set(state.products.map(p => p.brand).filter(Boolean))];
   
   filter.innerHTML = `
-    <option value="">-- Tất cả hãng sơn --</option>
+    <option value="">-- Tất cả thương hiệu --</option>
     ${uniqueBrands.map(b => `<option value="${b}">${b}</option>`).join('')}
   `;
   filter.value = currentVal;

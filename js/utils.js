@@ -23,7 +23,13 @@ export function removeVietnameseTones(str) {
 export function safeCreateIcons() {
   if (typeof lucide !== 'undefined' && typeof lucide.createIcons === 'function') {
     try {
-      lucide.createIcons();
+      lucide.createIcons({
+        attrs: {
+          'stroke-width': '2.2',
+          'stroke-linecap': 'round',
+          'stroke-linejoin': 'round'
+        }
+      });
     } catch (e) {
       console.error("Lucide icon generation failed:", e);
     }
@@ -208,6 +214,10 @@ export function getCompanyName(companyId, companiesList = state.companies) {
   const comp = (companiesList || []).find(c => c && c.id === normId);
   if (comp) return comp.name;
 
+  if (state.saasContext?.organizationName && (normId === state.saasContext.organizationId || normId === state.saasContext.organizationSlug || normId === 'main')) {
+    return state.saasContext.organizationName;
+  }
+
   if (normId === 'ABS_NORTH') return 'Công ty Cổ phần ABS JAPAN (Miền Bắc)';
   if (normId === 'ABS_SOUTH') return 'Công ty Cổ phần ABS JAPAN - Chi nhánh Miền Nam';
   if (normId === 'EMP_USA') return 'Công ty Cổ phần EMP Hoa Kỳ';
@@ -215,7 +225,7 @@ export function getCompanyName(companyId, companiesList = state.companies) {
 }
 
 export function getCanonicalBrandName(brandStr, brandsList = state.brands) {
-  if (!brandStr) return 'COVA NANO';
+  if (!brandStr) return brandsList?.[0]?.name || '';
   const rawStr = brandStr.toString().trim();
   const cleanName = rawStr.toLowerCase().replace(/[^a-z0-9]/g, '');
   const linkedBrand = getBrandById(rawStr, brandsList);
@@ -366,17 +376,17 @@ export function getCompanyNameById(companyId, companiesList = state.companies) {
 
 // Lấy ID công ty của nhân viên hiện tại
 export function getUserCompanyId(user) {
-  if (!user) return 'ABS_NORTH';
-  return user.companyId || user.company_id || 'ABS_NORTH';
+  if (!user) return state.saasContext?.organizationId || 'main';
+  return user.companyId || user.company_id || state.saasContext?.organizationId || 'main';
 }
 
 // Xác định các thuộc tính doanh thu cho một dòng sản phẩm đơn hàng
 export function getRevenueAttributes(itemBrand, customerAgencyBrand, orderCompanyId, brandsList = state.brands) {
-  const productBrand = itemBrand || 'Nano10*';
+  const productBrand = itemBrand || (brandsList?.[0]?.name || '');
   const agencyBrand = (customerAgencyBrand && customerAgencyBrand !== 'Tất cả') ? customerAgencyBrand : productBrand;
   const revenueBrand = (isFestivalBrand(productBrand) || isSharedBrand(productBrand, brandsList)) ? agencyBrand : productBrand;
 
-  let revenueCompany = getCompanyIdByBrand(revenueBrand, brandsList) || orderCompanyId || 'ABS_NORTH';
+  let revenueCompany = getCompanyIdByBrand(revenueBrand, brandsList) || orderCompanyId || state.saasContext?.organizationId || 'main';
 
   return {
     productBrand,
@@ -704,7 +714,7 @@ export function makeSelectSearchable(selectId, placeholder = 'Tìm kiếm...', s
       if (opt.selected) item.classList.add('selected');
       item.innerText = opt.text;
       
-      if (opt.value === 'Tất cả' || opt.text === 'Chọn nhãn sơn') {
+      if (opt.value === 'Tất cả' || opt.text === 'Chọn nhãn sơn' || opt.text === 'Chọn thương hiệu') {
         item.style.setProperty('color', '#ff0000', 'important');
         item.style.setProperty('font-weight', 'bold', 'important');
       }

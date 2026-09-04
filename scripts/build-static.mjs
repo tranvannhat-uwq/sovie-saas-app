@@ -31,6 +31,7 @@ for (const relativePath of publicFiles) {
 }
 
 const headers = `/*
+  Cache-Control: no-cache
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: camera=(), microphone=(), geolocation=()

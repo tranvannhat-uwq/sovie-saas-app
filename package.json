@@ -10,6 +10,7 @@
     "start": "npx live-server . --port=3000",
     "test": "node --test tests/*.test.mjs",
     "test:journey": "node --test tests/saas-customer-journey.test.mjs tests/password-recovery-flow.test.mjs tests/saas-workspace-onboarding.test.mjs tests/saas-workspace-invitations.test.mjs tests/saas-onboarding-checklist.test.mjs",
-    "release:check": "npm test && npm run build"
+    "release:check": "npm test && npm run build",
+    "deploy": "npm run build && npx --yes wrangler@4.127.1 deploy"
   }
 }

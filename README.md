@@ -24,15 +24,24 @@ thư mục này bảo đảm lệnh trên không còn khởi động nhầm `pro
 
 Mã nguồn được sao chép từ hệ thống web hiện tại để giữ nguyên nghiệp vụ.
 
-### Tách biệt GitHub Pages
+### Mã nguồn và nơi triển khai website
 
-- `saas-app` được build và triển khai riêng tại repository
-  `tranvannhat-uwq/sovie-saas-app`, dùng tên miền `sovie.vn`.
-- `product-billing-app` tiếp tục dùng repository
-  `tranvannhat-uwq/phan-mem-hoa-don` và tên miền
-  `chamsockhachhang.store`.
-- Không đổi custom domain hoặc file `CNAME` của repository
-  `phan-mem-hoa-don` khi triển khai SaaS.
+- Mã nguồn SaaS nằm trong repository `tranvannhat-uwq/sovie-saas-app`, nhánh `main`.
+- `sovie.vn` và các tên miền workspace như `test.sovie.vn` được phục vụ bởi
+  Cloudflare Worker `sovie-saas-staging`. Cấu hình được lưu trong `wrangler.jsonc`.
+- GitHub Pages có quy trình triển khai riêng, nhưng push GitHub **chưa tự cập nhật
+  Worker**. Sau khi push, chạy lệnh sau trong `saas-app` bằng tài khoản Cloudflare
+  đã đăng nhập:
+
+```powershell
+npm run deploy
+```
+
+- Lệnh này build thư mục `dist` rồi đưa tài nguyên tĩnh lên Worker đang phục vụ
+  tên miền. Sau đó kiểm tra nội dung thực tế tại `sovie.vn` và một tên miền workspace.
+- `product-billing-app` dùng repository `tranvannhat-uwq/phan-mem-hoa-don`
+  và tên miền `chamsockhachhang.store`; không đổi custom domain hoặc `CNAME`
+  của repository đó khi triển khai SaaS.
 
 - Chuỗi migration `0056`–`0096` đã bổ sung control plane, ranh giới tenant cấp bảng/RPC, capability, generic catalog, onboarding, quản trị thành viên, lời mời email, chuyển quyền Owner, danh bạ nhân sự, vòng đời subscription, quota đơn hàng tháng, custom domain, billing MoMo có IPN ký HMAC, tự xác minh DNS, hàng đợi cấp SSL Cloudflare, quản trị chi nhánh/kho theo quota, backup riêng từng tenant, soft-archive organization, `organization_id NOT NULL` cho 33 bảng nghiệp vụ, bảng điều khiển quản trị khách hàng, luồng khởi tạo tenant, quản lý vòng đời khách hàng, bảng giá thương mại tháng/năm, read model Admin mobile và tên miền chuẩn `sovie.vn`.
 - Bản web SaaS được ghim vào Supabase staging clone `mqxqswwssmemkimnolfu`; cấu hình production không còn nằm trong `js/config.js`.

@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+  MAX_SUBSCRIPTION_TERM_DAYS,
   normalizeIndustryKey,
   normalizePlatformCustomerPayload
 } from '../js/domain/tenant-provisioning.js';
@@ -45,6 +46,8 @@ test('invalid provisioning values fail before reaching Supabase', () => {
   };
   assert.throws(() => normalizePlatformCustomerPayload({ ...valid, slug: 'admin' }), /Tên miền con/);
   assert.throws(() => normalizePlatformCustomerPayload({ ...valid, ownerEmail: 'sai-email' }), /Email Owner/);
-  assert.throws(() => normalizePlatformCustomerPayload({ ...valid, trialDays: 0 }), /1 đến 60/);
+  assert.throws(() => normalizePlatformCustomerPayload({ ...valid, trialDays: 0 }), /1 đến 3\.650/);
+  assert.deepEqual(normalizePlatformCustomerPayload({ ...valid, trialDays: 1825 }).trialDays, 1825);
+  assert.throws(() => normalizePlatformCustomerPayload({ ...valid, trialDays: MAX_SUBSCRIPTION_TERM_DAYS + 1 }), /1 đến 3\.650/);
   assert.throws(() => normalizePlatformCustomerPayload({ ...valid, businessType: 'unknown' }), /Mô hình/);
 });

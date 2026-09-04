@@ -12,6 +12,7 @@ const reservedSlugs = new Set([
   'www', 'app', 'api', 'admin', 'auth', 'dashboard', 'billing', 'support', 'status',
   'mail', 'cdn', 'static', 'assets', 'docs', 'help', 'system', 'platform', 'sovie',
 ]);
+const maxSubscriptionTermDays = 3650;
 const industryAliases: Record<string, string> = {
   'da-nganh': 'general',
   'tong-hop': 'general',
@@ -112,8 +113,8 @@ function validatePayload(payload: Record<string, unknown>) {
     throw new Error('Ngành nghề không hợp lệ. Vui lòng chọn một ngành trong danh sách.');
   }
   if (!/^[a-z0-9][a-z0-9_-]{0,62}$/.test(normalized.planId)) throw new Error('Gói dịch vụ không hợp lệ.');
-  if (!Number.isInteger(normalized.trialDays) || normalized.trialDays < 1 || normalized.trialDays > 60) {
-    throw new Error('Thời gian dùng thử phải từ 1 đến 60 ngày.');
+  if (!Number.isInteger(normalized.trialDays) || normalized.trialDays < 1 || normalized.trialDays > maxSubscriptionTermDays) {
+    throw new Error(`Thời hạn gói phải từ 1 đến ${maxSubscriptionTermDays.toLocaleString('vi-VN')} ngày.`);
   }
   return normalized;
 }

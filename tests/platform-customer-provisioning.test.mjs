@@ -5,6 +5,7 @@ import test from 'node:test';
 const read = relative => readFileSync(new URL(`../${relative}`, import.meta.url), 'utf8');
 const migration = read('migrations/0081_platform_customer_provisioning.sql');
 const hardening = read('migrations/0098_platform_customer_provisioning_hardening.sql');
+const termLimitMigration = read('supabase/migrations/20260904013337_extend_subscription_term_limit.sql');
 const edge = read('supabase/functions/platform-create-customer/index.ts');
 const service = read('js/services/supabase.js');
 const component = read('js/components/platform-admin.js');
@@ -18,6 +19,8 @@ test('platform customer provisioning is restricted and atomically initializes th
   assert.match(migration, /INSERT INTO public\.organization_subscriptions/);
   assert.match(migration, /INSERT INTO public\.platform_customer_events/);
   assert.match(migration, /p_trial_days < 1 OR p_trial_days > 60/);
+  assert.match(termLimitMigration, /p_trial_days > 3650/);
+  assert.match(termLimitMigration, /Trial period must contain 1 to 3650 days/);
   assert.match(migration, /REVOKE ALL ON public\.platform_customer_events FROM PUBLIC, anon, authenticated/);
 });
 
@@ -66,4 +69,5 @@ test('platform console exposes a validated create-customer workflow', () => {
   assert.match(component, /Khách hàng đã được tạo thành công và vừa được đồng bộ lại/);
   assert.match(component, /Customer created but platform list refresh failed/);
   assert.match(component, /state\.platformRole !== 'platform_owner'/);
+  assert.match(html, /id="platform-customer-trial-days"[^>]*max="3650"/);
 });

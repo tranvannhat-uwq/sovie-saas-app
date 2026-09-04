@@ -2,6 +2,8 @@ const BUSINESS_TYPES = new Set([
   'general_trade', 'retail', 'wholesale', 'distribution', 'services', 'manufacturing'
 ]);
 
+export const MAX_SUBSCRIPTION_TERM_DAYS = 3650;
+
 const RESERVED_SLUGS = new Set([
   'www', 'app', 'api', 'admin', 'auth', 'dashboard', 'billing', 'support', 'status',
   'mail', 'cdn', 'static', 'assets', 'docs', 'help', 'system', 'platform', 'sovie'
@@ -71,8 +73,8 @@ export function normalizePlatformCustomerPayload(payload = {}) {
   if (!/^[a-z0-9][a-z0-9_-]{0,62}$/.test(normalized.planId)) {
     throw new Error('Gói dịch vụ không hợp lệ.');
   }
-  if (!Number.isInteger(normalized.trialDays) || normalized.trialDays < 1 || normalized.trialDays > 60) {
-    throw new Error('Thời gian dùng thử phải từ 1 đến 60 ngày.');
+  if (!Number.isInteger(normalized.trialDays) || normalized.trialDays < 1 || normalized.trialDays > MAX_SUBSCRIPTION_TERM_DAYS) {
+    throw new Error(`Thời hạn gói phải từ 1 đến ${MAX_SUBSCRIPTION_TERM_DAYS.toLocaleString('vi-VN')} ngày.`);
   }
   return normalized;
 }

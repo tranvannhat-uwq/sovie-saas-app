@@ -1486,7 +1486,6 @@ select option {
   display: flex;
   align-items: center;
   gap: 0.55rem;
-  margin-bottom: 0.55rem;
 }
 
 .workspace-switcher-heading > svg {
@@ -1509,9 +1508,6 @@ select option {
 
 .workspace-switcher-heading strong { font-size: 0.83rem; }
 .workspace-switcher-heading small { color: var(--text-secondary); font-size: 0.72rem; }
-.workspace-switcher .form-control { width: 100%; font-size: 0.78rem; }
-.workspace-switcher-actions { display: flex; gap: 0.45rem; margin-top: 0.5rem; }
-.workspace-switcher-actions button { flex: 1; justify-content: center; }
 
 .workspace-onboarding-overlay { z-index: 100001; }
 .workspace-onboarding-content { max-width: 640px; }

@@ -4696,6 +4696,33 @@ body {
 }
 #app-layout #platform-admin-panel .module-filter-content .platform-table-container { border-radius: 8px; }
 
+/* The search box owns its border; the input stays inside the icon row. */
+#app-layout #platform-admin-panel .platform-search {
+  gap: 8px;
+}
+
+#app-layout #platform-admin-panel .platform-search svg {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
+}
+
+#app-layout #platform-admin-panel .platform-search input {
+  flex: 1;
+  min-height: 0 !important;
+  height: 100% !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  font: inherit !important;
+}
+
+#app-layout #platform-admin-panel .module-filter-body select.form-control {
+  min-height: 38px !important;
+}
+
 /* Search fields reserve a fixed icon lane across every module. */
 #app-layout .search-wrapper { position: relative; }
 #app-layout .search-wrapper .search-icon {

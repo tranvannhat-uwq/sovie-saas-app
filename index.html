@@ -237,6 +237,18 @@
             Khách hàng
           </a>
         </li>
+        <li class="nav-item">
+          <a class="nav-link" data-target="products-panel">
+            <i data-lucide="package"></i>
+            Sản phẩm
+          </a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" data-target="pricelists-panel">
+            <i data-lucide="tags"></i>
+            Bảng giá
+          </a>
+        </li>
         <li class="nav-item purchase-nav-item">
           <button type="button" class="nav-link purchase-menu-trigger" aria-haspopup="menu" aria-expanded="false" aria-controls="purchase-navigation-menu">
             <i data-lucide="shopping-cart"></i>
@@ -253,18 +265,6 @@
               <a class="purchase-menu-link nav-link" data-target="goods-panel" role="menuitem">Phiếu mua hàng</a>
             </div>
           </div>
-        </li>
-        <li class="nav-item">
-          <a class="nav-link" data-target="products-panel">
-            <i data-lucide="package"></i>
-            Sản phẩm
-          </a>
-        </li>
-        <li class="nav-item">
-          <a class="nav-link" data-target="pricelists-panel">
-            <i data-lucide="tags"></i>
-            Bảng giá
-          </a>
         </li>
         <li class="nav-item staff-nav-item">
           <button type="button" class="nav-link staff-menu-trigger" aria-haspopup="menu" aria-expanded="false" aria-controls="staff-navigation-menu">
@@ -320,11 +320,6 @@
               <div class="workspace-switcher-heading">
                 <i data-lucide="building-2"></i>
                 <div><strong id="workspace-current-name">Doanh nghiệp</strong><small id="workspace-current-domain"></small><small id="workspace-plan-usage"></small></div>
-              </div>
-              <select class="form-control" id="workspace-select" aria-label="Chọn doanh nghiệp"></select>
-              <div class="workspace-switcher-actions">
-                <button type="button" id="btn-switch-workspace" class="btn btn-secondary btn-xs">Chuyển</button>
-                <button type="button" id="btn-create-workspace" class="btn btn-primary btn-xs"><i data-lucide="plus"></i> Tạo mới</button>
               </div>
             </div>
             <div class="nav-layout-settings" id="nav-layout-settings">
@@ -416,7 +411,9 @@
             <div class="platform-accounts-toolbar">
               <div><h3>Danh sách doanh nghiệp</h3><p id="platform-account-result-count">0 doanh nghiệp</p></div>
               <div class="platform-account-filters">
-                <label class="platform-search"><i data-lucide="search"></i><input id="platform-account-search" type="search" placeholder="Tên doanh nghiệp, chủ tài khoản, tên miền..."></label>
+                <div>
+                  <div class="platform-search"><i data-lucide="search" aria-hidden="true"></i><input id="platform-account-search" type="search" aria-label="Tìm kiếm doanh nghiệp" placeholder="Tên doanh nghiệp, chủ tài khoản, tên miền..."></div>
+                </div>
                 <select id="platform-account-status" class="form-control" aria-label="Lọc trạng thái doanh nghiệp">
                   <option value="all">Tất cả trạng thái</option>
                   <option value="active">Đang hoạt động</option>

@@ -41,18 +41,19 @@ test('new users may onboard while invalid existing tenant roles still fail close
   assert.match(workspaceUi, /openWorkspaceOnboarding\(\{ required = false \} = \{\}\)/);
 });
 
-test('workspace UI creates, validates and switches SaaS organizations', () => {
+test('workspace onboarding remains available without company selection in the account menu', () => {
   assert.match(service, /rpc_validate_organization_slug/);
   assert.match(service, /rpc_create_organization/);
   assert.match(service, /rpc_set_default_organization/);
   assert.match(workspaceUi, /window\.location\.reload\(\)/);
   for (const id of [
-    'workspace-select',
-    'btn-switch-workspace',
-    'btn-create-workspace',
+    'workspace-current-name',
+    'workspace-current-domain',
+    'workspace-plan-usage',
     'workspace-onboarding-modal',
     'workspace-onboarding-form'
   ]) {
     assert.match(html, new RegExp(`id="${id}"`));
   }
+  assert.doesNotMatch(html, /id="(?:workspace-select|btn-switch-workspace|btn-create-workspace)"/);
 });

@@ -11,7 +11,6 @@ import {
   saveSaasBranch,
   saveSaasWarehouse,
   setPrimarySaasCustomDomain,
-  switchSaasOrganization,
   verifySaasCustomDomainDns,
   validateSaasOrganizationSlug
 } from '../services/supabase.js?v=20260831-provisioning-v2';
@@ -77,14 +76,9 @@ async function validateSlugInput({ quiet = false } = {}) {
 }
 
 export function renderWorkspaceSwitcher() {
-  const select = document.getElementById('workspace-select');
   const nameLabel = document.getElementById('workspace-current-name');
   const domainLabel = document.getElementById('workspace-current-domain');
   const usageLabel = document.getElementById('workspace-plan-usage');
-  const switchButton = document.getElementById('btn-switch-workspace');
-  const organizations = Array.isArray(state.saasContext?.organizations)
-    ? state.saasContext.organizations
-    : [];
 
   if (nameLabel) nameLabel.textContent = state.saasContext?.organizationName || 'Chưa có doanh nghiệp';
   if (domainLabel) {
@@ -100,21 +94,6 @@ export function renderWorkspaceSwitcher() {
     usageLabel.textContent = usage.planId
       ? `${String(usage.planId).toUpperCase()} · Đơn ${Number(orders.used || 0).toLocaleString('vi-VN')}/${formatLimit(orders.limit)} · Thành viên ${Number(members.used || 0).toLocaleString('vi-VN')}/${formatLimit(members.limit)}`
       : '';
-  }
-  if (!select) return;
-
-  select.innerHTML = '';
-  organizations.forEach(organization => {
-    const option = document.createElement('option');
-    option.value = String(organization.id || '');
-    option.textContent = String(organization.name || organization.slug || 'Doanh nghiệp');
-    option.selected = option.value === String(state.activeOrganizationId || '');
-    select.appendChild(option);
-  });
-  select.disabled = organizations.length < 2;
-  if (switchButton) {
-    switchButton.disabled = organizations.length < 2
-      || select.value === String(state.activeOrganizationId || '');
   }
   const backupSection = document.getElementById('backup-section');
   if (backupSection) {
@@ -424,9 +403,6 @@ function closeWorkspaceOnboarding() {
 }
 
 export function setupWorkspaceManagement() {
-  const select = document.getElementById('workspace-select');
-  const switchButton = document.getElementById('btn-switch-workspace');
-  const createButton = document.getElementById('btn-create-workspace');
   const form = document.getElementById('workspace-onboarding-form');
   const nameInput = document.getElementById('workspace-name');
   const slugInput = document.getElementById('workspace-slug');
@@ -435,7 +411,6 @@ export function setupWorkspaceManagement() {
   const warehouseForm = document.getElementById('warehouse-management-form');
   const archiveForm = document.getElementById('organization-archive-form');
 
-  createButton?.addEventListener('click', () => openWorkspaceOnboarding());
   document.getElementById('btn-close-workspace-onboarding')?.addEventListener('click', closeWorkspaceOnboarding);
   document.getElementById('btn-cancel-workspace-onboarding')?.addEventListener('click', closeWorkspaceOnboarding);
 
@@ -448,27 +423,6 @@ export function setupWorkspaceManagement() {
     setSlugStatus('Nhấn ra ngoài ô để kiểm tra tên miền.');
   });
   slugInput?.addEventListener('blur', () => void validateSlugInput());
-  select?.addEventListener('change', () => {
-    if (switchButton) {
-      switchButton.disabled = !select.value
-        || select.value === String(state.activeOrganizationId || '');
-    }
-  });
-
-  switchButton?.addEventListener('click', async () => {
-    const organizationId = String(select?.value || '');
-    if (!organizationId || organizationId === String(state.activeOrganizationId || '')) return;
-    switchButton.disabled = true;
-    try {
-      await switchSaasOrganization(organizationId);
-      showToast('Đã chuyển doanh nghiệp. Đang tải lại dữ liệu workspace...', 'success');
-      window.location.reload();
-    } catch (error) {
-      switchButton.disabled = false;
-      showToast(error?.message || 'Không thể chuyển doanh nghiệp.', 'danger');
-    }
-  });
-
   form?.addEventListener('submit', async event => {
     event.preventDefault();
     const submitButton = form.querySelector('button[type="submit"]');

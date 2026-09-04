@@ -29,8 +29,8 @@ test('a user without a workspace is routed into required onboarding', () => {
   assert.match(workspaces, /Starter trong 14 ngày/);
 });
 
-test('an established tenant can switch workspace and follow first-run actions', () => {
-  assert.match(workspaces, /switchSaasOrganization\(organizationId\)/);
+test('an established tenant can view workspace information and follow first-run actions', () => {
+  assert.match(workspaces, /state\.saasContext\?\.organizationName/);
   assert.match(main, /renderWorkspaceSwitcher\(\)/);
   assert.match(dashboard, /renderOnboardingChecklist\(\)/);
   assert.match(dashboard, /target: 'invoice-panel'/);

@@ -134,6 +134,7 @@ function renderDetail(organization) {
       <div><span>Kỳ dịch vụ</span><strong>${escapeHtml(formatDate(organization.currentPeriodEnd))}</strong><small>${organization.readOnlyEndsAt ? `Chỉ đọc đến ${escapeHtml(formatDate(organization.readOnlyEndsAt))}` : 'Không có thời hạn chỉ đọc'}</small></div>
     </div>
     ${canManage ? `<div class="platform-lifecycle-actions">
+      ${organization.subscriptionStatus === 'trialing' && organization.status === 'trialing' ? '<button type="button" class="btn btn-primary" data-platform-action="activate"><i data-lucide="circle-check-big"></i> Kích hoạt gói</button>' : ''}
       ${!isCancelled ? '<button type="button" class="btn btn-secondary" data-platform-action="change_plan"><i data-lucide="layers-3"></i> Đổi gói</button>' : ''}
       ${organization.subscriptionStatus === 'trialing' ? '<button type="button" class="btn btn-secondary" data-platform-action="extend_trial"><i data-lucide="calendar-plus"></i> Gia hạn trial</button>' : ''}
       ${!isCancelled && !isSuspended ? '<button type="button" class="btn btn-secondary is-warning" data-platform-action="suspend"><i data-lucide="pause-circle"></i> Tạm khóa</button>' : ''}
@@ -185,6 +186,10 @@ export function renderPlatformAdmin() {
 }
 
 const LIFECYCLE_ACTIONS = Object.freeze({
+  activate: {
+    title: 'Kích hoạt gói dịch vụ', submit: 'Kích hoạt gói', icon: 'circle-check-big',
+    warning: 'Chỉ xác nhận sau khi đã thu tiền hoặc có phê duyệt nội bộ. Gói sẽ có hiệu lực ngay và thời hạn bắt đầu từ hôm nay.'
+  },
   change_plan: {
     title: 'Đổi gói dịch vụ', submit: 'Áp dụng gói mới', icon: 'layers-3',
     warning: 'Quota của doanh nghiệp được tính theo gói mới ngay sau khi xác nhận.'
@@ -213,7 +218,7 @@ async function openPlatformLifecycleModal(action, organization) {
   const modal = document.getElementById('platform-lifecycle-modal');
   const form = document.getElementById('platform-lifecycle-form');
   if (!config || !modal || !form) return;
-  if (action === 'change_plan') {
+  if (['activate', 'change_plan'].includes(action)) {
     try { await hydratePlatformPlans(); }
     catch (error) { showToast(error?.message || 'Không thể tải danh mục gói.', 'danger'); return; }
   }
@@ -227,17 +232,27 @@ async function openPlatformLifecycleModal(action, organization) {
   const confirmationGroup = document.getElementById('platform-lifecycle-confirmation-group');
   const reason = document.getElementById('platform-lifecycle-reason');
   const confirmation = document.getElementById('platform-lifecycle-confirmation');
-  planGroup.hidden = action !== 'change_plan';
-  trialGroup.hidden = action !== 'extend_trial';
+  const periodLabel = document.getElementById('platform-lifecycle-trial-days-label');
+  const periodHelp = document.getElementById('platform-lifecycle-trial-days-help');
+  planGroup.hidden = !['activate', 'change_plan'].includes(action);
+  trialGroup.hidden = !['activate', 'extend_trial'].includes(action);
   confirmationGroup.hidden = action !== 'cancel';
-  reason.required = ['suspend', 'cancel'].includes(action);
+  reason.required = ['activate', 'suspend', 'cancel'].includes(action);
   reason.minLength = reason.required ? 3 : 0;
   document.getElementById('platform-lifecycle-reason-required').textContent = reason.required ? '*' : '(không bắt buộc)';
   confirmation.required = action === 'cancel';
   confirmation.pattern = action === 'cancel' ? organization.slug.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') : '';
   document.getElementById('platform-lifecycle-confirmation-help').textContent = action === 'cancel' ? `Nhập: ${organization.slug}` : '';
-  if (action === 'change_plan') document.getElementById('platform-lifecycle-plan').value = organization.planId || 'starter';
-  if (action === 'extend_trial') document.getElementById('platform-lifecycle-trial-days').value = '7';
+  if (['activate', 'change_plan'].includes(action)) document.getElementById('platform-lifecycle-plan').value = organization.planId || 'starter';
+  if (action === 'activate') {
+    periodLabel.textContent = 'Thời hạn gói *';
+    periodHelp.textContent = 'Cấp gói từ 1 đến 3.650 ngày kể từ hôm nay.';
+    document.getElementById('platform-lifecycle-trial-days').value = '30';
+  } else if (action === 'extend_trial') {
+    periodLabel.textContent = 'Số ngày gia hạn *';
+    periodHelp.textContent = 'Cộng tiếp từ ngày hết hạn hiện tại, tối đa 60 ngày mỗi lần.';
+    document.getElementById('platform-lifecycle-trial-days').value = '7';
+  }
   document.getElementById('platform-lifecycle-warning').textContent = config.warning;
   const submit = document.getElementById('btn-submit-platform-lifecycle');
   submit.classList.toggle('btn-danger', Boolean(config.danger));

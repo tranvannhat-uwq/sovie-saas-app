@@ -10,12 +10,14 @@ const publicFiles = [
   'style.css',
   'landing.css',
   'landing-premium.css',
+  'landing-reference.css',
   'ui-system.css',
   'sovie-favicon.png',
   'sovie-logo.png',
   'absjapan.png',
   'festiva.png',
   'hatacco.png',
+  'warehouse-operations.jpg',
 ];
 
 if (dirname(outputRoot) !== projectRoot || outputRoot === projectRoot) {

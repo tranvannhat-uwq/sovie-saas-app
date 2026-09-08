@@ -90,10 +90,33 @@ Run these files in order on a staging clone first:
 82. `0082_platform_customer_lifecycle.sql`
 83. `0083_platform_plan_catalog.sql`
 84. `0084_momo_checkout_and_tax_policy.sql`
+85. `0085_mobile_admin_read_models.sql`
+86. `0086_mobile_admin_profile_scope.sql`
+87. `0087_mobile_admin_read_only_identity.sql`
+88. `0088_mobile_admin_read_model_definers.sql`
+89. `0089_mobile_admin_auth_uid_usage.sql`
+90. `0090_mobile_admin_request_claim_identity.sql`
+91. `0091_mobile_admin_dashboard_read_context.sql`
+92. `0092_mobile_admin_access_claim_identity.sql`
+93. `0093_mobile_admin_membership_rls.sql`
+94. `0094_customer_assigned_brand_id.sql`
+95. `0095_customer_access_request_claim_identity.sql`
+96. `0096_sovie_vn_primary_domain.sql`
+97. `0097_align_workspace_domains_to_sovie_vn.sql`
+98. `0098_platform_customer_provisioning_hardening.sql`
+99. `0099_dashboard_customer_filter.sql`
+100. `0100_manual_trial_activation.sql`
 
 Every file is additive and records its version in `public.schema_migrations`.
 Apply each version once; the migration table is the source of truth for the
 next pending file. None of the P0 migrations deletes business rows.
+
+Migration `0100` adds the owner-only, audited conversion of a trial customer to
+an active paid plan. It requires `0082` and can be applied to the approved
+staging project with `npm run db:apply-trial-activation`; the script asks for a
+staging-only connection URI and password interactively, checks the project ref,
+reloads PostgREST's schema and verifies the deployed function before reporting
+success.
 
 The clean-database target is a clean **Supabase** project (the chain depends on
 `auth.users` and `auth.uid()`), not generic PostgreSQL. Migration `0001` stops

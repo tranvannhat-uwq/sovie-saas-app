@@ -45,149 +45,617 @@
   <link rel="stylesheet" href="landing.css?v=20260817-saas-platform-v1">
   <link rel="stylesheet" href="ui-system.css?v=20260901-quick-customer-modal-v7">
   <link rel="stylesheet" href="landing-premium.css?v=20260829-auth-flow-v1">
+  <link rel="stylesheet" href="landing-reference.css?v=20260907-reference-v1">
 </head>
 <body>
 
-  <div class="landing-page" id="landing-page">
-    <div class="landing-topbar">
-      <div class="landing-topbar-inner">
-        <span class="landing-topbar-company"><i data-lucide="building-2"></i> Đơn vị quản lý: <strong>CÔNG TY CỔ PHẦN EMP HOA KỲ</strong></span>
-        <span class="landing-topbar-brand"><i data-lucide="globe-2"></i> SoVie · sovie.vn</span>
-        <span class="landing-topbar-phone"><i data-lucide="phone"></i> SĐT: <strong>0325.855.222</strong></span>
-      </div>
-    </div>
-    <header class="landing-header" data-motion-header>
+  <div class="landing-page ref-page" id="landing-page">
+    <header class="ref-header" id="main-header" data-motion-header>
       <a class="landing-brand" href="#top" aria-label="SoVie - Trang chủ">
         <img src="sovie-logo.png?v=20260815-sovie-v2" alt="SoVie">
+        <strong>SoVie</strong>
       </a>
-      <nav class="landing-nav" aria-label="Điều hướng trang giới thiệu">
-        <a href="#features">Tính năng</a>
-        <a href="#solutions">Giải pháp</a>
-        <a href="#benefits">Lợi ích</a>
+      <nav class="ref-nav" aria-label="Điều hướng trang giới thiệu">
+        <a href="#tinh-nang">Tính năng</a>
+        <a href="#giai-phap">Giải pháp</a>
+        <a href="#loi-ich">Lợi ích</a>
+        <a href="#bang-gia">Bảng giá</a>
+        <a href="#khach-hang">Khách hàng</a>
       </nav>
-      <button type="button" class="landing-login-button js-open-login">
-        <i data-lucide="log-in"></i>
-        Đăng nhập
-      </button>
+      <div class="ref-header-actions">
+        <a class="ref-phone" href="tel:0325855222">
+          <i data-lucide="phone"></i>
+          <span>0325.855.222</span>
+        </a>
+        <button type="button" class="landing-login-button js-open-login">Đăng nhập</button>
+        <button type="button" class="ref-trial js-open-login">Bắt đầu quản lý / Dùng thử miễn phí</button>
+        <span class="ref-user js-open-login" title="Tài khoản"><i data-lucide="user-round"></i></span>
+      </div>
     </header>
 
-    <main id="top">
-      <section class="landing-hero">
-        <div class="landing-hero-copy">
-          <div class="landing-eyebrow" data-hero-item="badge"><span></span> Nền tảng quản lý bán hàng dành cho doanh nghiệp Việt</div>
-          <h1><span class="hero-title-line" data-hero-line>Quản lý bán hàng</span><span class="hero-title-line" data-hero-line><em>gọn hơn mỗi ngày.</em></span></h1>
-          <p data-hero-item="description">SoVie giúp bạn quản lý sản phẩm, đơn hàng, khách hàng và dòng tiền trên một hệ thống duy nhất — trực quan, chính xác và dễ sử dụng.</p>
-          <div class="landing-hero-actions" data-hero-item="actions">
-            <button type="button" class="landing-primary-button js-open-login">Bắt đầu quản lý <i data-lucide="arrow-right"></i></button>
-            <a href="#features" class="landing-text-link">Khám phá tính năng <i data-lucide="arrow-down"></i></a>
+    <main id="top" class="ref-main">
+      <div class="ref-notice">
+        <span>
+          <b></b>Đơn vị phát triển: <strong>CÔNG TY CỔ PHẦN EMP HOA KỲ</strong><em>•</em>Giải pháp số hóa kho vận &amp; công nợ phân phối chuẩn mực
+        </span>
+        <a href="tel:0325855222">
+          <i data-lucide="headset"></i>
+          <span>Tư vấn kỹ thuật: 0325.855.222</span>
+        </a>
+      </div>
+
+      <!-- HERO SECTION -->
+      <section class="ref-hero">
+        <div class="ref-orb ref-orb-one"></div>
+        <div class="ref-orb ref-orb-two"></div>
+        <div class="ref-orbit-ring ref-orbit-1"></div>
+        <div class="ref-orbit-ring ref-orbit-2"></div>
+
+        <div class="ref-hero-copy">
+          <div class="ref-pill"><b></b>NỀN TẢNG QUẢN LÝ BÁN HÀNG THẾ HỆ MỚI CHO DOANH NGHIỆP VIỆT</div>
+          <h1>Quản lý bán hàng <span class="ref-text-highlight">gọn hơn<svg preserveAspectRatio="none" viewBox="0 0 100 8"><path d="M0 7 C 20 7, 40 1, 100 1 Z"></path></svg></span> mỗi ngày.</h1>
+          <p class="ref-subtitle">Sở hữu trọn bộ công cụ quản lý tồn kho, đơn hàng, khách hàng và công nợ trên một hệ thống duy nhất — trực quan, chính xác và dễ sử dụng.</p>
+          <div class="ref-hero-actions">
+            <button type="button" class="ref-btn-primary js-open-login">
+              Bắt đầu quản lý ngay <i data-lucide="arrow-right"></i>
+            </button>
+            <a href="#demo-section" class="ref-btn-secondary">
+              <i data-lucide="play-circle"></i>
+              <span>Khám phá bản dùng thử (Xem Demo)</span>
+            </a>
           </div>
-          <div class="landing-trust-row" data-hero-item="stats">
-            <div><strong data-count="1" data-count-pad="2">01</strong><span>Nền tảng<br>vận hành</span></div>
-            <div><strong data-count="24" data-count-suffix="/7">24/7</strong><span>Dữ liệu<br>sẵn sàng</span></div>
-            <div><strong data-count="100" data-count-suffix="%">100%</strong><span>Đồng bộ<br>đám mây</span></div>
+
+          <div class="ref-assurances">
+            <div class="ref-assurance-card anim-1">
+              <div class="ref-assurance-icon"><i data-lucide="briefcase-business"></i></div>
+              <div class="ref-assurance-text">
+                <strong>Nền tảng</strong>
+                <span>Vận hành đa chuẩn</span>
+              </div>
+            </div>
+            <div class="ref-assurance-card anim-2">
+              <div class="ref-assurance-icon emerald"><i data-lucide="clock-3"></i></div>
+              <div class="ref-assurance-text">
+                <strong>24/7 Sẵn sàng</strong>
+                <span>Dữ liệu liên tục mọi lúc</span>
+              </div>
+            </div>
+            <div class="ref-assurance-card anim-3">
+              <div class="ref-assurance-icon"><i data-lucide="refresh-cw"></i></div>
+              <div class="ref-assurance-text">
+                <strong>Realtime Sync</strong>
+                <span>Đồng bộ đơn mây 100%</span>
+              </div>
+            </div>
+            <div class="ref-assurance-card anim-4">
+              <div class="ref-assurance-icon emerald"><i data-lucide="shield-check"></i></div>
+              <div class="ref-assurance-text">
+                <strong>An toàn dữ liệu</strong>
+                <span>Phân quyền đa cấp</span>
+              </div>
+            </div>
           </div>
         </div>
 
-        <div class="landing-hero-visual" aria-label="Giao diện tổng quan SoVie">
-          <div class="hero-orbit orbit-one"></div>
-          <div class="hero-orbit orbit-two"></div>
-          <div class="hero-float-card hero-float-sales"><span class="float-icon"><i data-lucide="trending-up"></i></span><span>Doanh thu hôm nay<small>+18,6%</small></span></div>
-          <div class="hero-float-card hero-float-stock"><span class="float-icon green"><i data-lucide="package-check"></i></span><span>Kho hàng ổn định<small>1.248 sản phẩm</small></span></div>
-          <div class="product-preview" data-hero-dashboard>
-            <div class="preview-topbar">
-              <div class="preview-brandmark">S</div>
-              <span>Tổng quan kinh doanh</span>
-              <div class="preview-avatar"></div>
+        <!-- DASHBOARD MOCKUP PREVIEW -->
+        <div class="ref-mockup-wrapper" id="demo-section" aria-label="Mô phỏng giao diện SoVie">
+          <div class="ref-mockup-card">
+            <div class="ref-window-bar">
+              <div class="ref-window-dots">
+                <span class="ref-dot-red"></span>
+                <span class="ref-dot-yellow"></span>
+                <span class="ref-dot-green"></span>
+                <span class="ref-window-url">workspace.sovie.vn/dashboard — Trung tâm quản trị</span>
+              </div>
+              <div class="ref-window-status">
+                <span class="ref-live-pill"><span></span> Realtime Active</span>
+                <span class="ref-window-date">Hôm nay: 23/08/2026</span>
+              </div>
             </div>
-            <div class="preview-body">
-              <aside class="preview-sidebar">
-                <span class="active"></span><span></span><span></span><span></span><span></span>
-              </aside>
-              <div class="preview-content">
-                <div class="preview-heading"><b>Xin chào!</b><span>Tháng này</span></div>
-                <div class="preview-stats">
-                  <div><small>Doanh thu</small><strong>2,48 tỷ</strong><i data-lucide="wallet-cards"></i></div>
-                  <div><small>Đơn hàng</small><strong>1.286</strong><i data-lucide="shopping-bag"></i></div>
-                  <div><small>Khách hàng</small><strong>842</strong><i data-lucide="users"></i></div>
+
+            <div class="ref-mockup-body">
+              <div class="ref-kpi-grid">
+                <div class="ref-kpi-card">
+                  <div class="ref-kpi-header">
+                    <small>Tăng trưởng doanh thu</small>
+                    <i data-lucide="trending-up"></i>
+                  </div>
+                  <div class="ref-kpi-value-row">
+                    <span class="ref-kpi-val"><span class="counter" data-count="139.8" data-count-decimals="1">139.8</span>%</span>
+                    <span class="ref-kpi-badge emerald">+18.6%</span>
+                  </div>
+                  <div class="ref-kpi-desc">Doanh số sau trừ trả hàng</div>
                 </div>
-                <div class="preview-chart-card">
-                  <div class="chart-card-head"><span>Hiệu quả kinh doanh</span><small>7 ngày gần nhất</small></div>
-                  <div class="preview-chart">
-                    <div class="chart-grid"></div>
-                    <div class="chart-bars"><i style="--h:36%"></i><i style="--h:55%"></i><i style="--h:44%"></i><i style="--h:72%"></i><i style="--h:61%"></i><i style="--h:88%"></i><i style="--h:76%"></i></div>
+
+                <div class="ref-kpi-card">
+                  <div class="ref-kpi-header">
+                    <small>Khách hàng Doanh số</small>
+                    <i data-lucide="boxes"></i>
+                  </div>
+                  <div class="ref-kpi-value-row">
+                    <span class="ref-kpi-val"><span class="counter" data-count="1248">1.248</span></span>
+                    <span class="ref-kpi-badge blue">Sản phẩm 342</span>
+                  </div>
+                  <div class="ref-kpi-desc">Quy cách: Thùng, Lon, Hộp, Bao</div>
+                </div>
+
+                <div class="ref-kpi-card">
+                  <div class="ref-kpi-header">
+                    <small>Đơn hàng hoàn tất</small>
+                    <i data-lucide="receipt"></i>
+                  </div>
+                  <div class="ref-kpi-value-row">
+                    <span class="ref-kpi-val"><span class="counter" data-count="1286">1.286</span></span>
+                    <span class="ref-kpi-badge emerald">+9.2% đúng hẹn</span>
+                  </div>
+                  <div class="ref-kpi-desc">Trung bình 42 đơn/ngày</div>
+                </div>
+
+                <div class="ref-kpi-card">
+                  <div class="ref-kpi-header">
+                    <small>Khách hàng cá nhân</small>
+                    <i data-lucide="users"></i>
+                  </div>
+                  <div class="ref-kpi-value-row">
+                    <span class="ref-kpi-val"><span class="counter" data-count="842">842</span></span>
+                    <span class="ref-kpi-badge blue">+32 đại lý mới</span>
+                  </div>
+                  <div class="ref-kpi-desc">Công nợ kiểm soát chuẩn hạn</div>
+                </div>
+              </div>
+
+              <div class="ref-mockup-mid">
+                <div class="ref-chart-card">
+                  <div class="ref-chart-header">
+                    <div>
+                      <h3>Biểu đồ doanh thu 7 ngày gần nhất</h3>
+                      <p>Tăng trưởng vững chắc theo mạng lưới đại lý</p>
+                    </div>
+                    <div class="ref-chart-tabs">
+                      <span class="active">Theo Ngày</span>
+                      <span>Tuần</span>
+                      <span>Tháng</span>
+                    </div>
+                  </div>
+
+                  <div class="ref-chart-bars">
+                    <div class="ref-bar-col">
+                      <span class="ref-bar-amount">280Tr</span>
+                      <div class="ref-bar-fill" style="height: 52%;"></div>
+                      <span class="ref-bar-day">T2</span>
+                    </div>
+                    <div class="ref-bar-col">
+                      <span class="ref-bar-amount">340Tr</span>
+                      <div class="ref-bar-fill" style="height: 68%;"></div>
+                      <span class="ref-bar-day">T3</span>
+                    </div>
+                    <div class="ref-bar-col">
+                      <span class="ref-bar-amount">310Tr</span>
+                      <div class="ref-bar-fill" style="height: 60%;"></div>
+                      <span class="ref-bar-day">T4</span>
+                    </div>
+                    <div class="ref-bar-col">
+                      <span class="ref-bar-amount" style="color: var(--blue); font-weight: 700;">420Tr</span>
+                      <div class="ref-bar-fill highlight-blue" style="height: 82%;"></div>
+                      <span class="ref-bar-day" style="color: var(--blue); font-weight: 700;">T5</span>
+                    </div>
+                    <div class="ref-bar-col">
+                      <span class="ref-bar-amount">390Tr</span>
+                      <div class="ref-bar-fill" style="height: 75%;"></div>
+                      <span class="ref-bar-day">T6</span>
+                    </div>
+                    <div class="ref-bar-col">
+                      <span class="ref-bar-amount" style="color: var(--emerald-dark); font-weight: 700;">510Tr</span>
+                      <div class="ref-bar-fill highlight-green" style="height: 96%;"></div>
+                      <span class="ref-bar-day" style="color: var(--emerald-dark); font-weight: 700;">T7</span>
+                    </div>
+                    <div class="ref-bar-col">
+                      <span class="ref-bar-amount">230Tr</span>
+                      <div class="ref-bar-fill" style="height: 45%;"></div>
+                      <span class="ref-bar-day">CN</span>
+                    </div>
                   </div>
                 </div>
+
+                <div class="ref-orders-card">
+                  <div>
+                    <div class="ref-orders-header">
+                      <h3>Đơn hàng mới nhất</h3>
+                      <a href="#tinh-nang">Xem tất cả</a>
+                    </div>
+
+                    <div class="ref-order-item">
+                      <div class="ref-order-top">
+                        <span class="ref-order-id">#SV-2486</span>
+                        <span class="ref-order-status paid">Đã thanh toán</span>
+                      </div>
+                      <div class="ref-order-customer">Đại lý Vật liệu Hưng Thịnh</div>
+                      <div class="ref-order-details">
+                        <span>Sơn Nano10 Cao Cấp (48 Thùng)</span>
+                        <strong>12.680.000 ₫</strong>
+                      </div>
+                    </div>
+
+                    <div class="ref-order-item">
+                      <div class="ref-order-top">
+                        <span class="ref-order-id">#SV-2485</span>
+                        <span class="ref-order-status shipping">Đang giao hàng</span>
+                      </div>
+                      <div class="ref-order-customer">Nhà thầu Xây Dựng Phúc An</div>
+                      <div class="ref-order-details">
+                        <span>Sơn Chống Thấm (24 Lon)</span>
+                        <strong>8.450.000 ₫</strong>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="ref-orders-actions">
+                    <button type="button" class="btn-create-order js-open-login">Tạo đơn ngay</button>
+                    <button type="button" class="btn-export-order js-open-login">Xuất Excel</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Floating Overlay Badge -->
+            <div class="ref-floating-sync">
+              <i><i data-lucide="shield-check"></i></i>
+              <div>
+                <span>Cập nhật lúc 15:44</span>
+                <strong>100% Khớp định mức</strong>
               </div>
             </div>
           </div>
         </div>
       </section>
 
-      <section class="landing-feature-section" id="features">
-        <div class="section-kicker" data-reveal="up">Tất cả trong một</div>
-        <div class="section-heading-row" data-reveal="up" data-reveal-delay="70">
-          <h2>Mọi công cụ bạn cần<br>để bán hàng hiệu quả.</h2>
+      <!-- FEATURES / BENTO GRID -->
+      <section class="ref-features" id="tinh-nang">
+        <div class="ref-section-header">
+          <div class="ref-pill"><b></b>TẤT CẢ TRONG MỘT</div>
+          <h2>Mọi công cụ bạn cần để bán hàng hiệu quả.</h2>
           <p>Từ kho hàng đến công nợ, SoVie kết nối mọi nghiệp vụ và biến dữ liệu thành quyết định rõ ràng.</p>
         </div>
-        <div class="feature-grid">
-          <article class="feature-card" data-reveal="scale" data-reveal-delay="0" tabindex="0">
-            <span class="feature-number">01</span><div class="feature-icon"><i data-lucide="receipt-text"></i></div>
-            <h3>Đơn hàng nhanh chóng</h3><p>Tạo đơn, áp dụng bảng giá và theo dõi trạng thái thanh toán chỉ trong vài thao tác.</p>
-            <div class="mini-order"><span><i></i> Đơn hàng #SV-2486</span><strong>12.680.000đ</strong><small>Đã thanh toán</small></div>
+
+        <div class="ref-bento-grid">
+          <article class="ref-bento-card">
+            <div>
+              <div class="ref-bento-card-top">
+                <div class="ref-bento-icon"><i data-lucide="shopping-bag"></i></div>
+                <span class="ref-bento-num">01</span>
+              </div>
+              <h3>Đơn hàng nhanh chóng</h3>
+              <p>Tạo đơn, áp dụng bảng giá đa cấp (giá sỉ, giá lẻ, đại lý độc quyền) và theo dõi trạng thái thanh toán chỉ trong vài thao tác trực quan.</p>
+            </div>
+            <div class="ref-bento-preview">
+              <div class="ref-preview-order">
+                <div class="ref-preview-order-left">
+                  <strong>✓ Đơn hàng #SV-2486</strong>
+                  <span>Đại lý: Cửa hàng Sơn Tân Phú</span>
+                </div>
+                <div class="ref-preview-order-right">
+                  <strong>12.680.000 ₫</strong>
+                  <span>Đã xuất kho</span>
+                </div>
+              </div>
+            </div>
           </article>
-          <article class="feature-card" data-reveal="scale" data-reveal-delay="70" tabindex="0">
-            <span class="feature-number">02</span><div class="feature-icon"><i data-lucide="boxes"></i></div>
-            <h3>Kho hàng chính xác</h3><p>Quản lý sản phẩm, biến thể, bảng giá và số lượng tồn kho theo thời gian thực.</p>
+
+          <article class="ref-bento-card">
+            <div>
+              <div class="ref-bento-card-top">
+                <div class="ref-bento-icon emerald"><i data-lucide="boxes"></i></div>
+                <span class="ref-bento-num">02</span>
+              </div>
+              <h3>Kho hàng chính xác</h3>
+              <p>Quản lý sản phẩm, biến thể, đóng gói quy cách chuẩn: Thùng, Lon, Hộp, Bao. Tích hợp công thức pha chế, định mức tiêu hao nguyên vật liệu sản xuất theo thời gian thực.</p>
+            </div>
+            <div class="ref-bento-preview">
+              <div class="ref-stock-grid">
+                <div class="ref-stock-item">
+                  <small>Tồn Thùng</small>
+                  <strong><span class="counter" data-count="482">482</span></strong>
+                </div>
+                <div class="ref-stock-item">
+                  <small>Tồn Lon</small>
+                  <strong><span class="counter" data-count="1240">1.240</span></strong>
+                </div>
+                <div class="ref-stock-item">
+                  <small>Tồn Hộp</small>
+                  <strong><span class="counter" data-count="690">690</span></strong>
+                </div>
+                <div class="ref-stock-item">
+                  <small>Tồn Bao</small>
+                  <strong><span class="counter" data-count="315">315</span></strong>
+                </div>
+              </div>
+            </div>
           </article>
-          <article class="feature-card" data-reveal="scale" data-reveal-delay="140" tabindex="0">
-            <span class="feature-number">03</span><div class="feature-icon"><i data-lucide="hand-coins"></i></div>
-            <h3>Công nợ minh bạch</h3><p>Nắm rõ khoản phải thu, lịch sử thanh toán và dòng tiền của từng khách hàng.</p>
+
+          <article class="ref-bento-card">
+            <div>
+              <div class="ref-bento-card-top">
+                <div class="ref-bento-icon indigo"><i data-lucide="wallet-cards"></i></div>
+                <span class="ref-bento-num">03</span>
+              </div>
+              <h3>Công nợ minh bạch</h3>
+              <p>Nắm rõ khoản phải thu, lịch sử đối soát, cảnh báo nợ quá hạn (>30 ngày) và kiểm soát sổ quỹ tiền mặt, ngân hàng của từng đại lý, đối tác mà không sợ thất thoát.</p>
+            </div>
+            <div class="ref-bento-preview">
+              <div class="ref-debt-preview">
+                <div class="ref-debt-left">
+                  <small>Tổng công nợ trong hạn</small>
+                  <strong>428.500.000 ₫</strong>
+                </div>
+                <span class="ref-debt-badge">✓ Đã đối soát 96%</span>
+              </div>
+            </div>
           </article>
-          <article class="feature-card feature-card-wide" data-reveal="scale" data-reveal-delay="210" tabindex="0">
-            <div><span class="feature-number">04</span><div class="feature-icon"><i data-lucide="chart-no-axes-combined"></i></div><h3>Báo cáo trực quan</h3><p>Theo dõi doanh thu, hiệu suất bán hàng và sức khỏe kinh doanh bằng dữ liệu dễ hiểu.</p></div>
-            <div class="mini-report"><span style="--v:42%"></span><span style="--v:68%"></span><span style="--v:51%"></span><span style="--v:83%"></span><span style="--v:70%"></span><span style="--v:92%"></span></div>
+
+          <article class="ref-bento-card">
+            <div>
+              <div class="ref-bento-card-top">
+                <div class="ref-bento-icon violet"><i data-lucide="chart-no-axes-combined"></i></div>
+                <span class="ref-bento-num">04</span>
+              </div>
+              <h3>Báo cáo trực quan &amp; Tính lương</h3>
+              <p>Theo dõi doanh thu theo nhân viên sale, thương hiệu độc quyền, chi nhánh. Tự động tính toán hoa hồng, thưởng KPI và chốt kỳ lương nhân sự chỉ trong vài phút.</p>
+            </div>
+            <div class="ref-bento-preview">
+              <div class="ref-kpi-progress">
+                <div class="ref-kpi-badge-pill">KPI</div>
+                <div class="ref-kpi-progress-bar-wrap">
+                  <div class="ref-kpi-progress-title">
+                    <span>Mục tiêu doanh số Q2</span>
+                    <span>88.4%</span>
+                  </div>
+                  <div class="ref-progress-track">
+                    <div class="ref-progress-fill"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </article>
         </div>
       </section>
 
-      <section class="landing-solutions" id="solutions">
-        <div class="solution-panel">
-          <div class="solution-copy" data-reveal="left"><span class="section-kicker">Vận hành liền mạch</span><h2>Một Sổ Việt.<br>Nhiều quyết định tốt.</h2><p><strong>SoVie — Sổ Việt của doanh nghiệp.</strong> Mọi dữ liệu được tổ chức đồng bộ, bảo mật và luôn sẵn sàng để đội ngũ phối hợp hiệu quả ở bất cứ đâu.</p><ul><li><i data-lucide="check"></i> Phân quyền theo vai trò</li><li><i data-lucide="check"></i> Đồng bộ dữ liệu Cloud</li><li><i data-lucide="check"></i> Lịch sử hoạt động rõ ràng</li></ul></div>
-          <div class="solution-rings" data-reveal="right" data-reveal-delay="90">
-            <div class="solution-grid-glow" aria-hidden="true"></div>
-            <div class="ring ring-a"><span><i data-lucide="shopping-cart"></i> Bán hàng</span></div>
-            <div class="ring ring-b"><span><i data-lucide="database"></i> <b>SỔ VIỆT</b><small>SoVie · Trung tâm vận hành</small></span></div>
-            <div class="ring ring-c"><span><i data-lucide="users"></i> Khách hàng</span></div>
-            <div class="solution-data-node node-stock"><i data-lucide="package-check"></i><span>Kho hàng<small>Đang đồng bộ</small></span></div>
-            <div class="solution-data-node node-report"><i data-lucide="chart-spline"></i><span>Báo cáo<small>Cập nhật trực tiếp</small></span></div>
+      <!-- SOLUTIONS / VALUE PILLARS -->
+      <section class="ref-solutions" id="giai-phap">
+        <div class="ref-solution-container">
+          <div class="ref-solution-copy">
+            <div class="ref-pill"><b></b>VẬN HÀNH LIỀN MẠCH</div>
+            <h2>Một Sổ Việt.<br>Nhiều quyết định tốt.</h2>
+            <p><strong>SoVie — Sổ Việt của doanh nghiệp.</strong> Mọi dữ liệu bán hàng, công nợ, xuất nhập kho và dòng tiền được tổ chức đồng bộ, bảo mật và luôn sẵn sàng để đội ngũ phối hợp hiệu quả ở bất cứ đâu.</p>
+
+            <div class="ref-solution-list">
+              <article class="ref-solution-item">
+                <div class="ref-solution-item-icon"><i data-lucide="users"></i></div>
+                <div class="ref-solution-item-text">
+                  <h4>Phân quyền theo vai trò chính xác</h4>
+                  <p>Chủ doanh nghiệp xem toàn cảnh; Kế toán quản lý hóa đơn, bảng giá và sổ quỹ; Nhân viên kinh doanh chỉ lập đơn và chăm sóc danh sách khách hàng được phân công.</p>
+                </div>
+              </article>
+
+              <article class="ref-solution-item">
+                <div class="ref-solution-item-icon"><i data-lucide="cloud"></i></div>
+                <div class="ref-solution-item-text">
+                  <h4>Đồng bộ đám mây Realtime trên mọi thiết bị</h4>
+                  <p>Dữ liệu độc lập theo từng workspace riêng biệt (tenancy), đồng bộ tức thời giữa máy tính văn phòng, điện thoại nhân viên và máy tính bảng tại nhà máy.</p>
+                </div>
+              </article>
+
+              <article class="ref-solution-item">
+                <div class="ref-solution-item-icon"><i data-lucide="file-text"></i></div>
+                <div class="ref-solution-item-text">
+                  <h4>Lịch sử hoạt động và chứng từ rõ ràng</h4>
+                  <p>Ghi nhận chi tiết từng lần tạo đơn, chỉnh sửa phiếu thu, điều chỉnh công nợ hay thao tác huỷ lệnh, loại trừ triệt để nguy cơ thất thoát.</p>
+                </div>
+              </article>
+            </div>
+          </div>
+
+          <div class="ref-solution-visual">
+            <div class="ref-warehouse-card">
+              <img src="warehouse-operations.jpg?v=20260907-v1" alt="Đội ngũ vận hành sản xuất và trung tâm logistics hiện đại SoVie">
+              <div class="ref-warehouse-overlay">
+                <span class="ref-warehouse-tag"><span></span> SỔ VIỆT · Trung tâm vận hành</span>
+                <h3>Đơn giản hóa dữ liệu cho hơn 50 ngành nghề sản xuất &amp; phân phối</h3>
+                <div class="ref-warehouse-stats">
+                  <div>
+                    <strong><span class="counter" data-count="100">100</span>%</strong>
+                    <span>Không thất thoát</span>
+                  </div>
+                  <div>
+                    <strong class="emerald">-45%</strong>
+                    <span>Thời gian lên đơn</span>
+                  </div>
+                  <div>
+                    <strong>24/7</strong>
+                    <span>Truy cập mọi nơi</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="ref-backup-card">
+              <div class="ref-backup-icon"><i data-lucide="shield-check"></i></div>
+              <div class="ref-backup-text">
+                <strong>Tự động sao lưu dữ liệu</strong>
+                <p>Xuất file Excel &amp; đồng bộ Cloud bảo mật chuẩn ngân hàng</p>
+              </div>
+            </div>
           </div>
         </div>
       </section>
 
-      <section class="landing-benefits" id="benefits">
-        <div data-reveal="up"><span class="section-kicker">Đơn giản để bắt đầu</span><h2>Sẵn sàng nâng cấp cách<br>bạn vận hành?</h2></div>
-        <button type="button" class="landing-primary-button js-open-login" data-reveal="scale" data-reveal-delay="120">Dùng thử ngay <i data-lucide="arrow-up-right"></i></button>
+      <!-- PRICING SECTION -->
+      <section class="ref-pricing" id="bang-gia">
+        <div class="ref-section-header">
+          <div class="ref-pill"><b></b>BẢNG GIÁ MINH BẠCH</div>
+          <h2>Gói giải pháp linh hoạt theo quy mô kinh doanh</h2>
+          <p>Dễ dàng khởi đầu, mở rộng không giới hạn khi số lượng chi nhánh và đại lý tăng trưởng.</p>
+        </div>
+
+        <div class="ref-price-grid">
+          <article class="ref-price-card">
+            <div class="ref-price-header">
+              <small>CỬA HÀNG NHỎ</small>
+              <h3>Starter</h3>
+              <div class="ref-price-row">
+                <strong class="ref-price-amount">199.000</strong>
+                <span class="ref-price-unit">₫ / tháng</span>
+              </div>
+              <p class="ref-price-desc">Dành cho các hộ kinh doanh, đại lý độc lập cần chuẩn hóa bán hàng và công nợ cơ bản.</p>
+            </div>
+            <ul class="ref-price-features">
+              <li><i><i data-lucide="check"></i></i> Tối đa 3 tài khoản người dùng</li>
+              <li><i><i data-lucide="check"></i></i> 1 Chi nhánh &amp; 1 Kho hàng</li>
+              <li><i><i data-lucide="check"></i></i> Quản lý 500 đơn hàng/tháng</li>
+              <li><i><i data-lucide="check"></i></i> Báo cáo doanh thu &amp; Sổ quỹ</li>
+            </ul>
+            <button type="button" class="ref-price-btn js-open-login">Dùng thử 14 ngày</button>
+          </article>
+
+          <article class="ref-price-card featured">
+            <span class="ref-price-badge-top">● Phổ biến nhất</span>
+            <div class="ref-price-header">
+              <small>ĐẠI LÝ &amp; NPP QUY MÔ VỪA</small>
+              <h3>Doanh Nghiệp</h3>
+              <div class="ref-price-row">
+                <strong class="ref-price-amount">499.000</strong>
+                <span class="ref-price-unit">₫ / tháng</span>
+              </div>
+              <p class="ref-price-desc">Giải pháp toàn diện kết nối đại lý, tính lương hoa hồng sale và kiểm soát kho nguyên vật liệu.</p>
+            </div>
+            <ul class="ref-price-features">
+              <li><i><i data-lucide="check"></i></i> <strong>Không giới hạn</strong> người dùng</li>
+              <li><i><i data-lucide="check"></i></i> Đa chi nhánh &amp; Đa kho hàng</li>
+              <li><i><i data-lucide="check"></i></i> Không giới hạn số lượng đơn hàng</li>
+              <li><i><i data-lucide="check"></i></i> Quản lý bao bì (Thùng, Lon, Hộp...)</li>
+              <li><i><i data-lucide="check"></i></i> Công thức sản xuất &amp; Định mức</li>
+              <li><i><i data-lucide="check"></i></i> Tự động tính KPI &amp; Hoa hồng Sale</li>
+            </ul>
+            <button type="button" class="ref-price-btn js-open-login">Bắt đầu quản lý ngay</button>
+          </article>
+
+          <article class="ref-price-card">
+            <div class="ref-price-header">
+              <small>TẬP ĐOÀN &amp; CHUỖI LỚN</small>
+              <h3>Doanh Nghiệp Lớn</h3>
+              <div class="ref-price-row">
+                <strong class="ref-price-amount">Liên hệ</strong>
+                <span class="ref-price-unit">tùy chỉnh</span>
+              </div>
+              <p class="ref-price-desc">May đo theo yêu cầu sản xuất đặc thù, tích hợp ERP, máy in nhiệt và Custom Domain riêng.</p>
+            </div>
+            <ul class="ref-price-features">
+              <li><i><i data-lucide="check"></i></i> Tên miền riêng (Custom domain)</li>
+              <li><i><i data-lucide="check"></i></i> Cơ sở dữ liệu Cloud chuyên biệt</li>
+              <li><i><i data-lucide="check"></i></i> Tích hợp cổng MoMo / Ngân hàng tự động</li>
+              <li><i><i data-lucide="check"></i></i> Hỗ trợ kỹ thuật Onsite 24/7 từ EMP Hoa Kỳ</li>
+            </ul>
+            <a href="tel:0325855222" class="ref-price-btn">Liên hệ tư vấn riêng</a>
+          </article>
+        </div>
+      </section>
+
+      <!-- CTA BANNER -->
+      <section class="ref-cta-banner" id="loi-ich">
+        <div class="ref-orb ref-orb-one"></div>
+        <div class="ref-orb ref-orb-two"></div>
+        <div class="ref-cta-content">
+          <span class="ref-cta-pill">SẴN SÀNG ĐỔI MỚI</span>
+          <h2>Sẵn sàng nâng cấp cách bạn vận hành doanh nghiệp?</h2>
+          <p>Quản lý bán hàng thông minh, vận hành nhẹ nhàng. Dùng thử miễn phí 14 ngày đầy đủ tính năng, không cần cài đặt phức tạp.</p>
+          <div class="ref-cta-actions">
+            <button type="button" class="btn-white js-open-login">Đăng ký dùng thử 14 ngày</button>
+            <a href="tel:0325855222" class="btn-outline">
+              <i data-lucide="phone"></i>
+              <span>Hotline hỗ trợ: 0325.855.222</span>
+            </a>
+          </div>
+          <small>* Sổ Việt của doanh nghiệp — Đồng hành cùng mạng lưới kinh doanh Việt Nam bền vững.</small>
+        </div>
       </section>
     </main>
 
-    <footer class="landing-footer" data-reveal="up">
-      <div class="landing-footer-main">
-        <div class="landing-footer-brand">
-          <img src="sovie-logo.png?v=20260815-sovie-v2" alt="SoVie">
-          <p>Quản lý bán hàng thông minh,<br>vận hành nhẹ nhàng.</p>
+    <!-- FOOTER -->
+    <footer class="ref-footer" id="khach-hang">
+      <div class="ref-footer-grid">
+        <div class="ref-footer-col-brand">
+          <div class="landing-footer-brand">
+            <img src="sovie-logo.png?v=20260815-sovie-v2" alt="SoVie">
+            <strong>SoVie</strong>
+          </div>
+          <div class="ref-footer-company">CÔNG TY CỔ PHẦN EMP HOA KỲ</div>
+          <p>Sổ Việt số hóa toàn diện quy trình vận hành, kế toán và bán hàng cho doanh nghiệp Việt Nam.</p>
+          <div class="ref-footer-contact">
+            <span><i data-lucide="phone"></i> Hotline: <strong>0325.855.222 · 0985.769.689</strong></span>
+            <span><i data-lucide="mail"></i> Email: <strong>contact@sovie.vn</strong></span>
+            <span><i data-lucide="globe"></i> Website: <strong>sovie.vn</strong></span>
+          </div>
         </div>
-        <div class="landing-footer-company">
-          <span class="landing-footer-label">Đơn vị quản lý</span>
-          <strong>CÔNG TY CỔ PHẦN EMP HOA KỲ</strong>
-          <p><i data-lucide="phone"></i> 0325.855.222 <span aria-hidden="true">·</span> 0985.769.689</p>
+
+        <div class="ref-footer-col">
+          <h4>Sản phẩm</h4>
+          <div class="ref-footer-links">
+            <a href="#tinh-nang">Quản lý Bán hàng</a>
+            <a href="#tinh-nang">Kho vận &amp; Hàng hóa</a>
+            <a href="#tinh-nang">Kế toán Doanh nghiệp</a>
+            <a href="#tinh-nang">Báo cáo Tài chính</a>
+            <a href="#bang-gia">Bảng giá chi tiết</a>
+          </div>
         </div>
-        <div class="landing-footer-meta">
-          <div><span class="landing-footer-label">Thương hiệu</span><strong>SoVie — Sổ Việt</strong></div>
-          <div><span class="landing-footer-label">Website</span><strong>sovie.vn</strong></div>
+
+        <div class="ref-footer-col">
+          <h4>Giải pháp</h4>
+          <div class="ref-footer-links">
+            <a href="#giai-phap">Doanh nghiệp Thương mại</a>
+            <a href="#giai-phap">Chuỗi Bán lẻ &amp; F&amp;B</a>
+            <a href="#giai-phap">Doanh nghiệp Sản xuất</a>
+            <a href="#giai-phap">Doanh nghiệp Dịch vụ</a>
+            <a href="#khach-hang">Câu chuyện thành công</a>
+          </div>
+        </div>
+
+        <div class="ref-footer-col">
+          <h4>Hỗ trợ &amp; Pháp lý</h4>
+          <div class="ref-footer-links">
+            <a href="#">Tài liệu hướng dẫn</a>
+            <a href="#">Cộng đồng hỗ trợ</a>
+            <a href="#">Điều khoản dịch vụ</a>
+            <a href="#">Chính sách bảo mật</a>
+            <a href="#">Quy chế bảo vệ dữ liệu</a>
+          </div>
         </div>
       </div>
-      <div class="landing-footer-bottom"><span>© 2026 SoVie. All rights reserved.</span><span>Một sản phẩm của EMP Hoa Kỳ</span></div>
+
+      <div class="ref-footer-bottom">
+        <span>© 2026 SoVie - Sổ Việt của doanh nghiệp. Một sản phẩm của EMP Hoa Kỳ.</span>
+        <span>Designed for Vietnamese Enterprises</span>
+      </div>
     </footer>
+    <script>
+      (function() {
+        const mockup = document.querySelector('.ref-mockup-card');
+        const wrapper = document.querySelector('.ref-mockup-wrapper');
+        if (wrapper && mockup && window.matchMedia('(pointer: fine)').matches) {
+          wrapper.addEventListener('mousemove', (e) => {
+            const rect = wrapper.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            const centerX = rect.width / 2;
+            const centerY = rect.height / 2;
+            const rotateX = ((y - centerY) / centerY) * -4;
+            const rotateY = ((x - centerX) / centerX) * 4;
+            mockup.style.transform = `rotateX(${rotateX}deg) rotateY(${rotateY}deg) translateY(-4px)`;
+          });
+          wrapper.addEventListener('mouseleave', () => {
+            mockup.style.transform = 'rotateX(0deg) rotateY(0deg) translateY(0px)';
+          });
+        }
+      })();
+    </script>
   </div>
 
   <div class="app-container auth-hidden" id="app-layout">
@@ -474,7 +942,7 @@
             <div class="modal-body platform-lifecycle-form-body">
               <div class="platform-lifecycle-customer" id="platform-lifecycle-customer-summary"></div>
               <div class="form-group" id="platform-lifecycle-plan-group" hidden><label for="platform-lifecycle-plan">Gói dịch vụ mới *</label><select class="form-control" id="platform-lifecycle-plan" name="planId"></select><small class="platform-field-status">Quota mới được áp dụng ngay sau khi xác nhận.</small></div>
-              <div class="form-group" id="platform-lifecycle-trial-group" hidden><label for="platform-lifecycle-trial-days">Số ngày gia hạn *</label><div class="platform-trial-input"><input class="form-control" id="platform-lifecycle-trial-days" name="trialDays" type="number" min="1" max="3650" value="7"><span>ngày</span></div><small class="platform-field-status">Cộng tiếp từ ngày hết hạn hiện tại, tối đa 3.650 ngày mỗi lần.</small></div>
+              <div class="form-group" id="platform-lifecycle-trial-group" hidden><label id="platform-lifecycle-trial-days-label" for="platform-lifecycle-trial-days">Số ngày gia hạn *</label><div class="platform-trial-input"><input class="form-control" id="platform-lifecycle-trial-days" name="trialDays" type="number" min="1" max="3650" value="7"><span>ngày</span></div><small class="platform-field-status" id="platform-lifecycle-trial-days-help">Cộng tiếp từ ngày hết hạn hiện tại, tối đa 3.650 ngày mỗi lần.</small></div>
               <div class="form-group" id="platform-lifecycle-reason-group"><label for="platform-lifecycle-reason">Lý do <span id="platform-lifecycle-reason-required"></span></label><textarea class="form-control" id="platform-lifecycle-reason" name="reason" rows="3" maxlength="500" placeholder="Ghi chú cho nhật ký quản trị..."></textarea></div>
               <div class="form-group platform-confirmation-group" id="platform-lifecycle-confirmation-group" hidden><label for="platform-lifecycle-confirmation">Nhập chính xác tên miền con để xác nhận *</label><input class="form-control" id="platform-lifecycle-confirmation" name="confirmationSlug" autocomplete="off"><small class="platform-field-status" id="platform-lifecycle-confirmation-help"></small></div>
               <div class="platform-lifecycle-warning" id="platform-lifecycle-warning"></div>

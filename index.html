@@ -68,7 +68,7 @@
           <span>0325.855.222</span>
         </a>
         <button type="button" class="landing-login-button js-open-login">Đăng nhập</button>
-        <button type="button" class="ref-trial js-open-login">Bắt đầu quản lý / Dùng thử miễn phí</button>
+        <button type="button" class="ref-trial js-open-login btn-shimmer">Bắt đầu quản lý / Dùng thử miễn phí</button>
         <span class="ref-user js-open-login" title="Tài khoản"><i data-lucide="user-round"></i></span>
       </div>
     </header>
@@ -96,7 +96,7 @@
           <h1>Quản lý bán hàng <span class="ref-text-highlight">gọn hơn<svg preserveAspectRatio="none" viewBox="0 0 100 8"><path d="M0 7 C 20 7, 40 1, 100 1 Z"></path></svg></span> mỗi ngày.</h1>
           <p class="ref-subtitle">Sở hữu trọn bộ công cụ quản lý tồn kho, đơn hàng, khách hàng và công nợ trên một hệ thống duy nhất — trực quan, chính xác và dễ sử dụng.</p>
           <div class="ref-hero-actions">
-            <button type="button" class="ref-btn-primary js-open-login">
+            <button type="button" class="ref-btn-primary js-open-login btn-shimmer">
               Bắt đầu quản lý ngay <i data-lucide="arrow-right"></i>
             </button>
             <a href="#demo-section" class="ref-btn-secondary">
@@ -568,7 +568,7 @@
           <h2>Sẵn sàng nâng cấp cách bạn vận hành doanh nghiệp?</h2>
           <p>Quản lý bán hàng thông minh, vận hành nhẹ nhàng. Dùng thử miễn phí 14 ngày đầy đủ tính năng, không cần cài đặt phức tạp.</p>
           <div class="ref-cta-actions">
-            <button type="button" class="btn-white js-open-login">Đăng ký dùng thử 14 ngày</button>
+            <button type="button" class="btn-white js-open-login btn-shimmer">Đăng ký dùng thử 14 ngày</button>
             <a href="tel:0325855222" class="btn-outline">
               <i data-lucide="phone"></i>
               <span>Hotline hỗ trợ: 0325.855.222</span>
@@ -837,16 +837,20 @@
 
     <!-- Main Content Area -->
     <main class="main-content">
-      <!-- Top Header -->
+      <!-- Top Header (Unified Stitch 3D Subheader) -->
       <header class="top-header">
         <div class="page-heading-block">
-          <div class="page-heading-row">
-            <h1 class="page-title" id="page-title-heading">Tổng quan hệ thống</h1>
-            <span class="header-role-chip" id="header-role-chip"><i data-lucide="shield-check"></i><span>Quản lý</span></span>
-          </div>
-          <div class="page-context-row">
-            <p style="color: var(--text-secondary); font-size: 0.85rem; margin: 0; display: inline-flex; align-items: center; gap: 0.35rem;"><i data-lucide="calendar" style="width: 14px; height: 14px; color: var(--color-primary);"></i> Hôm nay: <span id="current-date-lbl">23/06/2026</span></p>
-            <span class="db-status-badge status-local" id="db-status-badge">Cục bộ (LocalStorage)</span>
+          <div class="page-header-accent-indicator" aria-hidden="true"></div>
+          <div class="page-header-text-group">
+            <div class="page-heading-row">
+              <h1 class="page-title" id="page-title-heading">Tổng quan hệ thống</h1>
+              <span class="header-role-chip" id="header-role-chip"><i data-lucide="shield-check"></i><span>Quản lý</span></span>
+            </div>
+            <div class="page-context-row">
+              <span class="page-date-item"><i data-lucide="calendar"></i> Hôm nay: <strong id="current-date-lbl">23/06/2026</strong></span>
+              <span class="page-meta-divider">•</span>
+              <span class="db-status-badge status-local" id="db-status-badge"><span class="status-ping-dot"></span> Cục bộ (LocalStorage)</span>
+            </div>
           </div>
         </div>
       </header>
@@ -1132,42 +1136,46 @@
 
         <!-- Widgets Grid -->
         <div class="widgets-grid" style="position: relative; z-index: 1;">
-          <div class="widget-card">
+          <div class="widget-card card-hover-3d">
             <div class="widget-info">
               <span class="widget-label" id="stat-revenue-label">Doanh thu tích lũy</span>
               <span class="widget-value" id="stat-total-revenue">0 ₫</span>
+              <span class="widget-trend trend-up"><i data-lucide="trending-up"></i> +18.4% so với tháng trước</span>
             </div>
-            <div class="widget-icon-wrapper widget-icon-emerald">
+            <div class="widget-icon-wrapper widget-icon-blue-indigo">
               <i data-lucide="banknote"></i>
             </div>
           </div>
 
-          <div class="widget-card">
+          <div class="widget-card card-hover-3d">
             <div class="widget-info">
               <span class="widget-label">Tổng số đơn hàng</span>
               <span class="widget-value" id="stat-total-orders">0</span>
+              <span class="widget-trend trend-up"><i data-lucide="trending-up"></i> +12.6% tăng đều</span>
             </div>
-            <div class="widget-icon-wrapper widget-icon-indigo">
+            <div class="widget-icon-wrapper widget-icon-emerald-teal">
               <i data-lucide="shopping-cart"></i>
             </div>
           </div>
 
-          <div class="widget-card">
+          <div class="widget-card card-hover-3d">
             <div class="widget-info">
               <span class="widget-label">Tổng công nợ</span>
               <span class="widget-value" id="stat-total-debt">0 ₫</span>
+              <span class="widget-trend trend-warning"><span class="trend-dot"></span> Cần theo dõi công nợ</span>
             </div>
-            <div class="widget-icon-wrapper widget-icon-danger">
+            <div class="widget-icon-wrapper widget-icon-purple-indigo">
               <i data-lucide="credit-card"></i>
             </div>
           </div>
 
-          <div class="widget-card">
+          <div class="widget-card card-hover-3d">
             <div class="widget-info">
               <span class="widget-label" id="stat-sold-products-label">Sản phẩm đã bán</span>
               <span class="widget-value" id="stat-total-sold-products">0</span>
+              <span class="widget-trend trend-up"><i data-lucide="trending-up"></i> +9.8% đạt mục tiêu</span>
             </div>
-            <div class="widget-icon-wrapper widget-icon-primary" style="background: rgba(16, 185, 129, 0.15); color: var(--color-primary);">
+            <div class="widget-icon-wrapper widget-icon-amber-orange">
               <i data-lucide="package"></i>
             </div>
           </div>
@@ -1808,6 +1816,17 @@
                     </tr>
                   </tbody>
                 </table>
+                <div class="invoice-table-summary-bar">
+                  <div class="invoice-table-summary-left">
+                    <i data-lucide="info"></i>
+                    <span id="invoice-table-summary-text">Đang có <strong>0</strong> loại sản phẩm trong đơn (<strong>0</strong> kiện / đơn vị đóng gói)</span>
+                  </div>
+                  <div class="invoice-table-summary-right">
+                    <button type="button" class="btn-invoice-clear-all" id="btn-clear-all-invoice-items">
+                      <i data-lucide="eraser"></i> Xóa tất cả dòng
+                    </button>
+                  </div>
+                </div>
               </div>
 
             </div>
@@ -1841,11 +1860,11 @@
                 
                 <div class="summary-row">
                   <span class="label">Tổng giá thị trường:</span>
-                  <span class="value" id="summary-market-total">0 ₫</span>
+                  <span class="value value-market-strikethrough" id="summary-market-total">0 ₫</span>
                 </div>
 
                 <div class="summary-row">
-                  <span class="label">Tổng tiền chiết khấu:</span>
+                  <span class="label">Tổng tiền chiết khấu đại lý:</span>
                   <span class="value summary-val-danger" id="summary-discount-total">-0 ₫</span>
                 </div>
 
@@ -1885,7 +1904,8 @@
               </div>
 
               <div class="saving-badge" id="summary-saving-badge" style="display: none;">
-                Tiết kiệm được 0%
+                <i data-lucide="piggy-bank"></i>
+                <span id="summary-saving-text">Tiết kiệm được 0%</span>
               </div>
 
               <!-- Tổng thanh toán Highlight Box -->
@@ -1903,14 +1923,20 @@
                   Bảng giá này chỉ dùng để in và chưa được Kế toán cho phép lưu. Đơn này không thể lưu hoặc phát sinh công nợ.
                 </div>
                 <button class="btn btn-invoice-pay" id="btn-save-order">
-                  <i data-lucide="credit-card"></i> Thanh toán
+                  <i data-lucide="check-check"></i> Thanh toán &amp; Xuất kho
                 </button>
                 <button class="btn btn-invoice-draft" id="btn-draft-order">
-                  <i data-lucide="file-text"></i> Lưu đơn nháp
+                  <i data-lucide="save"></i> Lưu đơn nháp (F8)
                 </button>
                 <button class="btn btn-invoice-print" id="btn-print-order">
-                  <i data-lucide="printer"></i> In đơn
+                  <i data-lucide="printer"></i> In đơn hàng (Ctrl + P)
                 </button>
+              </div>
+
+              <!-- Shortcut Helper -->
+              <div class="invoice-helper-shortcuts">
+                <span>Phím tắt: F2: Tìm SP | F9: Khách hàng</span>
+                <span class="invoice-shortcut-guide"><i data-lucide="keyboard"></i> Hướng dẫn</span>
               </div>
 
             </div>

@@ -232,6 +232,22 @@ export function switchTab(panelId) {
   else if (panelId === 'goods-panel') heading.innerText = 'Phiếu mua hàng';
   else if (panelId === 'reports-panel') heading.innerText = 'Báo cáo nghiệp vụ';
   else if (panelId === 'activity-log-panel') heading.innerText = 'Lịch sử hoạt động';
+
+  const todayStr = new Date().toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  const dashDate = document.getElementById('dashboard-live-date');
+  if (dashDate) dashDate.textContent = todayStr;
+  const invDate = document.getElementById('invoice-live-date');
+  if (invDate) invDate.textContent = todayStr;
+
+  const roleLabel = state.currentUser?.organizationRole === 'owner' ? 'Chủ sở hữu'
+    : state.currentUser?.organizationRole === 'admin' || state.currentUser?.role === 'admin' ? 'Quản lý'
+    : state.currentUser?.role === 'accounting' ? 'Kế toán'
+    : state.currentUser?.role === 'sale' ? 'Kinh doanh'
+    : 'Nhân viên';
+  const dashRole = document.getElementById('dashboard-user-role-badge');
+  if (dashRole) dashRole.textContent = roleLabel;
+  const invRole = document.getElementById('invoice-user-role-badge');
+  if (invRole) invRole.textContent = roleLabel;
   
   // Tự động làm mới dữ liệu và thống kê trên tất cả các tab khi chuyển đổi
   const waitForCloud = panelNeedsCloudData(panelId);

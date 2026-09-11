@@ -102,7 +102,7 @@ class CountUpController {
         this.animate(entry.target);
         this.observer?.unobserve(entry.target);
       });
-    }, { threshold: 0.5 });
+    }, { threshold: 0.15 });
 
     elements.forEach(element => this.observer.observe(element));
   }
@@ -117,7 +117,7 @@ class CountUpController {
 class HeaderController {
   constructor(root) {
     this.root = root;
-    this.header = root.querySelector('[data-motion-header]');
+    this.header = root.querySelector('[data-motion-header], .ref-header');
     this.sentinel = null;
     this.observer = null;
   }
@@ -142,6 +142,170 @@ class HeaderController {
   }
 }
 
+class MockupTiltController {
+  constructor(root, reducedMotion) {
+    this.root = root;
+    this.reducedMotion = reducedMotion;
+    this.wrapper = root.querySelector('.ref-mockup-wrapper');
+    this.mockup = root.querySelector('.ref-mockup-card');
+
+    this.maxTilt = 7;
+    this.maxTranslateY = -6;
+    this.maxScale = 1.012;
+    this.lerpFactor = 0.1;
+
+    this.targetRotateX = 0;
+    this.targetRotateY = 0;
+    this.targetTranslateY = 0;
+    this.targetScale = 1;
+
+    this.currentRotateX = 0;
+    this.currentRotateY = 0;
+    this.currentTranslateY = 0;
+    this.currentScale = 1;
+
+    this.rafId = null;
+    this.isHovering = false;
+
+    this.handleEnter = null;
+    this.handleMove = null;
+    this.handleLeave = null;
+    this.tick = this.tick.bind(this);
+  }
+
+  init() {
+    if (!this.wrapper || !this.mockup) return;
+    if (window.innerWidth <= 768) return;
+
+    this.handleEnter = () => {
+      this.isHovering = true;
+      this.mockup.classList.add('is-tilting');
+      if (this.rafId === null) {
+        this.rafId = requestAnimationFrame(this.tick);
+      }
+    };
+
+    this.handleMove = (e) => {
+      if (e.pointerType === 'touch') return;
+
+      const rect = this.wrapper.getBoundingClientRect();
+      if (!rect.width || !rect.height) return;
+
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+
+      const normX = Math.max(-1, Math.min(1, (x / rect.width) * 2 - 1));
+      const normY = Math.max(-1, Math.min(1, (y / rect.height) * 2 - 1));
+
+      this.targetRotateX = -normY * this.maxTilt;
+      this.targetRotateY = normX * this.maxTilt;
+      this.targetTranslateY = this.maxTranslateY;
+      this.targetScale = this.maxScale;
+
+      if (!this.isHovering) {
+        this.isHovering = true;
+        this.mockup.classList.add('is-tilting');
+      }
+
+      if (this.rafId === null) {
+        this.rafId = requestAnimationFrame(this.tick);
+      }
+    };
+
+    this.handleLeave = () => {
+      this.isHovering = false;
+      this.mockup.classList.remove('is-tilting');
+
+      this.targetRotateX = 0;
+      this.targetRotateY = 0;
+      this.targetTranslateY = 0;
+      this.targetScale = 1;
+
+      if (this.rafId === null) {
+        this.rafId = requestAnimationFrame(this.tick);
+      }
+    };
+
+    this.wrapper.addEventListener('mouseenter', this.handleEnter);
+    this.wrapper.addEventListener('mousemove', this.handleMove);
+    this.wrapper.addEventListener('mouseleave', this.handleLeave);
+  }
+
+  tick() {
+    this.currentRotateX += (this.targetRotateX - this.currentRotateX) * this.lerpFactor;
+    this.currentRotateY += (this.targetRotateY - this.currentRotateY) * this.lerpFactor;
+    this.currentTranslateY += (this.targetTranslateY - this.currentTranslateY) * this.lerpFactor;
+    this.currentScale += (this.targetScale - this.currentScale) * this.lerpFactor;
+
+    this.mockup.style.transform = `perspective(1200px) rotateX(${this.currentRotateX.toFixed(2)}deg) rotateY(${this.currentRotateY.toFixed(2)}deg) translateY(${this.currentTranslateY.toFixed(2)}px) scale3d(${this.currentScale.toFixed(4)}, ${this.currentScale.toFixed(4)}, 1)`;
+
+    if (!this.isHovering) {
+      const remainingDelta = Math.abs(this.targetRotateX - this.currentRotateX)
+        + Math.abs(this.targetRotateY - this.currentRotateY)
+        + Math.abs(this.targetTranslateY - this.currentTranslateY)
+        + Math.abs(this.targetScale - this.currentScale);
+
+      if (remainingDelta < 0.005) {
+        this.currentRotateX = 0;
+        this.currentRotateY = 0;
+        this.currentTranslateY = 0;
+        this.currentScale = 1;
+        this.mockup.style.transform = 'perspective(1200px) rotateX(0deg) rotateY(0deg) translateY(0px) scale3d(1, 1, 1)';
+        this.rafId = null;
+        return;
+      }
+    }
+
+    this.rafId = requestAnimationFrame(this.tick);
+  }
+
+  destroy() {
+    if (this.wrapper) {
+      if (this.handleEnter) this.wrapper.removeEventListener('mouseenter', this.handleEnter);
+      if (this.handleMove) this.wrapper.removeEventListener('mousemove', this.handleMove);
+      if (this.handleLeave) this.wrapper.removeEventListener('mouseleave', this.handleLeave);
+    }
+    if (this.mockup) {
+      this.mockup.classList.remove('is-tilting');
+      this.mockup.style.transform = '';
+    }
+    if (this.rafId !== null) {
+      cancelAnimationFrame(this.rafId);
+      this.rafId = null;
+    }
+    this.isHovering = false;
+  }
+}
+
+class ProgressController {
+  constructor(root, reducedMotion) {
+    this.root = root;
+    this.reducedMotion = reducedMotion;
+    this.observer = null;
+  }
+
+  init() {
+    const bars = [...this.root.querySelectorAll('.ref-progress-fill')];
+    if (!bars.length) return;
+    if (this.reducedMotion || !('IntersectionObserver' in window)) return;
+
+    this.observer = new IntersectionObserver(entries => {
+      entries.forEach(entry => {
+        if (!entry.isIntersecting) return;
+        entry.target.classList.add('is-animated');
+        this.observer?.unobserve(entry.target);
+      });
+    }, { threshold: 0.3 });
+
+    bars.forEach(bar => this.observer.observe(bar));
+  }
+
+  destroy() {
+    this.observer?.disconnect();
+    this.observer = null;
+  }
+}
+
 function initLandingMotion() {
   const root = document.getElementById('landing-page');
   if (!root) return () => {};
@@ -151,12 +315,16 @@ function initLandingMotion() {
   const revealController = new RevealController(root, reducedMotion);
   const countController = new CountUpController(root, reducedMotion);
   const headerController = new HeaderController(root);
+  const tiltController = new MockupTiltController(root, reducedMotion);
+  const progressController = new ProgressController(root, reducedMotion);
 
   root.classList.add('motion-ready');
   if (reducedMotion) root.classList.add('motion-reduced');
   revealController.init();
   countController.init();
   headerController.init();
+  tiltController.init();
+  progressController.init();
 
   requestAnimationFrame(() => {
     requestAnimationFrame(() => root.classList.add('motion-enter'));
@@ -166,6 +334,8 @@ function initLandingMotion() {
     revealController.destroy();
     countController.destroy();
     headerController.destroy();
+    tiltController.destroy();
+    progressController.destroy();
   };
 }
 

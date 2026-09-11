@@ -1,9 +1,9 @@
 import { state } from '../state.js';
 import { formatCurrency, safeCreateIcons, isSameUser, getUserCompanyId, getCompanyNameById, getCompanyIdByBrand, getCanonicalBrandName, normalizeCompanyId, getNormalizedBrandName, removeVietnameseTones, showToast, getUserDisplayName } from '../utils.js';
-import { switchTab } from '../main.js?v=20260831-provisioning-v2';
-import { openProductModal } from './products.js?v=20260831-provisioning-v2';
+import { switchTab } from '../main.js?v=20260909-inline-filter-v4';
+import { openProductModal } from './products.js?v=20260909-inline-filter-v4';
 import { tenantStorage } from '../services/tenant-storage.js';
-import { dbFetchPhase5Dashboard } from '../services/supabase.js?v=20260831-provisioning-v2';
+import { dbFetchPhase5Dashboard } from '../services/supabase.js?v=20260909-inline-filter-v4';
 import { buildDashboardChartSeries } from '../domain/dashboard-series.js';
 import { filterLoginEmployeeRevenueRows } from '../domain/dashboard-employees.js';
 
@@ -15,12 +15,12 @@ let dashboardStatsCache = { key: '', payload: null, cachedAt: 0 };
 const DASHBOARD_STATS_CACHE_MS = 10_000;
 const DASHBOARD_COMPANY_SCOPE_VERSION = 'finance-all-companies-v1';
 const dashboardBreakdownCharts = new Map();
-const DASHBOARD_CHART_COLORS = ['#2563eb', '#0f766e', '#6d28d9', '#b45309', '#0891b2', '#4f46e5', '#65a30d', '#dc2626'];
+const DASHBOARD_CHART_COLORS = ['#0057cd', '#006e08', '#bf0014', '#006eff', '#05e61f', '#ffb4ab', '#00419d', '#ba1a1a'];
 const DASHBOARD_CHART_FONT = "'Inter', system-ui, sans-serif";
-const DASHBOARD_CHART_GRID = '#edf1f5';
-const DASHBOARD_CHART_TEXT = '#667085';
+const DASHBOARD_CHART_GRID = '#e2e2e2';
+const DASHBOARD_CHART_TEXT = '#3e484e';
 const DASHBOARD_CHART_TOOLTIP = Object.freeze({
-  backgroundColor: '#172033',
+  backgroundColor: '#1a1c1c',
   titleColor: '#ffffff',
   bodyColor: '#f8fafc',
   borderColor: 'rgba(255,255,255,.12)',
@@ -76,17 +76,6 @@ function canViewAllDashboardCompanies(user = state.currentUser) {
 
 function dashboardCompanyScopeActor(user = state.currentUser) {
   return String(user?.authUserId || user?.auth_user_id || user?.id || user?.username || '');
-}
-
-function getRevenueChartAnimation() {
-  if (globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return false;
-  return {
-    duration: 900,
-    easing: 'easeOutQuart',
-    delay: context => context.type === 'data' && context.mode === 'default'
-      ? Math.min(context.dataIndex * 35, 420)
-      : 0
-  };
 }
 
 const VN_TIMEZONE = 'Asia/Ho_Chi_Minh';
@@ -526,21 +515,14 @@ export function renderRevenueChart(orders) {
     });
   }
 
-  const gradient = ctx.createLinearGradient(0, 0, 0, 280);
-  gradient.addColorStop(0, 'rgba(37, 99, 235, 0.18)');
-  gradient.addColorStop(1, 'rgba(37, 99, 235, 0.01)');
-
   revenueChartInstance = new Chart(ctx, {
     type: 'line',
-    data: { labels, datasets: [{ label: 'Doanh thu', data: dataPoints, borderColor: '#2563eb', borderWidth: 2.5, pointBackgroundColor: '#ffffff', pointBorderColor: '#2563eb', pointBorderWidth: 2, pointRadius: 2.5, pointHoverRadius: 5, tension: 0.34, fill: true, backgroundColor: gradient }] },
+    data: { labels, datasets: [{ label: 'Doanh thu', data: dataPoints, borderColor: '#0057cd', borderWidth: 2.5, pointBackgroundColor: '#ffffff', pointBorderColor: '#0057cd', pointBorderWidth: 2, pointRadius: 2.5, pointHoverRadius: 4, tension: 0, fill: true, backgroundColor: 'rgba(177, 197, 255, 0.28)' }] },
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      animation: getRevenueChartAnimation(),
-      transitions: {
-        active: { animation: { duration: 180 } },
-        resize: { animation: { duration: 250 } }
-      },
+      animation: false,
+      transitions: { active: { animation: { duration: 0 } }, resize: { animation: { duration: 0 } } },
       interaction: { intersect: false, mode: 'index' },
       plugins: { legend: { display: false }, tooltip: { ...DASHBOARD_CHART_TOOLTIP, displayColors: false, callbacks: { label: context => `Doanh thu: ${formatCurrency(context.raw)}` } } },
       scales: {
@@ -652,7 +634,7 @@ function renderDashboardBreakdownChart({
         borderWidth: isDoughnut ? 3 : 0,
         borderRadius: isDoughnut ? 0 : 5,
         borderSkipped: false,
-        hoverOffset: isDoughnut ? 6 : 0,
+        hoverOffset: 0,
         maxBarThickness: 24
       }]
     },
@@ -681,7 +663,7 @@ function renderDashboardBreakdownChart({
           ticks: { color: '#344054', autoSkip: false, padding: 7, font: { family: DASHBOARD_CHART_FONT, size: 10, weight: '500' }, callback: (_value, index) => labels[index]?.length > 24 ? `${labels[index].slice(0, 23)}…` : labels[index] }
         }
       },
-      animation: { duration: 360 }
+      animation: false
     }
   });
   dashboardBreakdownCharts.set(key, chart);
@@ -702,20 +684,14 @@ function renderServerRevenueChart(payload) {
   }
 
   const chartContext = chartCanvas.getContext('2d');
-  const chartGradient = chartContext.createLinearGradient(0, 0, 0, 280);
-  chartGradient.addColorStop(0, 'rgba(37, 99, 235, .18)');
-  chartGradient.addColorStop(1, 'rgba(37, 99, 235, .01)');
   revenueChartInstance = new Chart(chartContext, {
     type: 'line',
-    data: { labels: chartSeries.labels, datasets: [{ label: salesModeLabel, data: chartSeries.dataPoints, borderColor: '#2563eb', backgroundColor: chartGradient, borderWidth: 2.5, pointBackgroundColor: '#ffffff', pointBorderColor: '#2563eb', pointBorderWidth: 2, pointRadius: 2.5, pointHoverRadius: 5, tension: .34, fill: true }] },
+    data: { labels: chartSeries.labels, datasets: [{ label: salesModeLabel, data: chartSeries.dataPoints, borderColor: '#0057cd', backgroundColor: 'rgba(177, 197, 255, 0.28)', borderWidth: 2.5, pointBackgroundColor: '#ffffff', pointBorderColor: '#0057cd', pointBorderWidth: 2, pointRadius: 2.5, pointHoverRadius: 4, tension: 0, fill: true }] },
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      animation: getRevenueChartAnimation(),
-      transitions: {
-        active: { animation: { duration: 180 } },
-        resize: { animation: { duration: 250 } }
-      },
+      animation: false,
+      transitions: { active: { animation: { duration: 0 } }, resize: { animation: { duration: 0 } } },
       interaction: { intersect: false, mode: 'index' },
       plugins: { legend: { display: false }, tooltip: { ...DASHBOARD_CHART_TOOLTIP, displayColors: false, callbacks: { label: context => `${salesModeLabel}: ${formatCurrency(context.raw)}` } } },
       scales: {
@@ -756,6 +732,12 @@ async function updateRevenueChartForView(view, prefetchedPayload = null) {
 function renderServerDashboard(payload) {
   const summary = payload?.summary || {};
   const setText = (id, value) => { const element = document.getElementById(id); if (element) element.innerText = value; };
+  const setKpiContext = (id, value, tone = 'neutral') => {
+    const element = document.getElementById(id);
+    if (!element) return;
+    element.className = `widget-trend trend-${tone}`;
+    element.innerText = value;
+  };
   const periodLabel = state.dashboardFilter.timeRange === 'custom'
     ? '(Tùy chỉnh)'
     : state.dashboardFilter.timeRange === 'day'
@@ -772,6 +754,13 @@ function renderServerDashboard(payload) {
   setText('stat-total-orders', summary.order_count || 0);
   setText('stat-total-debt', formatCurrency(summary.current_debt));
   setText('stat-total-sold-products', summary.sold_quantity || 0);
+  const orderCount = Number(summary.order_count || 0);
+  const soldQuantity = Number(summary.sold_quantity || 0);
+  const currentDebt = Number(summary.current_debt || 0);
+  setKpiContext('stat-revenue-context', orderCount ? `Doanh số theo ${periodLabel.slice(1, -1).toLowerCase()}` : 'Chưa có đơn hàng trong kỳ');
+  setKpiContext('stat-orders-context', orderCount ? `${orderCount} đơn hợp lệ trong kỳ` : 'Chưa phát sinh đơn hàng');
+  setKpiContext('stat-debt-context', currentDebt > 0 ? 'Cần theo dõi công nợ hiện tại' : 'Không có công nợ cần thu', currentDebt > 0 ? 'warning' : 'up');
+  setKpiContext('stat-products-context', soldQuantity ? `${soldQuantity} sản phẩm đã bán trong kỳ` : 'Chưa có sản phẩm bán');
   renderDashboardBreakdownChart({ key: 'company', canvasId: 'company-revenue-chart', emptyId: 'company-revenue-chart-empty', metaId: 'company-revenue-chart-meta', rows: payload.by_company, labelResolver: companyId => getCompanyNameById(companyId, state.companies), type: 'doughnut', limit: 6, metaLabel: 'công ty' });
   renderDashboardBreakdownChart({ key: 'brand', canvasId: 'brand-revenue-chart', emptyId: 'brand-revenue-chart-empty', metaId: 'brand-revenue-chart-meta', rows: payload.by_brand, labelResolver: brandId => (state.brands || []).find(brand => String(brand.id) === String(brandId))?.name || brandId, limit: 8, metaLabel: 'thương hiệu' });
   renderDashboardBreakdownChart({ key: 'salesperson', canvasId: 'salesperson-revenue-chart', emptyId: 'salesperson-revenue-chart-empty', metaId: 'salesperson-revenue-chart-meta', rows: filterLoginEmployeeRevenueRows(payload.by_salesperson, state.users), labelResolver: userId => getUserDisplayName(userId, 'Chưa phân công', state.users), limit: 8, metaLabel: 'nhân viên' });
@@ -907,6 +896,17 @@ function updateDashboardStatsLegacy() {
   
   const soldEl = document.getElementById('stat-total-sold-products');
   if (soldEl) soldEl.innerText = totalSoldProducts;
+
+  const setKpiContext = (id, value, tone = 'neutral') => {
+    const element = document.getElementById(id);
+    if (!element) return;
+    element.className = `widget-trend trend-${tone}`;
+    element.innerText = value;
+  };
+  setKpiContext('stat-revenue-context', totalOrdersCount ? `Doanh số theo ${labelSuffix.slice(1, -1).toLowerCase()}` : 'Chưa có đơn hàng trong kỳ');
+  setKpiContext('stat-orders-context', totalOrdersCount ? `${totalOrdersCount} đơn hợp lệ trong kỳ` : 'Chưa phát sinh đơn hàng');
+  setKpiContext('stat-debt-context', totalDebt > 0 ? 'Cần theo dõi công nợ hiện tại' : 'Không có công nợ cần thu', totalDebt > 0 ? 'warning' : 'up');
+  setKpiContext('stat-products-context', totalSoldProducts ? `${totalSoldProducts} sản phẩm đã bán trong kỳ` : 'Chưa có sản phẩm bán');
 
   renderDashboardBreakdownChart({
     key: 'company', canvasId: 'company-revenue-chart', emptyId: 'company-revenue-chart-empty', metaId: 'company-revenue-chart-meta',
@@ -1205,12 +1205,9 @@ export function updateDashboardFilterSummary() {
   }
 
   if (extraLabel) {
-    if (extras.length > 0) {
-      extraLabel.textContent = `+ ${extras.join(', ')}`;
-      extraLabel.style.display = 'inline-flex';
-    } else {
-      extraLabel.style.display = 'none';
-    }
+    const hasExtras = extras.length > 0;
+    extraLabel.textContent = hasExtras ? `+ ${extras.join(', ')}` : '';
+    extraLabel.hidden = !hasExtras;
   }
 }
 

@@ -2,15 +2,15 @@ import { state } from '../state.js';
 import { COMPANY_SUPABASE_URL, COMPANY_SUPABASE_KEY, assertSaasStagingConnection, defaultProducts } from '../config.js';
 import { showToast, updateDbStatusUI, isSameUser, getRevenueAttributes, getBrandById } from '../utils.js';
 import { rawMaterialsSeed } from '../components/goods_seed.js';
-import { normalizePriceListType, filterPriceListsForUser, canUserViewPriceList, canUserUsePriceListForCustomer } from '../domain/pricing.js?v=20260831-provisioning-v2';
-import { isPrintOnlyPriceList } from '../domain/invoice-discount.js?v=20260831-provisioning-v2';
+import { normalizePriceListType, filterPriceListsForUser, canUserViewPriceList, canUserUsePriceListForCustomer } from '../domain/pricing.js?v=20260909-inline-filter-v4';
+import { isPrintOnlyPriceList } from '../domain/invoice-discount.js?v=20260909-inline-filter-v4';
 import { collectAllPages } from '../domain/pagination.js';
-import { getCustomerDebtPostingDate, mergeCustomerDebtHistory } from '../domain/customer-debt.js?v=20260831-provisioning-v2';
-import { loadAuthorizedPricingCache, saveAuthorizedPricingCache } from './pricing-cache.js?v=20260831-provisioning-v2';
+import { getCustomerDebtPostingDate, mergeCustomerDebtHistory } from '../domain/customer-debt.js?v=20260909-inline-filter-v4';
+import { loadAuthorizedPricingCache, saveAuthorizedPricingCache } from './pricing-cache.js?v=20260909-inline-filter-v4';
 import { resolveActiveSaasContext } from '../domain/saas-context.js';
 import { resolveBusinessCapabilities } from '../domain/business-capabilities.js';
 import { resolveCatalogContext } from '../domain/generic-catalog.js';
-import { normalizeIndustryKey, normalizePlatformCustomerPayload } from '../domain/tenant-provisioning.js?v=20260831-provisioning-v2';
+import { normalizeIndustryKey, normalizePlatformCustomerPayload } from '../domain/tenant-provisioning.js?v=20260909-inline-filter-v4';
 import {
   isEffectiveOrderHistoryRow,
   isOrderInHistoryWindow,

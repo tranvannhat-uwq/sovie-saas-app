@@ -1,11 +1,13 @@
 export const NAV_COLOR_STORAGE_KEY = 'sovie_nav_color';
 export const LEGACY_NAV_COLOR_STORAGE_KEY = 'vieone_nav_color';
-export const NAV_LAYOUT_STORAGE_KEY = 'sovie_nav_layout';
-export const DEFAULT_NAV_COLOR = '#0b365f';
-export const DEFAULT_NAV_LAYOUT = 'vertical';
+// A new key lets the Stitch-inspired horizontal shell take effect once, while
+// keeping a user's next layout choice persistent as before.
+export const NAV_LAYOUT_STORAGE_KEY = 'sovie_nav_layout_v2';
+export const DEFAULT_NAV_COLOR = '#0057cd';
+export const DEFAULT_NAV_LAYOUT = 'horizontal';
 
 export function normalizeNavigationLayout(value) {
-  return value === 'horizontal' ? 'horizontal' : DEFAULT_NAV_LAYOUT;
+  return value === 'horizontal' || value === 'vertical' ? value : DEFAULT_NAV_LAYOUT;
 }
 
 export function normalizeNavigationColor(value, fallback = DEFAULT_NAV_COLOR) {

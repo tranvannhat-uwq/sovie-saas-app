@@ -28,10 +28,10 @@
   </script>
   <title>SoVie | Quản lý bán hàng thông minh, vận hành nhẹ nhàng</title>
   <link rel="icon" type="image/png" href="sovie-favicon.png?v=20260815-sovie-icon-v1">
-  <!-- Typography: one consistent Inter family across marketing and product UI -->
+  <!-- Luminous Engine typography: Space Grotesk for display data, Inter for product UI -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
   <!-- Lucide Icons via CDN -->
   <script src="https://unpkg.com/lucide@latest"></script>
   <!-- SheetJS CDN -->
@@ -43,9 +43,11 @@
   <!-- Style CSS -->
   <link rel="stylesheet" href="style.css?v=20260901-quick-customer-modal-v7">
   <link rel="stylesheet" href="landing.css?v=20260817-saas-platform-v1">
-  <link rel="stylesheet" href="ui-system.css?v=20260901-quick-customer-modal-v7">
+  <link rel="stylesheet" href="ui-system.css?v=20260910-dashboard-summary-hidden-v7">
+  <link rel="stylesheet" href="navigation-reference.css?v=20260908-bright-sovie-v3">
   <link rel="stylesheet" href="landing-premium.css?v=20260829-auth-flow-v1">
-  <link rel="stylesheet" href="landing-reference.css?v=20260907-reference-v1">
+  <link rel="stylesheet" href="landing-reference.css?v=20260911-3d-tilt-v6">
+  <link rel="stylesheet" href="luminous-engine.css?v=20260910-luminous-engine-v11-submenu-specificity">
 </head>
 <body>
 
@@ -53,7 +55,6 @@
     <header class="ref-header" id="main-header" data-motion-header>
       <a class="landing-brand" href="#top" aria-label="SoVie - Trang chủ">
         <img src="sovie-logo.png?v=20260815-sovie-v2" alt="SoVie">
-        <strong>SoVie</strong>
       </a>
       <nav class="ref-nav" aria-label="Điều hướng trang giới thiệu">
         <a href="#tinh-nang">Tính năng</a>
@@ -68,7 +69,10 @@
           <span>0325.855.222</span>
         </a>
         <button type="button" class="landing-login-button js-open-login">Đăng nhập</button>
-        <button type="button" class="ref-trial js-open-login btn-shimmer">Bắt đầu quản lý / Dùng thử miễn phí</button>
+        <button type="button" class="ref-trial js-open-login btn-shimmer">
+          <span class="ref-trial-full">Bắt đầu quản lý / Dùng thử miễn phí</span>
+          <span class="ref-trial-short">Dùng thử ngay</span>
+        </button>
         <span class="ref-user js-open-login" title="Tài khoản"><i data-lucide="user-round"></i></span>
       </div>
     </header>
@@ -92,10 +96,13 @@
         <div class="ref-orbit-ring ref-orbit-2"></div>
 
         <div class="ref-hero-copy">
-          <div class="ref-pill"><b></b>NỀN TẢNG QUẢN LÝ BÁN HÀNG THẾ HỆ MỚI CHO DOANH NGHIỆP VIỆT</div>
-          <h1>Quản lý bán hàng <span class="ref-text-highlight">gọn hơn<svg preserveAspectRatio="none" viewBox="0 0 100 8"><path d="M0 7 C 20 7, 40 1, 100 1 Z"></path></svg></span> mỗi ngày.</h1>
-          <p class="ref-subtitle">Sở hữu trọn bộ công cụ quản lý tồn kho, đơn hàng, khách hàng và công nợ trên một hệ thống duy nhất — trực quan, chính xác và dễ sử dụng.</p>
-          <div class="ref-hero-actions">
+          <div class="ref-pill" data-hero-item="badge"><b></b>NỀN TẢNG QUẢN LÝ BÁN HÀNG THẾ HỆ MỚI CHO DOANH NGHIỆP VIỆT</div>
+          <h1>
+            <span class="hero-title-line" data-hero-line>Quản lý bán hàng</span>
+            <span class="hero-title-line" data-hero-line><span class="ref-text-highlight">gọn hơn<svg preserveAspectRatio="none" viewBox="0 0 100 8"><path d="M0 7 C 20 7, 40 1, 100 1 Z"></path></svg></span> mỗi ngày.</span>
+          </h1>
+          <p class="ref-subtitle" data-hero-item="description">Sở hữu trọn bộ công cụ quản lý tồn kho, đơn hàng, khách hàng và công nợ trên một hệ thống duy nhất — trực quan, chính xác và dễ sử dụng.</p>
+          <div class="ref-hero-actions" data-hero-item="actions">
             <button type="button" class="ref-btn-primary js-open-login btn-shimmer">
               Bắt đầu quản lý ngay <i data-lucide="arrow-right"></i>
             </button>
@@ -105,23 +112,23 @@
             </a>
           </div>
 
-          <div class="ref-assurances">
+          <div class="ref-assurances" data-hero-item="stats">
             <div class="ref-assurance-card anim-1">
-              <div class="ref-assurance-icon"><i data-lucide="briefcase-business"></i></div>
+              <div class="ref-assurance-icon blue"><i data-lucide="briefcase-business"></i></div>
               <div class="ref-assurance-text">
                 <strong>Nền tảng</strong>
                 <span>Vận hành đa chuẩn</span>
               </div>
             </div>
             <div class="ref-assurance-card anim-2">
-              <div class="ref-assurance-icon emerald"><i data-lucide="clock-3"></i></div>
+              <div class="ref-assurance-icon amber"><i data-lucide="clock-3"></i></div>
               <div class="ref-assurance-text">
                 <strong>24/7 Sẵn sàng</strong>
                 <span>Dữ liệu liên tục mọi lúc</span>
               </div>
             </div>
             <div class="ref-assurance-card anim-3">
-              <div class="ref-assurance-icon"><i data-lucide="refresh-cw"></i></div>
+              <div class="ref-assurance-icon violet"><i data-lucide="refresh-cw"></i></div>
               <div class="ref-assurance-text">
                 <strong>Realtime Sync</strong>
                 <span>Đồng bộ đơn mây 100%</span>
@@ -145,7 +152,7 @@
                 <span class="ref-dot-red"></span>
                 <span class="ref-dot-yellow"></span>
                 <span class="ref-dot-green"></span>
-                <span class="ref-window-url">workspace.sovie.vn/dashboard — Trung tâm quản trị</span>
+                <span class="ref-window-url">workspace.sovie.vn/dashboard</span>
               </div>
               <div class="ref-window-status">
                 <span class="ref-live-pill"><span></span> Realtime Active</span>
@@ -311,17 +318,17 @@
 
       <!-- FEATURES / BENTO GRID -->
       <section class="ref-features" id="tinh-nang">
-        <div class="ref-section-header">
+        <div class="ref-section-header" data-reveal="up">
           <div class="ref-pill"><b></b>TẤT CẢ TRONG MỘT</div>
           <h2>Mọi công cụ bạn cần để bán hàng hiệu quả.</h2>
           <p>Từ kho hàng đến công nợ, SoVie kết nối mọi nghiệp vụ và biến dữ liệu thành quyết định rõ ràng.</p>
         </div>
 
         <div class="ref-bento-grid">
-          <article class="ref-bento-card">
+          <article class="ref-bento-card" data-reveal="scale" data-reveal-delay="0">
             <div>
               <div class="ref-bento-card-top">
-                <div class="ref-bento-icon"><i data-lucide="shopping-bag"></i></div>
+                <div class="ref-bento-icon blue"><i data-lucide="shopping-bag"></i></div>
                 <span class="ref-bento-num">01</span>
               </div>
               <h3>Đơn hàng nhanh chóng</h3>
@@ -341,7 +348,7 @@
             </div>
           </article>
 
-          <article class="ref-bento-card">
+          <article class="ref-bento-card" data-reveal="scale" data-reveal-delay="80">
             <div>
               <div class="ref-bento-card-top">
                 <div class="ref-bento-icon emerald"><i data-lucide="boxes"></i></div>
@@ -372,10 +379,10 @@
             </div>
           </article>
 
-          <article class="ref-bento-card">
+          <article class="ref-bento-card" data-reveal="scale" data-reveal-delay="160">
             <div>
               <div class="ref-bento-card-top">
-                <div class="ref-bento-icon indigo"><i data-lucide="wallet-cards"></i></div>
+                <div class="ref-bento-icon amber"><i data-lucide="wallet-cards"></i></div>
                 <span class="ref-bento-num">03</span>
               </div>
               <h3>Công nợ minh bạch</h3>
@@ -392,7 +399,7 @@
             </div>
           </article>
 
-          <article class="ref-bento-card">
+          <article class="ref-bento-card" data-reveal="scale" data-reveal-delay="240">
             <div>
               <div class="ref-bento-card-top">
                 <div class="ref-bento-icon violet"><i data-lucide="chart-no-axes-combined"></i></div>
@@ -422,30 +429,30 @@
       <!-- SOLUTIONS / VALUE PILLARS -->
       <section class="ref-solutions" id="giai-phap">
         <div class="ref-solution-container">
-          <div class="ref-solution-copy">
-            <div class="ref-pill"><b></b>VẬN HÀNH LIỀN MẠCH</div>
+          <div class="ref-solution-copy" data-reveal="left">
+            <div class="ref-pill pill-pink"><b></b>VẬN HÀNH LIỀN MẠCH</div>
             <h2>Một Sổ Việt.<br>Nhiều quyết định tốt.</h2>
             <p><strong>SoVie — Sổ Việt của doanh nghiệp.</strong> Mọi dữ liệu bán hàng, công nợ, xuất nhập kho và dòng tiền được tổ chức đồng bộ, bảo mật và luôn sẵn sàng để đội ngũ phối hợp hiệu quả ở bất cứ đâu.</p>
 
             <div class="ref-solution-list">
-              <article class="ref-solution-item">
-                <div class="ref-solution-item-icon"><i data-lucide="users"></i></div>
+              <article class="ref-solution-item" data-reveal="up" data-reveal-delay="40">
+                <div class="ref-solution-item-icon icon-blue"><i data-lucide="users"></i></div>
                 <div class="ref-solution-item-text">
                   <h4>Phân quyền theo vai trò chính xác</h4>
                   <p>Chủ doanh nghiệp xem toàn cảnh; Kế toán quản lý hóa đơn, bảng giá và sổ quỹ; Nhân viên kinh doanh chỉ lập đơn và chăm sóc danh sách khách hàng được phân công.</p>
                 </div>
               </article>
 
-              <article class="ref-solution-item">
-                <div class="ref-solution-item-icon"><i data-lucide="cloud"></i></div>
+              <article class="ref-solution-item" data-reveal="up" data-reveal-delay="100">
+                <div class="ref-solution-item-icon icon-emerald"><i data-lucide="cloud"></i></div>
                 <div class="ref-solution-item-text">
                   <h4>Đồng bộ đám mây Realtime trên mọi thiết bị</h4>
                   <p>Dữ liệu độc lập theo từng workspace riêng biệt (tenancy), đồng bộ tức thời giữa máy tính văn phòng, điện thoại nhân viên và máy tính bảng tại nhà máy.</p>
                 </div>
               </article>
 
-              <article class="ref-solution-item">
-                <div class="ref-solution-item-icon"><i data-lucide="file-text"></i></div>
+              <article class="ref-solution-item" data-reveal="up" data-reveal-delay="160">
+                <div class="ref-solution-item-icon icon-amber"><i data-lucide="file-text"></i></div>
                 <div class="ref-solution-item-text">
                   <h4>Lịch sử hoạt động và chứng từ rõ ràng</h4>
                   <p>Ghi nhận chi tiết từng lần tạo đơn, chỉnh sửa phiếu thu, điều chỉnh công nợ hay thao tác huỷ lệnh, loại trừ triệt để nguy cơ thất thoát.</p>
@@ -454,7 +461,7 @@
             </div>
           </div>
 
-          <div class="ref-solution-visual">
+          <div class="ref-solution-visual" data-reveal="right" data-reveal-delay="80">
             <div class="ref-warehouse-card">
               <img src="warehouse-operations.jpg?v=20260907-v1" alt="Đội ngũ vận hành sản xuất và trung tâm logistics hiện đại SoVie">
               <div class="ref-warehouse-overlay">
@@ -462,7 +469,7 @@
                 <h3>Đơn giản hóa dữ liệu cho hơn 50 ngành nghề sản xuất &amp; phân phối</h3>
                 <div class="ref-warehouse-stats">
                   <div>
-                    <strong><span class="counter" data-count="100">100</span>%</strong>
+                    <strong class="blue"><span class="counter" data-count="100">100</span>%</strong>
                     <span>Không thất thoát</span>
                   </div>
                   <div>
@@ -490,14 +497,14 @@
 
       <!-- PRICING SECTION -->
       <section class="ref-pricing" id="bang-gia">
-        <div class="ref-section-header">
+        <div class="ref-section-header" data-reveal="up">
           <div class="ref-pill"><b></b>BẢNG GIÁ MINH BẠCH</div>
           <h2>Gói giải pháp linh hoạt theo quy mô kinh doanh</h2>
           <p>Dễ dàng khởi đầu, mở rộng không giới hạn khi số lượng chi nhánh và đại lý tăng trưởng.</p>
         </div>
 
         <div class="ref-price-grid">
-          <article class="ref-price-card">
+          <article class="ref-price-card" data-reveal="scale" data-reveal-delay="0">
             <div class="ref-price-header">
               <small>CỬA HÀNG NHỎ</small>
               <h3>Starter</h3>
@@ -516,7 +523,7 @@
             <button type="button" class="ref-price-btn js-open-login">Dùng thử 14 ngày</button>
           </article>
 
-          <article class="ref-price-card featured">
+          <article class="ref-price-card featured" data-reveal="scale" data-reveal-delay="90">
             <span class="ref-price-badge-top">● Phổ biến nhất</span>
             <div class="ref-price-header">
               <small>ĐẠI LÝ &amp; NPP QUY MÔ VỪA</small>
@@ -535,10 +542,10 @@
               <li><i><i data-lucide="check"></i></i> Công thức sản xuất &amp; Định mức</li>
               <li><i><i data-lucide="check"></i></i> Tự động tính KPI &amp; Hoa hồng Sale</li>
             </ul>
-            <button type="button" class="ref-price-btn js-open-login">Bắt đầu quản lý ngay</button>
+            <button type="button" class="ref-price-btn js-open-login btn-shimmer">Bắt đầu quản lý ngay</button>
           </article>
 
-          <article class="ref-price-card">
+          <article class="ref-price-card" data-reveal="scale" data-reveal-delay="180">
             <div class="ref-price-header">
               <small>TẬP ĐOÀN &amp; CHUỖI LỚN</small>
               <h3>Doanh Nghiệp Lớn</h3>
@@ -563,7 +570,7 @@
       <section class="ref-cta-banner" id="loi-ich">
         <div class="ref-orb ref-orb-one"></div>
         <div class="ref-orb ref-orb-two"></div>
-        <div class="ref-cta-content">
+        <div class="ref-cta-content" data-reveal="up">
           <span class="ref-cta-pill">SẴN SÀNG ĐỔI MỚI</span>
           <h2>Sẵn sàng nâng cấp cách bạn vận hành doanh nghiệp?</h2>
           <p>Quản lý bán hàng thông minh, vận hành nhẹ nhàng. Dùng thử miễn phí 14 ngày đầy đủ tính năng, không cần cài đặt phức tạp.</p>
@@ -580,12 +587,11 @@
     </main>
 
     <!-- FOOTER -->
-    <footer class="ref-footer" id="khach-hang">
+    <footer class="ref-footer" id="khach-hang" data-reveal="up">
       <div class="ref-footer-grid">
         <div class="ref-footer-col-brand">
           <div class="landing-footer-brand">
             <img src="sovie-logo.png?v=20260815-sovie-v2" alt="SoVie">
-            <strong>SoVie</strong>
           </div>
           <div class="ref-footer-company">CÔNG TY CỔ PHẦN EMP HOA KỲ</div>
           <p>Sổ Việt số hóa toàn diện quy trình vận hành, kế toán và bán hàng cho doanh nghiệp Việt Nam.</p>
@@ -635,30 +641,9 @@
         <span>Designed for Vietnamese Enterprises</span>
       </div>
     </footer>
-    <script>
-      (function() {
-        const mockup = document.querySelector('.ref-mockup-card');
-        const wrapper = document.querySelector('.ref-mockup-wrapper');
-        if (wrapper && mockup && window.matchMedia('(pointer: fine)').matches) {
-          wrapper.addEventListener('mousemove', (e) => {
-            const rect = wrapper.getBoundingClientRect();
-            const x = e.clientX - rect.left;
-            const y = e.clientY - rect.top;
-            const centerX = rect.width / 2;
-            const centerY = rect.height / 2;
-            const rotateX = ((y - centerY) / centerY) * -4;
-            const rotateY = ((x - centerX) / centerX) * 4;
-            mockup.style.transform = `rotateX(${rotateX}deg) rotateY(${rotateY}deg) translateY(-4px)`;
-          });
-          wrapper.addEventListener('mouseleave', () => {
-            mockup.style.transform = 'rotateX(0deg) rotateY(0deg) translateY(0px)';
-          });
-        }
-      })();
-    </script>
   </div>
 
-  <div class="app-container auth-hidden" id="app-layout">
+  <div class="app-container auth-hidden" id="app-layout" data-nav-layout="horizontal">
     <!-- Sidebar -->
     <aside class="sidebar">
       <div class="brand">
@@ -670,55 +655,55 @@
       <nav class="app-navigation" aria-label="Điều hướng nghiệp vụ">
         <ul class="nav-menu">
         <li class="nav-item">
-          <a class="nav-link active" data-target="dashboard-panel">
+          <a class="nav-link active" data-target="dashboard-panel" data-reference-icon="space_dashboard">
             <i data-lucide="layout-dashboard"></i>
             Tổng quan
           </a>
         </li>
         <li class="nav-item platform-admin-nav" id="platform-admin-nav" style="display: none;">
-          <a class="nav-link" data-target="platform-admin-panel">
+          <a class="nav-link" data-target="platform-admin-panel" data-reference-icon="admin_panel_settings">
             <i data-lucide="shield-check"></i>
             Khách hàng SaaS
           </a>
         </li>
         <li class="nav-item">
-          <a class="nav-link" data-target="invoice-panel">
+          <a class="nav-link" data-target="invoice-panel" data-reference-icon="receipt_long">
             <i data-lucide="file-spreadsheet"></i>
             Lên đơn hàng
           </a>
         </li>
         <li class="nav-item">
-          <a class="nav-link" data-target="history-panel">
+          <a class="nav-link" data-target="history-panel" data-reference-icon="history">
             <i data-lucide="history"></i>
             Lịch sử đơn
           </a>
         </li>
         <li class="nav-item">
-          <a class="nav-link" data-target="so-quy-panel">
+          <a class="nav-link" data-target="so-quy-panel" data-reference-icon="account_balance_wallet">
             <i data-lucide="wallet"></i>
             Sổ quỹ
           </a>
         </li>
         <li class="nav-item">
-          <a class="nav-link" data-target="customers-panel">
+          <a class="nav-link" data-target="customers-panel" data-reference-icon="group">
             <i data-lucide="users"></i>
             Khách hàng
           </a>
         </li>
         <li class="nav-item">
-          <a class="nav-link" data-target="products-panel">
+          <a class="nav-link" data-target="products-panel" data-reference-icon="inventory_2">
             <i data-lucide="package"></i>
             Sản phẩm
           </a>
         </li>
         <li class="nav-item">
-          <a class="nav-link" data-target="pricelists-panel">
+          <a class="nav-link" data-target="pricelists-panel" data-reference-icon="sell">
             <i data-lucide="tags"></i>
             Bảng giá
           </a>
         </li>
         <li class="nav-item purchase-nav-item">
-          <button type="button" class="nav-link purchase-menu-trigger" aria-haspopup="menu" aria-expanded="false" aria-controls="purchase-navigation-menu">
+          <button type="button" class="nav-link purchase-menu-trigger" data-reference-icon="shopping_cart" aria-haspopup="menu" aria-expanded="false" aria-controls="purchase-navigation-menu">
             <i data-lucide="shopping-cart"></i>
             Mua hàng
             <i data-lucide="chevron-down" class="purchase-menu-chevron"></i>
@@ -735,7 +720,7 @@
           </div>
         </li>
         <li class="nav-item staff-nav-item">
-          <button type="button" class="nav-link staff-menu-trigger" aria-haspopup="menu" aria-expanded="false" aria-controls="staff-navigation-menu">
+          <button type="button" class="nav-link staff-menu-trigger" data-reference-icon="badge" aria-haspopup="menu" aria-expanded="false" aria-controls="staff-navigation-menu">
             <i data-lucide="briefcase-business"></i>
             Quản lý nhân viên
             <i data-lucide="chevron-down" class="staff-menu-chevron"></i>
@@ -766,7 +751,10 @@
 
       <div class="sidebar-actions">
         <div class="activity-header-wrap">
-          <button type="button" id="btn-activity-log" class="activity-header-button" title="Lịch sử hoạt động" aria-label="Lịch sử hoạt động"><i data-lucide="bell"></i></button>
+          <button type="button" id="btn-activity-log" class="activity-header-button" title="Lịch sử hoạt động" aria-label="Lịch sử hoạt động">
+            <i data-lucide="bell"></i>
+            <span class="header-notify-dot"></span>
+          </button>
           <div id="activity-dropdown" class="activity-dropdown">
             <div class="activity-dropdown-head"><strong>Lịch sử hoạt động</strong><span>15 hoạt động gần nhất</span></div>
             <div id="activity-dropdown-list" class="activity-dropdown-list"><div class="activity-empty">Đang tải...</div></div>
@@ -775,8 +763,8 @@
         </div>
         <!-- Global Settings / User Profile Dropdown Button -->
         <div class="global-settings-dropdown" style="position: relative;">
-          <button class="btn-settings-toggle" id="btn-settings-toggle" onclick="toggleSettingsDropdown(event)" style="background: rgba(255, 255, 255, 0.15); border: 1px solid rgba(255, 255, 255, 0.2); color: #fff; width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s;" title="Cài đặt hệ thống">
-            <i data-lucide="settings" style="width: 18px; height: 18px; color: #fff;"></i>
+          <button class="btn-settings-toggle" id="btn-settings-toggle" onclick="toggleSettingsDropdown(event)" title="Cài đặt hệ thống &amp; Tài khoản">
+            <i data-lucide="settings"></i>
           </button>
           <!-- Dropdown Menu -->
           <div class="global-settings-menu" id="global-settings-menu" style="display: none; position: absolute; right: 0; top: 45px; background: #ffffff; border: 1px solid var(--border-color); border-radius: 8px; box-shadow: var(--shadow-lg); width: 260px; z-index: 300; padding: 0.5rem 0; animation: fadeIn 0.2s ease;">
@@ -790,7 +778,7 @@
                 <div><strong id="workspace-current-name">Doanh nghiệp</strong><small id="workspace-current-domain"></small><small id="workspace-plan-usage"></small></div>
               </div>
             </div>
-            <div class="nav-layout-settings" id="nav-layout-settings">
+            <div class="nav-layout-settings" id="nav-layout-settings" style="display: none !important;">
               <div class="nav-color-settings-title">
                 <i data-lucide="panel-left"></i>
                 <span>Vị trí thanh điều hướng</span>
@@ -1014,7 +1002,7 @@
       </div>
 
       <!-- Dashboard Panel -->
-      <section id="dashboard-panel" class="panel active">
+      <section id="dashboard-panel" class="panel active stitch-dashboard">
         <section class="saas-onboarding-card" id="saas-onboarding-checklist" aria-labelledby="saas-onboarding-title" style="display: none;">
           <div class="saas-onboarding-header">
             <div>
@@ -1033,7 +1021,7 @@
           <div class="dashboard-filter-summary" id="dashboard-filter-summary" aria-label="Bộ lọc đang áp dụng">
             <span class="dashboard-summary-chip"><i data-lucide="calendar"></i> <span id="dashboard-summary-time">Tháng này</span></span>
             <span class="dashboard-summary-chip"><i data-lucide="calculator"></i> <span id="dashboard-summary-mode">Doanh số ròng</span></span>
-            <span class="dashboard-summary-chip" id="dashboard-summary-extra" style="display: none;"></span>
+            <span class="dashboard-summary-chip" id="dashboard-summary-extra" hidden></span>
           </div>
           <div class="dashboard-compact-actions">
             <button class="btn btn-secondary btn-sm" id="btn-open-dashboard-filter" type="button" aria-haspopup="dialog" aria-expanded="false" title="Mở bộ lọc tổng quan">
@@ -1136,44 +1124,44 @@
 
         <!-- Widgets Grid -->
         <div class="widgets-grid" style="position: relative; z-index: 1;">
-          <div class="widget-card card-hover-3d">
+          <div class="widget-card">
             <div class="widget-info">
               <span class="widget-label" id="stat-revenue-label">Doanh thu tích lũy</span>
               <span class="widget-value" id="stat-total-revenue">0 ₫</span>
-              <span class="widget-trend trend-up"><i data-lucide="trending-up"></i> +18.4% so với tháng trước</span>
+              <span class="widget-trend trend-neutral" id="stat-revenue-context">Đang tải dữ liệu kỳ này</span>
             </div>
             <div class="widget-icon-wrapper widget-icon-blue-indigo">
               <i data-lucide="banknote"></i>
             </div>
           </div>
 
-          <div class="widget-card card-hover-3d">
+          <div class="widget-card">
             <div class="widget-info">
               <span class="widget-label">Tổng số đơn hàng</span>
               <span class="widget-value" id="stat-total-orders">0</span>
-              <span class="widget-trend trend-up"><i data-lucide="trending-up"></i> +12.6% tăng đều</span>
+              <span class="widget-trend trend-neutral" id="stat-orders-context">Đang tải số lượng đơn hàng</span>
             </div>
             <div class="widget-icon-wrapper widget-icon-emerald-teal">
               <i data-lucide="shopping-cart"></i>
             </div>
           </div>
 
-          <div class="widget-card card-hover-3d">
+          <div class="widget-card">
             <div class="widget-info">
               <span class="widget-label">Tổng công nợ</span>
               <span class="widget-value" id="stat-total-debt">0 ₫</span>
-              <span class="widget-trend trend-warning"><span class="trend-dot"></span> Cần theo dõi công nợ</span>
+              <span class="widget-trend trend-neutral" id="stat-debt-context">Đang tải công nợ hiện tại</span>
             </div>
             <div class="widget-icon-wrapper widget-icon-purple-indigo">
               <i data-lucide="credit-card"></i>
             </div>
           </div>
 
-          <div class="widget-card card-hover-3d">
+          <div class="widget-card">
             <div class="widget-info">
               <span class="widget-label" id="stat-sold-products-label">Sản phẩm đã bán</span>
               <span class="widget-value" id="stat-total-sold-products">0</span>
-              <span class="widget-trend trend-up"><i data-lucide="trending-up"></i> +9.8% đạt mục tiêu</span>
+              <span class="widget-trend trend-neutral" id="stat-products-context">Đang tải sản lượng bán</span>
             </div>
             <div class="widget-icon-wrapper widget-icon-amber-orange">
               <i data-lucide="package"></i>
@@ -1185,7 +1173,10 @@
         <div class="dashboard-charts-row">
           <div class="glass-panel chart-panel">
             <div class="panel-header" style="margin-bottom: 1.25rem;">
-              <h2 class="panel-title"><i data-lucide="trending-up"></i> Biểu đồ doanh thu</h2>
+              <div class="stitch-panel-heading">
+                <h2 class="panel-title"><i data-lucide="trending-up"></i> Biểu đồ doanh thu</h2>
+                <p>Thống kê xu hướng doanh thu luỹ kế thực tế theo thời gian</p>
+              </div>
               <div class="chart-controls" style="display: flex; gap: 0.35rem; background: rgba(0,0,0,0.2); padding: 0.2rem; border-radius: 8px; ">
                 <button class="btn btn-secondary btn-xs chart-view-btn" data-view="day" style="padding: 0.25rem 0.5rem; font-size: 0.75rem; border-radius: 6px;">Ngày</button>
                 <button class="btn btn-secondary btn-xs chart-view-btn" data-view="week" style="padding: 0.25rem 0.5rem; font-size: 0.75rem; border-radius: 6px;">Tuần</button>
@@ -1200,7 +1191,10 @@
 
           <div class="glass-panel top-products-panel">
             <div class="panel-header" style="margin-bottom: 1.25rem;">
-              <h2 class="panel-title"><i data-lucide="award"></i> Sản phẩm bán chạy nhất</h2>
+              <div class="stitch-panel-heading">
+                <h2 class="panel-title"><i data-lucide="award"></i> Sản phẩm bán chạy</h2>
+                <p>Top sản phẩm theo số lượng bán trong kỳ</p>
+              </div>
             </div>
             <div class="top-products-list" id="top-products-list">
               <!-- Dynamically populated top products -->
@@ -1274,7 +1268,10 @@
         <div class="dashboard-grid">
           <div class="glass-panel" style="display: flex; flex-direction: column; gap: 1rem;">
             <div class="panel-header" style="margin-bottom: 0;">
-              <h2 class="panel-title"><i data-lucide="trending-up"></i> Đơn hàng gần đây</h2>
+              <div class="stitch-panel-heading">
+                <h2 class="panel-title"><i data-lucide="trending-up"></i> Đơn hàng gần đây</h2>
+                <p>Các giao dịch phát sinh gần nhất được ghi nhận tự động</p>
+              </div>
               <button class="btn btn-secondary btn-sm" id="btn-view-all-history">Xem tất cả</button>
             </div>
             <div class="table-responsive">
@@ -1321,6 +1318,15 @@
             </div>
           </div>
         </div>
+
+        <footer class="stitch-dashboard-footer" aria-label="Thông tin hệ thống SoVie">
+          <span><strong>SoVie Enterprise</strong> &nbsp;•&nbsp; Bản quyền © 2026. Giải pháp quản trị kênh phân phối &amp; chuỗi đại lý toàn diện.</span>
+          <nav aria-label="Liên kết hỗ trợ">
+            <a href="#">Trung tâm trợ giúp</a>
+            <a href="#">Tài liệu API</a>
+            <a href="#">Trạng thái Cloud (99.99%)</a>
+          </nav>
+        </footer>
       </section>
 
       <!-- Products Panel -->
@@ -1647,20 +1653,22 @@
       </section>
 
       <!-- Invoice / Order Panel -->
-      <section id="invoice-panel" class="panel">
+      <section id="invoice-panel" class="panel stitch-order-entry">
         <div class="invoice-grid">
           <!-- Left side: Items builder & Top 3 Cards -->
           <div class="invoice-builder">
             <div class="glass-panel invoice-main-card">
-              <!-- Header: Chọn sản phẩm vào hóa đơn | BƯỚC 1 -->
+              <!-- Header: Chọn sản phẩm vào hóa đơn -->
               <div class="invoice-builder-header">
-                <h2 class="panel-title invoice-panel-title">
-                  <span class="invoice-title-icon-badge">
-                    <i data-lucide="shopping-bag"></i>
-                  </span>
-                  Chọn sản phẩm vào hóa đơn
-                </h2>
-                <span class="invoice-step-badge step-1">BƯỚC 1</span>
+                <div class="stitch-panel-heading">
+                  <h2 class="panel-title invoice-panel-title">
+                    <span class="invoice-title-icon-badge">
+                      <i data-lucide="shopping-bag"></i>
+                    </span>
+                    Chọn sản phẩm vào hóa đơn
+                  </h2>
+                  <p>Thiết lập thông tin khách mua, thời gian và bổ sung danh mục mặt hàng</p>
+                </div>
               </div>
               
               <!-- 3 Top Info Cards: Khách hàng | Ngày lên đơn | Ghi chú -->
@@ -1673,22 +1681,22 @@
                       <span class="info-card-icon-wrap">
                         <i data-lucide="user"></i>
                       </span>
-                      <span>Thông tin khách hàng</span>
+                      <span>THÔNG TIN KHÁCH HÀNG</span>
                     </div>
                     <div class="info-card-actions">
                       <button type="button" class="btn btn-secondary btn-sm" id="btn-clear-invoice-customer" title="Bỏ khách hiện tại và chọn khách khác" style="display: none;">
                         <i data-lucide="refresh-cw"></i> Chọn khách khác
                       </button>
                       <button type="button" class="btn-info-card-add" id="btn-quick-customer-toggle" title="Thêm khách hàng mới (Thêm nhanh)">
-                        <i data-lucide="plus"></i>
+                        <i data-lucide="plus"></i> Thêm mới
                       </button>
                     </div>
                   </div>
 
                   <!-- Customer search field -->
                   <div class="form-group" id="invoice-customer-search-group">
-                    <div class="custom-input-group">
-                      <i data-lucide="user"></i>
+                    <div class="custom-input-group invoice-search-input-pill">
+                      <i data-lucide="search"></i>
                       <input type="text" class="form-control" id="invoice-customer-search" placeholder="Nhập tên hoặc số điện thoại..." autocomplete="off">
                     </div>
                     <ul class="suggestions-list" id="invoice-customer-suggestions" style="display: none; position: absolute; z-index: 1000; width: 100%; top: 100%; left: 0;">
@@ -1702,13 +1710,12 @@
                     <div class="form-group" id="invoice-pricelist-group">
                       <div class="pricelist-sub-label-row">
                         <label class="form-label">Bảng giá áp dụng</label>
-                        <span id="invoice-pricelist-source-lbl" class="pricelist-source-badge">Nhập tay</span>
+                        <span id="invoice-pricelist-source-lbl" class="pricelist-source-badge">Đại lý Cấp 1</span>
                       </div>
-                      <div class="custom-input-group">
-                        <i data-lucide="tags"></i>
+                      <div class="custom-input-group invoice-select-pill">
                         <select class="form-control pricelist-select-control" id="invoice-pricelist-select">
                           <option value="">-- Chọn bảng giá --</option>
-                          <option value="retail" selected>Tự động theo khách hàng</option>
+                          <option value="retail" selected>Bảng giá đại lý 2026 (Chiết khấu 35%)</option>
                           <option value="custom">Chiết khấu riêng của đại lý</option>
                           <!-- Dynamic price lists will be loaded here -->
                         </select>
@@ -1735,13 +1742,15 @@
                       <span class="info-card-icon-wrap">
                         <i data-lucide="calendar"></i>
                       </span>
-                      <span>Ngày lên đơn</span>
+                      <span>NGÀY LÊN ĐƠN</span>
                     </div>
                   </div>
                   <div class="form-group" id="invoice-business-date-group">
-                    <input type="date" class="form-control invoice-date-input" id="invoice-business-date">
+                    <div class="custom-input-group invoice-date-picker-wrap">
+                      <input type="date" class="form-control invoice-date-input" id="invoice-business-date">
+                    </div>
                     <small class="invoice-date-helper">
-                      Đúng ngày khách thực tế mua/nhận hàng. Ngày này được dùng trong lịch sử, báo cáo và bản in.
+                      Đúng ngày khách thực tế mua/nhận hàng. Ngày này được dùng trong lịch sử, báo cáo và bản in phiếu xuất.
                     </small>
                   </div>
                 </div>
@@ -1751,13 +1760,13 @@
                   <div class="info-card-header">
                     <div class="info-card-title">
                       <span class="info-card-icon-wrap">
-                        <i data-lucide="file-text"></i>
+                        <i data-lucide="file-edit"></i>
                       </span>
-                      <span>Ghi chú riêng của đơn hàng</span>
+                      <span>GHI CHÚ RIÊNG CỦA ĐƠN</span>
                     </div>
                   </div>
                   <div class="form-group invoice-notes-group">
-                    <textarea class="form-control invoice-notes-textarea" id="invoice-notes" placeholder="Ví dụ: Giao hàng tận nơi, gọi trước khi giao...."></textarea>
+                    <textarea class="form-control invoice-notes-textarea" id="invoice-notes" placeholder="Giao hàng tận công trình KĐT Splendora, gọi lái xe Tuấn trước 30 phút."></textarea>
                   </div>
                 </div>
 
@@ -1766,16 +1775,16 @@
               <!-- Product Search Bar -->
               <div class="product-select-row">
                 <div class="product-dropdown-container">
-                  <div class="custom-input-group">
-                    <i data-lucide="search"></i>
-                    <input type="text" class="form-control" id="invoice-product-search" placeholder="Nhập mã hoặc tên sản phẩm để tìm kiếm..." autocomplete="off">
+                  <div class="custom-input-group invoice-product-search-pill">
+                    <i data-lucide="scan-line" class="product-search-barcode-icon"></i>
+                    <input type="text" class="form-control" id="invoice-product-search" placeholder="Nhập mã SKU hoặc tên sản phẩm để tìm kiếm (vd: NANO10, CT-11A, Bột bả...)..." autocomplete="off">
                   </div>
                   <ul class="suggestions-list" id="invoice-product-suggestions" style="display: none; position: absolute; z-index: 1000; width: 100%; top: 100%; left: 0;">
                     <!-- Auto populated suggestions -->
                   </ul>
                 </div>
                 <button class="btn btn-primary btn-add-invoice-product" id="btn-add-to-invoice-table">
-                  <i data-lucide="plus"></i> Thêm
+                  <i data-lucide="plus-circle"></i> Thêm vào đơn
                 </button>
               </div>
 
@@ -1784,15 +1793,15 @@
                 <table class="table invoice-items-table" style="table-layout: fixed; min-width: 980px;">
                   <colgroup>
                     <col style="width: 110px;">  <!-- Kéo thả + Mã SP -->
-                    <col style="width: auto;">   <!-- Tên SP (flexible, includes màu sắc) -->
-                    <col id="invoice-color-col" style="width: 90px;">   <!-- Extension ngành sơn -->
-                    <col style="width: 190px;">  <!-- Quy cách -->
-                    <col style="width: 70px;">   <!-- SL -->
-                    <col style="width: 105px;">  <!-- Đơn giá sau chiết khấu -->
-                    <col id="invoice-discount-col" style="width: 90px; display: none;"> <!-- Chiết khấu dòng -->
-                    <col style="width: 180px;">  <!-- Ghi chú -->
-                    <col style="width: 160px;">  <!-- Thành tiền -->
-                    <col style="width: 46px;">   <!-- Xóa -->
+                    <col style="width: auto;">   <!-- Tên SP (flexible, includes tag) -->
+                    <col id="invoice-color-col" style="width: 120px;">  <!-- Mã màu -->
+                    <col style="width: 110px;">  <!-- Quy cách -->
+                    <col style="width: 65px;">   <!-- SL -->
+                    <col style="width: 120px;">  <!-- Đơn giá -->
+                    <col id="invoice-discount-col" style="width: 95px;"> <!-- Chiết khấu -->
+                    <col style="width: 130px;">  <!-- Ghi chú -->
+                    <col style="width: 135px;">  <!-- Thành tiền -->
+                    <col style="width: 44px;">   <!-- Xóa -->
                   </colgroup>
                   <thead>
                     <tr>
@@ -1801,9 +1810,9 @@
                       <th id="invoice-color-header" style="text-align: center;">MÃ MÀU</th>
                       <th>QUY CÁCH</th>
                       <th style="text-align: center;">SL</th>
-                      <th id="invoice-adjustment-header" style="text-align: right;">ĐƠN GIÁ</th>
-                      <th id="invoice-discount-header" style="text-align: center; display: none;">Chiết khấu (%)</th>
-                      <th style="text-align: center;">GHI CHÚ</th>
+                      <th id="invoice-adjustment-header" style="text-align: center;">ĐƠN GIÁ</th>
+                      <th id="invoice-discount-header" style="text-align: center;">Chiết khấu (%)</th>
+                      <th style="text-align: left;">GHI CHÚ</th>
                       <th style="text-align: right;">THÀNH TIỀN</th>
                       <th style="text-align: center;">XÓA</th>
                     </tr>
@@ -1822,8 +1831,12 @@
                     <span id="invoice-table-summary-text">Đang có <strong>0</strong> loại sản phẩm trong đơn (<strong>0</strong> kiện / đơn vị đóng gói)</span>
                   </div>
                   <div class="invoice-table-summary-right">
+                    <button type="button" class="btn-invoice-excel-import" id="btn-import-excel-invoice">
+                      <i data-lucide="file-spreadsheet"></i> Nhập từ file Excel
+                    </button>
+                    <input type="file" id="invoice-excel-file-input" accept=".xlsx, .xls, .csv" style="display: none;">
                     <button type="button" class="btn-invoice-clear-all" id="btn-clear-all-invoice-items">
-                      <i data-lucide="eraser"></i> Xóa tất cả dòng
+                      <i data-lucide="trash-2"></i> Xóa tất cả dòng
                     </button>
                   </div>
                 </div>
@@ -1834,18 +1847,20 @@
 
           <!-- Right side: Bill summary (Sidebar) -->
           <div class="glass-panel summary-card">
-            <!-- Header: Tổng quan đơn hàng | bước 2 | ↻ Làm Mới Đơn -->
+            <!-- Header: Tổng quan đơn hàng | ↻ Làm Mới -->
             <div class="summary-card-header">
-              <h2 class="summary-heading">
-                <span class="summary-heading-icon-badge">
-                  <i data-lucide="receipt"></i>
-                </span>
-                Tổng quan đơn hàng
-              </h2>
+              <div class="stitch-panel-heading">
+                <h2 class="summary-heading">
+                  <span class="summary-heading-icon-badge">
+                    <i data-lucide="receipt"></i>
+                  </span>
+                  Tổng quan đơn hàng
+                </h2>
+                <p>Kiểm tra chi phí trước khi xuất</p>
+              </div>
               <div class="summary-header-actions">
-                <span class="invoice-step-badge step-2">bước 2</span>
-                <button class="btn btn-secondary btn-sm btn-reset-order-custom" id="btn-reset-order" title="Làm mới toàn bộ đơn hàng">
-                  <i data-lucide="rotate-ccw"></i> Làm Mới Đơn
+                <button class="btn btn-secondary btn-sm btn-reset-order-custom" id="btn-reset-order" title="Làm Mới Đơn">
+                  <i data-lucide="rotate-ccw"></i> Làm Mới
                 </button>
               </div>
             </div>
@@ -1855,66 +1870,63 @@
               <div class="summary-box-card">
                 <div class="summary-row">
                   <span class="label">Tổng số lượng SP:</span>
-                  <span class="value" id="summary-total-qty">0</span>
+                  <span class="value"><strong id="summary-total-qty">0</strong> kiện</span>
                 </div>
                 
                 <div class="summary-row">
-                  <span class="label">Tổng giá thị trường:</span>
+                  <span class="label">Tổng giá trị niêm yết:</span>
                   <span class="value value-market-strikethrough" id="summary-market-total">0 ₫</span>
                 </div>
 
                 <div class="summary-row">
-                  <span class="label">Tổng tiền chiết khấu đại lý:</span>
+                  <span class="label">Tổng tiền chiết khấu đại lý: <i data-lucide="help-circle" class="summary-help-icon" title="Chiết khấu theo chính sách bảng giá của khách hàng"></i></span>
                   <span class="value summary-val-danger" id="summary-discount-total">-0 ₫</span>
                 </div>
 
                 <!-- Tạm tính -->
                 <div class="summary-row summary-subtotal-row">
-                  <span class="label">Tạm tính:</span>
+                  <span class="label">Tạm tính (Sau CK):</span>
                   <span class="value summary-subtotal-val" id="summary-subtotal">0 ₫</span>
                 </div>
               </div>
 
-              <!-- 1. Giảm giá Box -->
-              <div class="summary-input-box">
-                <span class="label">Giảm giá:</span>
-                <div class="summary-discount-controls">
-                  <input type="text" id="invoice-discount-value" class="form-control" value="0" placeholder="0">
-                  <select id="invoice-discount-type" class="form-control">
-                    <option value="percent" selected>%</option>
-                    <option value="amount">VNĐ</option>
-                  </select>
+              <div class="summary-adjustments-simple" aria-label="Điều chỉnh đơn hàng">
+                <div class="summary-adjustment-row">
+                  <div class="adjustment-info">
+                    <span class="label">Giảm giá</span>
+                    <span class="sub-val-danger" id="summary-discount-actual">-0 ₫</span>
+                  </div>
+                  <div class="adjustment-pill-input">
+                    <input type="text" id="invoice-discount-value" value="0" placeholder="0">
+                    <select id="invoice-discount-type" aria-label="Đơn vị giảm giá">
+                      <option value="amount" selected>VNĐ</option>
+                      <option value="percent">%</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div class="summary-adjustment-row">
+                  <div class="adjustment-info">
+                    <span class="label">Thu khác</span>
+                    <span class="sub-val-success" id="summary-shipping-fee-actual">+0 ₫</span>
+                  </div>
+                  <div class="adjustment-pill-input">
+                    <input type="text" id="invoice-shipping-fee-value" value="0" placeholder="0">
+                    <span class="pill-unit-tag">VNĐ</span>
+                  </div>
                 </div>
               </div>
-              <div class="summary-sub-row" id="summary-discount-actual-row">
-                <span class="label">Số tiền giảm:</span>
-                <span class="value" id="summary-discount-actual">-0 ₫</span>
-              </div>
 
-              <!-- 2. Thu Khác Box -->
-              <div class="summary-input-box">
-                <span class="label">Thu Khác:</span>
-                <div class="summary-fee-controls">
-                  <input type="text" id="invoice-shipping-fee-value" class="form-control" value="0" placeholder="0">
-                </div>
-              </div>
-              <div class="summary-sub-row" id="summary-shipping-fee-row">
-                <span class="label">Số tiền thu khác:</span>
-                <span class="value" id="summary-shipping-fee-actual">+0 ₫</span>
-              </div>
-
-              <div class="saving-badge" id="summary-saving-badge" style="display: none;">
-                <i data-lucide="piggy-bank"></i>
-                <span id="summary-saving-text">Tiết kiệm được 0%</span>
+              <!-- Khách tiết kiệm Badge -->
+              <div class="saving-badge" id="summary-saving-badge">
+                <i data-lucide="package"></i>
+                <span id="summary-saving-text">Khách tiết kiệm được 38.1% (24.587.500 đ)</span>
               </div>
 
               <!-- Tổng thanh toán Highlight Box -->
               <div class="summary-total-banner">
-                <span class="total-banner-label">Tổng thanh toán:</span>
-                <div class="total-banner-val-wrap">
-                  <span class="value-market" id="summary-final-market-crossed"></span>
-                  <span class="value-final" id="summary-final-total">0 ₫</span>
-                </div>
+                <span class="value-final" id="summary-final-total">0 ₫</span>
+                <span class="value-market" id="summary-final-market-crossed"></span>
               </div>
 
               <!-- Action Buttons Stack -->
@@ -1923,10 +1935,10 @@
                   Bảng giá này chỉ dùng để in và chưa được Kế toán cho phép lưu. Đơn này không thể lưu hoặc phát sinh công nợ.
                 </div>
                 <button class="btn btn-invoice-pay" id="btn-save-order">
-                  <i data-lucide="check-check"></i> Thanh toán &amp; Xuất kho
+                  <i data-lucide="check"></i> Thanh toán &amp; Xuất kho
                 </button>
                 <button class="btn btn-invoice-draft" id="btn-draft-order">
-                  <i data-lucide="save"></i> Lưu đơn nháp (F8)
+                  <i data-lucide="bookmark"></i> Lưu đơn nháp (F8)
                 </button>
                 <button class="btn btn-invoice-print" id="btn-print-order">
                   <i data-lucide="printer"></i> In đơn hàng (Ctrl + P)
@@ -1936,7 +1948,7 @@
               <!-- Shortcut Helper -->
               <div class="invoice-helper-shortcuts">
                 <span>Phím tắt: F2: Tìm SP | F9: Khách hàng</span>
-                <span class="invoice-shortcut-guide"><i data-lucide="keyboard"></i> Hướng dẫn</span>
+                <span class="invoice-shortcut-guide" id="btn-invoice-guide" style="cursor: pointer;"><i data-lucide="help-circle"></i> Hướng dẫn</span>
               </div>
 
             </div>
@@ -2582,7 +2594,7 @@
             <table class="table customers-table" style="table-layout: fixed; min-width: 2000px;">
               <colgroup>
                 <col style="width: 45px;">   <!-- Chon -->
-                <col data-customer-column="code" style="width: 100px;">  <!-- Mã KH -->
+                <col data-customer-column="code" style="width: 140px;">  <!-- Mã KH -->
                 <col data-customer-column="name" style="width: 165px;">  <!-- Tên khách hàng -->
                 <col data-customer-column="phone" style="width: 105px;">  <!-- SĐT -->
                 <col data-customer-column="address" style="width: auto;">   <!-- Địa chỉ -->
@@ -2732,6 +2744,7 @@
               </tbody>
             </table>
           </div>
+          <div id="price-matrix-pagination"></div>
         </div>
       </section>
 
@@ -3193,6 +3206,12 @@
           </div>
         </div>
       </section>
+
+      <!-- Global App Workspace Footer matching screenshot -->
+      <footer class="app-workspace-footer">
+        <div class="workspace-footer-left">Hệ thống Quản lý Bán hàng &amp; Doanh nghiệp SoVie - Phiên bản v4.2.8 Enterprise</div>
+        <div class="workspace-footer-right">Hotline hỗ trợ kỹ thuật: <strong>1900 6886</strong> (Nhánh 1)</div>
+      </footer>
     </main>
   </div>
 
@@ -5316,7 +5335,7 @@
   </div>
 
   <!-- App logic -->
-  <script type="module" src="js/landing-motion.js?v=20260817-saas-platform-v1"></script>
-  <script type="module" src="js/main.js?v=20260831-provisioning-v2"></script>
+  <script type="module" src="js/landing-motion.js?v=20260911-3d-tilt-v6"></script>
+  <script type="module" src="js/main.js?v=20260909-inline-filter-v4"></script>
 </body>
 </html>

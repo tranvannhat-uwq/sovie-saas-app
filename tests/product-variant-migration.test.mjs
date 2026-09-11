@@ -1,7 +1,12 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, existsSync } from 'node:fs';
 
-const sql = readFileSync(new URL('../migration_product_parent_variants.sql', import.meta.url), 'utf8');
+const candidatePaths = [
+  new URL('../migration_product_parent_variants.sql', import.meta.url),
+  new URL('../supabase/migration_product_parent_variants.sql', import.meta.url)
+];
+const foundPath = candidatePaths.find(p => existsSync(p));
+const sql = readFileSync(foundPath, 'utf8');
 
 [
   'CREATE TABLE IF NOT EXISTS public.product_groups',

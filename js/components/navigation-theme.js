@@ -7,7 +7,7 @@ import {
   getNavigationTheme,
   normalizeNavigationColor,
   normalizeNavigationLayout
-} from '../domain/navigation-theme.js';
+} from '../domain/navigation-theme.js?v=20260909-inline-filter-v4';
 
 export function applyNavigationColor(color, { persist = true } = {}) {
   const theme = getNavigationTheme(color);

@@ -9,6 +9,7 @@ const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
 const users = fs.readFileSync(path.join(root, 'js/components/users.js'), 'utf8');
 const css = fs.readFileSync(path.join(root, 'style.css'), 'utf8');
 const uiSystem = fs.readFileSync(path.join(root, 'ui-system.css'), 'utf8');
+const luminousEngine = fs.readFileSync(path.join(root, 'luminous-engine.css'), 'utf8');
 
 test('all navigation targets exist exactly once', () => {
   const ids = [...html.matchAll(/\bid="([^"]+)"/g)].map(match => match[1]);
@@ -43,4 +44,9 @@ test('authenticated shell exposes a consistent role-aware visual system', () => 
   assert.match(uiSystem, /linear-gradient\(112deg, rgba\(255,255,255,\.99\).*#e7f9f1 100%\)/);
   assert.match(uiSystem, /#app-layout \.nav-link\.active/);
   assert.match(uiSystem, /#app-layout \.platform-summary-card\.is-attention/);
+  assert.match(luminousEngine, /SoVie Luminous Engine/);
+  assert.match(luminousEngine, /--vi-secondary-container:\s*#3cfe3b/);
+  assert.match(luminousEngine, /--vi-tertiary-container:\s*#e72226/);
+  assert.match(luminousEngine, /\.login-shell \.login-story h2[\s\S]*color:\s*var\(--vi-on-surface\) !important/);
+  assert.match(luminousEngine, /\.login-shell \.login-story-kicker[\s\S]*color:\s*var\(--vi-primary\) !important/);
 });

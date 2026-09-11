@@ -1,7 +1,7 @@
 import { state } from '../state.js';
-import { dbFetchActivityLogs, dbFetchOrderActivity } from '../services/supabase.js?v=20260831-provisioning-v2';
-import { switchTab } from '../main.js?v=20260831-provisioning-v2';
-import { getOrderDisplayCode } from '../domain/order-display.js?v=20260831-provisioning-v2';
+import { dbFetchActivityLogs, dbFetchOrderActivity } from '../services/supabase.js?v=20260909-inline-filter-v4';
+import { switchTab } from '../main.js?v=20260909-inline-filter-v4';
+import { getOrderDisplayCode } from '../domain/order-display.js?v=20260909-inline-filter-v4';
 import { safeCreateIcons, showToast } from '../utils.js';
 
 const PAGE_SIZE = 20;
@@ -237,7 +237,13 @@ export function setupActivityLog() {
   if (actorFilter) actorFilter.innerHTML = '<option value="all">Tất cả nhân viên</option>' + (state.users || []).map(user => `<option value="${escapeHtml(user.authUserId || user.id)}">${escapeHtml(user.displayName || user.username)}</option>`).join('');
   const button = document.getElementById('btn-activity-log');
   const dropdown = document.getElementById('activity-dropdown');
-  if (button) button.onclick = async event => { event.stopPropagation(); dropdown.classList.toggle('active'); if (dropdown.classList.contains('active')) await renderActivityDropdown(); };
+  if (button) button.onclick = async event => {
+    event.stopPropagation();
+    dropdown.classList.toggle('active');
+    const dot = button.querySelector('.header-notify-dot');
+    if (dot) dot.style.display = 'none';
+    if (dropdown.classList.contains('active')) await renderActivityDropdown();
+  };
   document.addEventListener('click', event => { if (!event.target.closest('.activity-header-wrap')) dropdown?.classList.remove('active'); });
   document.getElementById('activity-view-all')?.addEventListener('click', () => {
     activityPage = 1;

@@ -1,5 +1,5 @@
 import { state } from '../state.js';
-import { createPlatformCustomer, getPlatformActivePlans, getPlatformBillingConfiguration, getPlatformCustomerAccounts, getPlatformPlanCatalog, managePlatformCustomer, updatePlatformBillingConfiguration, updatePlatformPlan, validateSaasOrganizationSlug } from '../services/supabase.js?v=20260831-provisioning-v2';
+import { createPlatformCustomer, getPlatformActivePlans, getPlatformBillingConfiguration, getPlatformCustomerAccounts, getPlatformPlanCatalog, managePlatformCustomer, updatePlatformBillingConfiguration, updatePlatformPlan, validateSaasOrganizationSlug } from '../services/supabase.js?v=20260909-inline-filter-v4';
 import { safeCreateIcons, showToast } from '../utils.js';
 
 let platformDataLoaded = false;

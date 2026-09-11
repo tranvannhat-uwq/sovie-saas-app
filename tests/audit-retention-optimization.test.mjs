@@ -3,13 +3,14 @@ import fs from 'node:fs';
 import path from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
+import { listOrderedMigrations } from '../scripts/migration-inventory.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const migration = fs.readFileSync(path.join(root, 'migrations', '0052_short_compact_audit_retention.sql'), 'utf8');
-const migrationList = fs.readFileSync(path.join(root, 'tests', 'p0-migrations.test.mjs'), 'utf8');
+const migrationNames = listOrderedMigrations(path.join(root, 'migrations'));
 
 test('migration 0052 is tracked and limits both log stores to four days', () => {
-  assert.match(migrationList, /0052_short_compact_audit_retention\.sql/);
+  assert.ok(migrationNames.includes('0052_short_compact_audit_retention.sql'));
   assert.match(migration, /DELETE FROM public\.audit_logs WHERE created_at < now\(\) - interval '4 days'/);
   assert.match(migration, /DELETE FROM public\.activity_logs WHERE created_at < now\(\) - interval '4 days'/);
   assert.match(migration, /SELECT public\.p52_prune_short_audit_logs\(\)/);

@@ -22,7 +22,7 @@ test('stateful browser modules use one URL identity across the entire import gra
   });
 
   const versions = new Set(imports.map(item => item.version));
-  assert.deepEqual([...versions], ['20260831-provisioning-v2']);
+  assert.deepEqual([...versions], ['20260909-inline-filter-v4']);
 
   const allSources = listJavaScriptFiles(jsRoot).map(file => fs.readFileSync(file, 'utf8')).join('\n');
   for (const moduleName of ['services/supabase.js', 'components/products.js', 'components/pricelists.js']) {

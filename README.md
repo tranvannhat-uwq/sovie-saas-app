@@ -52,3 +52,17 @@ Xem [docs/SAAS_PRODUCT_SPEC.md](docs/SAAS_PRODUCT_SPEC.md) để kiểm tra base
 sản phẩm Giai đoạn 1 và [docs/SAAS_ROLLOUT.md](docs/SAAS_ROLLOUT.md) để theo dõi
 các giai đoạn tiếp theo. Trạng thái staging và các cổng còn lại trước commercial
 launch nằm tại [docs/SAAS_STAGING_READINESS.md](docs/SAAS_STAGING_READINESS.md).
+
+## Kiểm tra cấu trúc trước khi phát hành
+
+```powershell
+npm run verify:structure
+npm run release:check
+```
+
+`verify:structure` kiểm tra các module JavaScript có thể nạp từ ứng dụng, tài
+nguyên tĩnh được triển khai và chuỗi migration liên tục/tự ghi nhận version.
+Migration đã từng được áp dụng là lịch sử bất biến: khi đổi database, tạo file
+migration mới thay vì sửa, gộp hoặc xóa file cũ. Các SQL legacy ở thư mục gốc
+được giữ lại để đối chiếu hệ thống cũ và không được chạy sau chuỗi migration
+trong `migrations/`.

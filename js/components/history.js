@@ -1,19 +1,19 @@
 import { state } from '../state.js';
 import { showToast, formatCurrency, formatNumber, safeCreateIcons, formatDateTime, isSameUser, getManagerDisplayName, getCustomerName, getUserById, getUserDisplayName, getCompanyName, normalizeCompanyId, getCompanyIdByBrand, getCanonicalBrandName } from '../utils.js';
-import { dbDeleteOrder, dbDeleteAllOrders, dbRecordSalesReturn, dbCancelSalesReturn, dbCancelOrder, dbRefreshCustomerFinancialState, dbUpdateOrderNotes, dbLoadOrdersForHistoryRange, cacheOrdersLocally } from '../services/supabase.js?v=20260831-provisioning-v2';
-import { ensurePanelCloudData, renderAll } from '../main.js?v=20260831-provisioning-v2';
+import { dbDeleteOrder, dbDeleteAllOrders, dbRecordSalesReturn, dbCancelSalesReturn, dbCancelOrder, dbRefreshCustomerFinancialState, dbUpdateOrderNotes, dbLoadOrdersForHistoryRange, cacheOrdersLocally } from '../services/supabase.js?v=20260909-inline-filter-v4';
+import { ensurePanelCloudData, renderAll } from '../main.js?v=20260909-inline-filter-v4';
 import { tenantStorage } from '../services/tenant-storage.js';
-import { openPrintTypeModal, resetInvoiceBuilder, syncInvoiceBusinessDateControl } from './invoice.js?v=20260831-provisioning-v2';
-import { openHistoryOrderExportModal } from './customers.js?v=20260831-provisioning-v2';
+import { openPrintTypeModal, resetInvoiceBuilder, syncInvoiceBusinessDateControl } from './invoice.js?v=20260909-inline-filter-v4';
+import { openHistoryOrderExportModal } from './customers.js?v=20260909-inline-filter-v4';
 import {
   getOrderFinancialBreakdown,
   isOrderIncludedInFinancialSummary
-} from '../domain/order-financials.js?v=20260831-provisioning-v2';
+} from '../domain/order-financials.js?v=20260909-inline-filter-v4';
 import { getOrderDisplayCode } from '../domain/order-display.js';
 import { matchesHistoryOrderStatuses } from '../domain/order-status.js';
 import { currentBusinessDateInputValue, orderDateToInputValue } from '../domain/order-business-date.js';
 import { normalizeOrderItemsForEditing, resolveOrderCustomerForEditing } from '../domain/order-edit.js';
-import { getApplicablePriceList, normalizePriceListType, PRICE_LIST_TYPES } from '../domain/pricing.js?v=20260831-provisioning-v2';
+import { getApplicablePriceList, normalizePriceListType, PRICE_LIST_TYPES } from '../domain/pricing.js?v=20260909-inline-filter-v4';
 
 const selectedHistoryOrderIdsForExport = new Set();
 let pendingSalesReturnKey = '';
@@ -895,33 +895,35 @@ export function renderHistoryOrders({ reuseFiltered = false } = {}) {
           <td style="text-align: center;"><input type="checkbox" class="history-export-checkbox" data-id="${escapeHistoryHtml(orderId)}" aria-label="Chọn đơn ${escapeHistoryHtml(displayOrderCode)}" ${selectedHistoryOrderIdsForExport.has(orderId) ? 'checked' : ''}></td>
           <td style="text-align: center; font-weight: 600; color: var(--text-muted);">${indexNumber}</td>
           <td>
-            <div title="${escapeHistoryHtml(orderId)}" style="font-weight: 700; color: var(--text-primary); font-size: 0.9rem; margin-bottom: 2px;">${escapeHistoryHtml(displayOrderCode)}</div>
+            <div title="${escapeHistoryHtml(orderId)}" style="margin-bottom: 3px;">
+              <span class="table-code-chip code-chip-order">${escapeHistoryHtml(displayOrderCode)}</span>
+            </div>
             <div>${statusBadge}</div>
           </td>
           <td style="white-space: nowrap; color: var(--text-secondary); font-size: 0.8rem;">
             ${formatDateTime(order.date)}
           </td>
           <td>
-            <div style="font-weight: 600; color: var(--text-primary);">${escapeHistoryHtml(order.customerName)}</div>
-            <div style="font-size: 0.78rem; color: var(--text-muted);">Nợ hiện tại: <span style="color: var(--color-danger); font-weight: 600;">${debtText}</span></div>
+            <div style="font-weight: 700; color: #0f172a;">${escapeHistoryHtml(order.customerName)}</div>
+            <div style="font-size: 0.78rem; color: var(--text-muted);">Nợ hiện tại: <span style="color: #e11d48; font-weight: 700;">${debtText}</span></div>
           </td>
           <td>
             <span style="font-size: 0.8rem; font-weight: 600; color: var(--text-secondary);">${escapeHistoryHtml(managerName)}</span>
           </td>
           <td>
-            <span style="font-size: 0.8rem; font-weight: 500; color: var(--color-warning);">${escapeHistoryHtml(plName)}</span>
+            <span style="font-size: 0.8rem; font-weight: 600; color: #b45309;">${escapeHistoryHtml(plName)}</span>
           </td>
           <td style="text-align: right;">
-            <div class="history-money-cell">${formatNumber(amountBreakdown.totalBeforeDiscount)}</div>
+            <div class="history-money-cell" style="font-weight: 700; color: #0f172a;">${formatNumber(amountBreakdown.totalBeforeDiscount)}</div>
           </td>
           <td style="text-align: right;">
-            <div class="history-money-cell history-money-discount">${formatNumber(amountBreakdown.totalDiscountAmount)}</div>
+            <div class="history-money-cell history-money-discount table-amount-warning">${formatNumber(amountBreakdown.totalDiscountAmount)}</div>
           </td>
           <td style="text-align: right;">
-            <div class="history-money-cell history-money-other-fee">${formatNumber(amountBreakdown.shippingFeeAmount)}</div>
+            <div class="history-money-cell history-money-other-fee" style="color: #0284c7; font-weight: 600;">${formatNumber(amountBreakdown.shippingFeeAmount)}</div>
           </td>
           <td style="text-align: right;">
-            <div class="history-money-cell history-money-total">${formatNumber(amountBreakdown.totalPayment)}</div>
+            <div class="history-money-cell history-money-total table-amount-positive" style="font-size: 0.92rem; font-weight: 800;">${formatNumber(amountBreakdown.totalPayment)}</div>
           </td>
         </tr>
         <tr id="${detailId}" class="history-expanded-row${isExpanded ? ' is-expanded' : ''}" aria-hidden="${!isExpanded}">
@@ -1089,7 +1091,7 @@ export function renderHistoryOrders({ reuseFiltered = false } = {}) {
           ` : ''}
           <div>
             <div class="flex justify-between items-center" style="margin-bottom: 0.75rem; padding-right: ${showDeleteBtn ? '2rem' : '0'}; padding-left: 1.4rem;">
-              <span class="order-id" title="${order.id}" style="font-weight: 700; color: #fff; font-size: 1.05rem;">${displayOrderCode}</span>
+              <span class="table-code-chip code-chip-order" title="${order.id}" style="font-size: 0.95rem; font-weight: 750;">${displayOrderCode}</span>
               <div style="display: flex; gap: 0.35rem; align-items: center;">
                 ${statusBadge}
               </div>

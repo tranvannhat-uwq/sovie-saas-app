@@ -53,6 +53,8 @@ export const state = {
   customersPage: 1,
   suppliers: [],
   suppliersPage: 1,
+  priceMatrixPage: 1,
+  priceMatrixPageSize: 25,
   purchases: [],
   rawMaterials: [],
   semiFinished: [],

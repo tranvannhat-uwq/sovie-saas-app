@@ -1,26 +1,26 @@
 import { state } from './state.js';
 import { COMPANY_SUPABASE_URL, COMPANY_SUPABASE_KEY, defaultProducts } from './config.js';
-import { connectSupabase, disconnectSupabase, retrySupabaseConnection, syncLocalToCloud, isCloudActive, supabaseClient, loadLocalStorageBackup, backfillMultiCompanyAndRevenueData, clearSupabaseAuthStorage, fetchCloudData, getMaintenanceStatus, setMaintenanceMode, loadSaasContext } from './services/supabase.js?v=20260831-provisioning-v2';
-import { setupBackupRestoreListeners } from './services/backup.js?v=20260831-provisioning-v2';
-import { updateDashboardStats, setupDashboardFilters, setupDashboardQuickActions } from './components/dashboard.js?v=20260831-provisioning-v2';
-import { renderProductsTable, setupExcelImportAndTemplate, setupProductManagement } from './components/products.js?v=20260831-provisioning-v2';
-import { renderCustomersTable, setupCustomerManagement, populateManagedByDropdown } from './components/customers.js?v=20260831-provisioning-v2';
-import { renderInvoiceTable, setupInvoiceCreator, resetInvoiceBuilder, resetInvoiceCustomer } from './components/invoice.js?v=20260831-provisioning-v2';
-import { renderPricelistsTable, setupPricelistManagement, populatePricelistsDropdowns } from './components/pricelists.js?v=20260831-provisioning-v2';
-import { renderUsersTable, setupUserManagement, handleLogin, handleLogout, showLoginGate, applyUserPermissions, populateCustomerEmployeeFilter, loadAuthenticatedProfile, createPlatformOnlyUser, clearAuthenticatedSessionState, startMaintenanceMonitor, openInvitationPasswordSetup } from './components/users.js?v=20260831-provisioning-v2';
-import { setupHistoryPanel, renderHistoryOrders } from './components/history.js?v=20260831-provisioning-v2';
-import { renderBrandsTable, setupBrandsPanel } from './components/brands.js?v=20260831-provisioning-v2';
-import { setupSoQuyPanel, renderSoQuyTable } from './components/so_quy.js?v=20260831-provisioning-v2';
-import { renderSuppliersTable, setupSupplierManagement, populateSupplierDatalist } from './components/suppliers.js?v=20260831-provisioning-v2';
-import { renderGoodsPanel, setupGoodsPanel } from './components/goods.js?v=20260831-provisioning-v2';
-import { setupReportsPanel, renderDebtReport, renderReturnsReport } from './components/reports.js?v=20260831-provisioning-v2';
+import { connectSupabase, disconnectSupabase, retrySupabaseConnection, syncLocalToCloud, isCloudActive, supabaseClient, loadLocalStorageBackup, backfillMultiCompanyAndRevenueData, clearSupabaseAuthStorage, fetchCloudData, getMaintenanceStatus, setMaintenanceMode, loadSaasContext } from './services/supabase.js?v=20260909-inline-filter-v4';
+import { setupBackupRestoreListeners } from './services/backup.js?v=20260909-inline-filter-v4';
+import { updateDashboardStats, setupDashboardFilters, setupDashboardQuickActions } from './components/dashboard.js?v=20260909-inline-filter-v4';
+import { renderProductsTable, setupExcelImportAndTemplate, setupProductManagement } from './components/products.js?v=20260909-inline-filter-v4';
+import { renderCustomersTable, setupCustomerManagement, populateManagedByDropdown } from './components/customers.js?v=20260909-inline-filter-v4';
+import { renderInvoiceTable, setupInvoiceCreator, resetInvoiceBuilder, resetInvoiceCustomer } from './components/invoice.js?v=20260909-inline-filter-v4';
+import { renderPricelistsTable, setupPricelistManagement, populatePricelistsDropdowns } from './components/pricelists.js?v=20260909-inline-filter-v4';
+import { renderUsersTable, setupUserManagement, handleLogin, handleLogout, showLoginGate, applyUserPermissions, populateCustomerEmployeeFilter, loadAuthenticatedProfile, createPlatformOnlyUser, clearAuthenticatedSessionState, startMaintenanceMonitor, openInvitationPasswordSetup } from './components/users.js?v=20260909-inline-filter-v4';
+import { setupHistoryPanel, renderHistoryOrders } from './components/history.js?v=20260909-inline-filter-v4';
+import { renderBrandsTable, setupBrandsPanel } from './components/brands.js?v=20260909-inline-filter-v4';
+import { setupSoQuyPanel, renderSoQuyTable } from './components/so_quy.js?v=20260909-inline-filter-v4';
+import { renderSuppliersTable, setupSupplierManagement, populateSupplierDatalist } from './components/suppliers.js?v=20260909-inline-filter-v4';
+import { renderGoodsPanel, setupGoodsPanel } from './components/goods.js?v=20260909-inline-filter-v4';
+import { setupReportsPanel, renderDebtReport, renderReturnsReport } from './components/reports.js?v=20260909-inline-filter-v4';
 import { showToast, safeCreateIcons, updateDbStatusUI } from './utils.js';
-import { startRealtimeSync, stopRealtimeSync } from './services/realtime.js?v=20260831-provisioning-v2';
-import { setupActivityLog, renderActivityLog } from './components/activity-log.js?v=20260831-provisioning-v2';
-import { setupNavigationColorSettings, setupNavigationDropdowns } from './components/navigation-theme.js?v=20260831-provisioning-v2';
-import { setupModuleFilterLayouts } from './components/module-filter-layout.js?v=20260831-provisioning-v2';
-import { openWorkspaceOnboarding, renderWorkspaceSwitcher, renderSubscriptionAccessNotice, setupWorkspaceManagement } from './components/workspaces.js?v=20260831-provisioning-v2';
-import { hydratePlatformAdmin, renderPlatformAdmin, setupPlatformAdmin } from './components/platform-admin.js?v=20260831-provisioning-v2';
+import { startRealtimeSync, stopRealtimeSync } from './services/realtime.js?v=20260909-inline-filter-v4';
+import { setupActivityLog, renderActivityLog } from './components/activity-log.js?v=20260909-inline-filter-v4';
+import { setupNavigationColorSettings, setupNavigationDropdowns } from './components/navigation-theme.js?v=20260909-inline-filter-v4';
+import { setupModuleFilterLayouts } from './components/module-filter-layout.js?v=20260909-inline-filter-v4';
+import { openWorkspaceOnboarding, renderWorkspaceSwitcher, renderSubscriptionAccessNotice, setupWorkspaceManagement } from './components/workspaces.js?v=20260909-inline-filter-v4';
+import { hydratePlatformAdmin, renderPlatformAdmin, setupPlatformAdmin } from './components/platform-admin.js?v=20260909-inline-filter-v4';
 
 const PANEL_CLOUD_DOMAINS = Object.freeze({
   'invoice-panel': ['pricelists'],
@@ -631,6 +631,7 @@ async function initApp() {
 
   const landingPage = document.getElementById('landing-page');
   const loginScreen = document.getElementById('login-screen');
+  safeCreateIcons();
   document.querySelectorAll('.js-open-login').forEach(button => {
     button.addEventListener('click', () => {
       if (loginScreen) loginScreen.style.display = 'flex';

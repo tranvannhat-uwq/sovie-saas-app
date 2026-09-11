@@ -1,25 +1,10 @@
 import { cp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { publicFiles } from './project-files.mjs';
 
 const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const outputRoot = join(projectRoot, 'dist');
-const publicFiles = [
-  'CNAME',
-  'index.html',
-  'style.css',
-  'landing.css',
-  'landing-premium.css',
-  'landing-reference.css',
-  'ui-system.css',
-  'sovie-favicon.png',
-  'sovie-logo.png',
-  'absjapan.png',
-  'festiva.png',
-  'hatacco.png',
-  'warehouse-operations.jpg',
-];
-
 if (dirname(outputRoot) !== projectRoot || outputRoot === projectRoot) {
   throw new Error('Refusing to build outside the project dist directory.');
 }

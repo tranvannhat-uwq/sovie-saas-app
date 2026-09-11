@@ -1,7 +1,7 @@
 import { state } from '../state.js';
 import { showToast, formatCurrency, safeCreateIcons, formatPhoneNumber } from '../utils.js';
-import { dbSaveSupplier, dbDeleteSupplier, dbSaveSuppliersBulk } from '../services/supabase.js?v=20260831-provisioning-v2';
-import { renderAll } from '../main.js?v=20260831-provisioning-v2';
+import { dbSaveSupplier, dbDeleteSupplier, dbSaveSuppliersBulk } from '../services/supabase.js?v=20260909-inline-filter-v4';
+import { renderAll } from '../main.js?v=20260909-inline-filter-v4';
 import { tenantStorage } from '../services/tenant-storage.js';
 
 function toNumber(value) {

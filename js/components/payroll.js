@@ -1,6 +1,6 @@
 import { state } from '../state.js';
 import { formatCurrency, safeCreateIcons, showToast } from '../utils.js';
-import { dbFetchPayrollPeriod, dbSavePayrollAdjustment, dbSetPayrollPeriodLock } from '../services/supabase.js?v=20260831-provisioning-v2';
+import { dbFetchPayrollPeriod, dbSavePayrollAdjustment, dbSetPayrollPeriodLock } from '../services/supabase.js?v=20260909-inline-filter-v4';
 
 let currentPayroll = null;
 const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
@@ -37,7 +37,7 @@ function renderStatus(payload) {
   const button = document.getElementById('btn-lock-payroll-period');
   if (badge) {
     badge.className = `db-status-badge ${isLocked ? 'status-cloud' : 'status-local'}`;
-    badge.style.color = isLocked ? '#ef4444' : '#10b981';
+    badge.style.color = isLocked ? '#ba1a1a' : '#006e08';
     badge.innerText = isLocked ? `ĐÃ KHÓA KỲ LƯƠNG (${payload.lockedBy || 'hệ thống'})` : 'KỲ LƯƠNG MỞ';
   }
   if (button) {

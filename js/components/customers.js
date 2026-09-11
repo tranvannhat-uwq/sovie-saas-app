@@ -1,12 +1,12 @@
 import { state } from '../state.js';
 import { showToast, formatCurrency, safeCreateIcons, formatPhoneNumber, isSameUser, getProvinceNameByCode, getManagerDisplayName, PROVINCES, makeSelectSearchable, getCompanyIdByBrand, normalizeCompanyId, formatDateOnly } from '../utils.js';
-import { dbSaveCustomer, dbDeleteCustomer, dbDeleteCustomersBulk, dbSaveCustomersBulk, dbImportCustomerFinancialBaselines, dbFetchCustomers, dbFetchCustomerById, dbRefreshCustomerFinancialState, dbRefreshOrderById, dbFetchCashbookTransactionById, dbRecordCustomerPayment, dbAdjustCustomerDebt, dbFetchCustomerOrderHistory, dbFetchCustomersOrderHistory } from '../services/supabase.js?v=20260831-provisioning-v2';
-import { renderAll } from '../main.js?v=20260831-provisioning-v2';
+import { dbSaveCustomer, dbDeleteCustomer, dbDeleteCustomersBulk, dbSaveCustomersBulk, dbImportCustomerFinancialBaselines, dbFetchCustomers, dbFetchCustomerById, dbRefreshCustomerFinancialState, dbRefreshOrderById, dbFetchCashbookTransactionById, dbRecordCustomerPayment, dbAdjustCustomerDebt, dbFetchCustomerOrderHistory, dbFetchCustomersOrderHistory } from '../services/supabase.js?v=20260909-inline-filter-v4';
+import { renderAll } from '../main.js?v=20260909-inline-filter-v4';
 import { tenantStorage } from '../services/tenant-storage.js';
-import { applyActivePriceListToInvoice, resetInvoiceCustomer } from './invoice.js?v=20260831-provisioning-v2';
-import { addCashbookTransaction } from './so_quy.js?v=20260831-provisioning-v2';
-import { getOrderFinancialBreakdown } from '../domain/order-financials.js?v=20260831-provisioning-v2';
-import { buildCustomerDebtDisplayHistory, collectCustomerDebt, getCustomerDebtPostingDate } from '../domain/customer-debt.js?v=20260831-provisioning-v2';
+import { applyActivePriceListToInvoice, resetInvoiceCustomer } from './invoice.js?v=20260909-inline-filter-v4';
+import { addCashbookTransaction } from './so_quy.js?v=20260909-inline-filter-v4';
+import { getOrderFinancialBreakdown } from '../domain/order-financials.js?v=20260909-inline-filter-v4';
+import { buildCustomerDebtDisplayHistory, collectCustomerDebt, getCustomerDebtPostingDate } from '../domain/customer-debt.js?v=20260909-inline-filter-v4';
 import { businessDateKey, parseExcelDate } from '../domain/import-date.js';
 import { buildCustomerImportColumnMap, normalizeExcelHeader, normalizeExcelSheetName } from '../domain/customer-import-columns.js';
 import { customerDateKey, customerDaysSince, finiteCustomerNumber, normalizeCustomerSearch, queryCustomerRows } from '../domain/customer-query.js';
@@ -917,9 +917,9 @@ export function renderCustomersTable() {
         <td style="text-align: center;">
           <input type="checkbox" class="customer-export-checkbox" data-id="${c.id}" ${selectedCustomerIdsForExport.has(String(c.id)) ? 'checked' : ''} title="Chọn khách hàng để xuất lịch sử">
         </td>
-        <td data-customer-column="code" style="font-weight: 600; color: #fff;">${c.code}</td>
+        <td data-customer-column="code" title="${c.code}"><span class="table-code-chip code-chip-customer">${c.code}</span></td>
         <td data-customer-column="name" style="font-weight: 500;">
-          <span class="view-cust-detail-link" data-index="${actualIndex}" style="cursor: pointer; color: #22c55e; text-decoration: underline; font-weight: 600;" title="Xem chi tiết & Lịch sử công nợ">
+          <span class="view-cust-detail-link" data-index="${actualIndex}" style="cursor: pointer; color: #2563eb; text-decoration: underline; font-weight: 700;" title="Xem chi tiết & Lịch sử công nợ">
             ${c.name}
           </span>
         </td>
@@ -927,18 +927,18 @@ export function renderCustomersTable() {
         <td data-customer-column="address" style="font-size: 0.8rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${addrTitle}">${displayAddr}</td>
         <td data-customer-column="notes" title="${escapeCustomerHtml(notes)}"><div class="customer-notes-cell">${notesHtml}</div></td>
         <td data-customer-column="brand">
-          <span class="suggestion-brand-badge" style="font-size: 0.7rem; padding: 2px 8px; border-radius: 6px; background: ${c.assignedBrand === 'Tất cả' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(34, 197, 94, 0.15)'}; color: ${c.assignedBrand === 'Tất cả' ? '#10b981' : '#22c55e'}; border: 1px solid ${c.assignedBrand === 'Tất cả' ? 'rgba(16, 185, 129, 0.4)' : 'rgba(34, 197, 94, 0.3)'};">${c.assignedBrand}</span>
+          <span class="suggestion-brand-badge" style="font-size: 0.7rem; padding: 2px 8px; border-radius: 6px; background: ${c.assignedBrand === 'Tất cả' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(34, 197, 94, 0.15)'}; color: ${c.assignedBrand === 'Tất cả' ? '#047857' : '#15803d'}; border: 1px solid ${c.assignedBrand === 'Tất cả' ? 'rgba(16, 185, 129, 0.4)' : 'rgba(34, 197, 94, 0.3)'}; font-weight: 650;">${c.assignedBrand}</span>
         </td>
         <td data-customer-column="manager" style="font-size: 0.85rem; max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
           ${c.managedBy ? getManagerDisplayName(c.managedBy, state.users) : '<span style="color: #ef4444; font-weight: 500;">Chưa bàn giao</span>'}
         </td>
         <td data-customer-column="pricelist" style="font-size: 0.75rem; color: var(--text-secondary); max-width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${tooltipTitle}">${pricelistName}</td>
-        <td data-customer-column="debt" class="customer-money-cell" style="color: ${c.debt > 0 ? 'var(--color-danger)' : (c.debt < 0 ? 'var(--color-success)' : 'var(--text-muted)')};">${formatCurrency(c.debt)}</td>
-        <td data-customer-column="grossSales" class="customer-money-cell" style="color: var(--color-primary);">${formatCurrency(metrics.grossSales)}</td>
-        <td data-customer-column="totalReturns" class="customer-money-cell" style="color: var(--color-warning);">${formatCurrency(metrics.totalReturns)}</td>
-        <td data-customer-column="netSales" class="customer-money-cell" style="color: #10b981;">${formatCurrency(metrics.netSales)}</td>
+        <td data-customer-column="debt" class="customer-money-cell" style="font-weight: 750; color: ${c.debt > 0 ? '#e11d48' : (c.debt < 0 ? '#059669' : 'var(--text-muted)')};">${formatCurrency(c.debt)}</td>
+        <td data-customer-column="grossSales" class="customer-money-cell" style="font-weight: 700; color: #2563eb;">${formatCurrency(metrics.grossSales)}</td>
+        <td data-customer-column="totalReturns" class="customer-money-cell" style="font-weight: 650; color: #d97706;">${formatCurrency(metrics.totalReturns)}</td>
+        <td data-customer-column="netSales" class="customer-money-cell" style="font-weight: 800; color: #059669;">${formatCurrency(metrics.netSales)}</td>
         <td data-customer-column="createdAt" style="text-align: center; font-size: 0.8rem; color: var(--text-secondary); white-space: nowrap;">${createdAtLabel}</td>
-        <td data-customer-column="debtDays" style="text-align: center; font-size: 0.8rem; color: ${debtDays > 0 ? 'var(--color-warning)' : 'var(--text-muted)'}; white-space: nowrap;">${debtDays}</td>
+        <td data-customer-column="debtDays" style="text-align: center; font-size: 0.8rem; color: ${debtDays > 0 ? '#d97706' : 'var(--text-muted)'}; white-space: nowrap; font-weight: ${debtDays > 0 ? '700' : 'normal'};">${debtDays}</td>
         <td data-customer-column="lastTransaction" style="text-align: center; font-size: 0.8rem; color: var(--text-secondary); white-space: nowrap;">${lastTransactionLabel}</td>
         <td data-customer-actions-column style="text-align: center;">
           <div class="actions-cell" style="justify-content: center; gap: 0.35rem;">

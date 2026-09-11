@@ -6,9 +6,9 @@ import {
   dbSavePriceListItems,
   dbDeletePriceListItem,
   persistAuthorizedPricingCache
-} from '../services/supabase.js?v=20260831-provisioning-v2';
-import { renderAll } from '../main.js?v=20260831-provisioning-v2';
-import { applyActivePriceListToInvoice } from './invoice.js?v=20260831-provisioning-v2';
+} from '../services/supabase.js?v=20260909-inline-filter-v4';
+import { renderAll } from '../main.js?v=20260909-inline-filter-v4';
+import { applyActivePriceListToInvoice } from './invoice.js?v=20260909-inline-filter-v4';
 import {
   PRICE_LIST_TYPES,
   normalizePriceListType,
@@ -19,8 +19,8 @@ import {
   resolvePriceForList,
   sortPriceLists,
   parseVndInteger
-} from '../domain/pricing.js?v=20260831-provisioning-v2';
-import { isPrintOnlyPriceList } from '../domain/invoice-discount.js?v=20260831-provisioning-v2';
+} from '../domain/pricing.js?v=20260909-inline-filter-v4';
+import { isPrintOnlyPriceList } from '../domain/invoice-discount.js?v=20260909-inline-filter-v4';
 
 const pendingChanges = new Map();
 const pendingDeletes = new Set();
@@ -83,7 +83,7 @@ function formatVndInput(price) {
 
 function priceListBadge(priceList) {
   const type = normalizePriceListType(priceList.type, priceList.customerId);
-  if (type === PRICE_LIST_TYPES.DEALER_PRIVATE) return '<span class="price-type-badge specific">Bảng giá riêng - Bảo mật</span>';
+  if (type === PRICE_LIST_TYPES.DEALER_PRIVATE) return '<span class="price-type-badge specific">Bảng giá riêng</span>';
   if (type === PRICE_LIST_TYPES.SALES) return '<span class="price-type-badge sales">Sale được dùng</span>';
   if (type === PRICE_LIST_TYPES.CUSTOMER_GROUP) return '<span class="price-type-badge group">Giá nhóm</span>';
   return '<span class="price-type-badge standard">Giá chung</span>';
@@ -134,6 +134,30 @@ function matrixProductCells(product) {
   ];
 }
 
+function updatePriceListSelectorSummary() {
+  const selectedCount = (state.selectedPriceListIds || []).length;
+  const totalCount = visiblePriceLists().length;
+
+  const countEl = document.querySelector('.price-list-picker-count');
+  if (countEl) {
+    countEl.innerHTML = `Đã chọn: <strong>${selectedCount}</strong>/${totalCount} bảng giá`;
+  }
+
+  const summary = document.getElementById('pricelist-visible-summary');
+  if (summary) {
+    summary.innerHTML = `
+      <span class="picker-summary-main">
+        <i data-lucide="layers" class="picker-summary-icon"></i>
+        <span>${selectedCount ? `${selectedCount} bảng giá đang hiển thị` : 'Chọn bảng giá hiển thị'}</span>
+      </span>
+      <span class="picker-summary-right">
+        <span class="picker-summary-count-badge">${selectedCount}</span>
+      </span>
+    `;
+    safeCreateIcons();
+  }
+}
+
 function buildPriceListSelector() {
   const selector = document.getElementById('pricelist-visible-select');
   if (!selector) return;
@@ -145,32 +169,58 @@ function buildPriceListSelector() {
   }
   const query = (document.getElementById('price-list-picker-search')?.value || '').trim().toLowerCase();
   const filtered = lists.filter(priceList => `${priceList.name} ${priceList.code || ''}`.toLowerCase().includes(query));
+  const selectedCount = state.selectedPriceListIds.length;
+  const totalCount = lists.length;
+
+  const oldOptions = selector.querySelector('.price-list-picker-options');
+  const oldScrollTop = oldOptions ? oldOptions.scrollTop : 0;
+
   selector.innerHTML = `
-    <div class="price-list-picker-search-wrap">
-      <i data-lucide="search"></i>
-      <input type="search" id="price-list-picker-search" placeholder="Tìm bảng giá" value="${query}">
+    <div class="price-list-picker-header">
+      <div class="price-list-picker-search-wrap">
+        <i data-lucide="search" class="price-list-search-ico"></i>
+        <input type="search" id="price-list-picker-search" placeholder="Tìm kiếm bảng giá..." value="${query}" autocomplete="off">
+        ${query ? `<button type="button" class="price-list-picker-search-clear" id="price-list-picker-search-clear" title="Xóa tìm kiếm"><i data-lucide="x"></i></button>` : ''}
+      </div>
+      <div class="price-list-picker-quick-bar">
+        <span class="price-list-picker-count">Đã chọn: <strong>${selectedCount}</strong>/${totalCount} bảng giá</span>
+      </div>
     </div>
     <div class="price-list-picker-options">
-      ${filtered.map(priceList => `
-        <div class="price-list-picker-option">
-          <label>
-            <input type="checkbox" class="price-list-visible-check" value="${priceList.id}" ${state.selectedPriceListIds.includes(priceList.id) ? 'checked' : ''}>
-            <span><strong>${priceListDisplayName(priceList)}</strong>${priceListBadge(priceList)}</span>
-          </label>
-          ${canManagePriceLists() ? `
-            <div class="picker-actions">
-              <button type="button" class="icon-btn edit-price-list" data-id="${priceList.id}" title="Sửa bảng giá"><i data-lucide="pencil"></i></button>
-              ${normalizePriceListType(priceList.type, priceList.customerId) !== PRICE_LIST_TYPES.GENERAL
-                ? `<button type="button" class="icon-btn delete-price-list" data-id="${priceList.id}" title="Ngừng áp dụng bảng giá"><i data-lucide="archive"></i></button>`
-                : ''}
-            </div>
-          ` : ''}
+      ${filtered.map(priceList => {
+        const isChecked = state.selectedPriceListIds.includes(priceList.id);
+        return `
+          <div class="price-list-picker-option ${isChecked ? 'is-selected' : ''}">
+            <label class="price-list-picker-label">
+              <input type="checkbox" class="price-list-visible-check" value="${priceList.id}" ${isChecked ? 'checked' : ''}>
+              <span class="price-list-option-info">
+                <span class="price-list-option-name" title="${priceListDisplayName(priceList)}">${priceListDisplayName(priceList)}</span>
+                ${priceListBadge(priceList)}
+              </span>
+            </label>
+            ${canManagePriceLists() ? `
+              <div class="picker-actions">
+                <button type="button" class="icon-btn edit-price-list" data-id="${priceList.id}" title="Sửa bảng giá"><i data-lucide="pencil"></i></button>
+                ${normalizePriceListType(priceList.type, priceList.customerId) !== PRICE_LIST_TYPES.GENERAL
+                  ? `<button type="button" class="icon-btn delete-price-list" data-id="${priceList.id}" title="Ngừng áp dụng bảng giá"><i data-lucide="archive"></i></button>`
+                  : ''}
+              </div>
+            ` : ''}
+          </div>
+        `;
+      }).join('') || `
+        <div class="picker-empty">
+          <i data-lucide="search-x"></i>
+          <span>Không tìm thấy bảng giá nào phù hợp</span>
         </div>
-      `).join('') || '<div class="picker-empty">Không tìm thấy bảng giá.</div>'}
+      `}
     </div>
   `;
-  const summary = document.getElementById('pricelist-visible-summary');
-  if (summary) summary.innerText = `${state.selectedPriceListIds.length} bảng giá đang hiển thị`;
+  const newOptions = selector.querySelector('.price-list-picker-options');
+  if (newOptions && oldScrollTop) {
+    newOptions.scrollTop = oldScrollTop;
+  }
+  updatePriceListSelectorSummary();
   safeCreateIcons();
 }
 
@@ -251,14 +301,85 @@ function renderCell(product, priceList, effectivePriceItems) {
   `;
 }
 
-export function renderPricelistsTable() {
+function renderPriceMatrixPagination(totalItems, totalPages) {
+  const container = document.getElementById('price-matrix-pagination');
+  if (!container) return;
+
+  if (totalItems === 0) {
+    container.innerHTML = '';
+    return;
+  }
+
+  const pageSize = Number(state.priceMatrixPageSize) || 25;
+  const currentPage = Math.max(1, Math.min(Number(state.priceMatrixPage) || 1, totalPages));
+  const start = (currentPage - 1) * pageSize + 1;
+  const end = Math.min(totalItems, currentPage * pageSize);
+
+  container.innerHTML = `
+    <div class="pagination-controls" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; margin-top: 1rem; padding: 0.75rem 0.25rem 0.25rem; border-top: 1px solid var(--border-color); width: 100%;">
+      <div style="font-size: 0.85rem; color: var(--text-muted); display: flex; align-items: center; gap: 0.75rem;">
+        <span>Hiển thị <strong>${start}–${end}</strong> trên tổng <strong>${totalItems}</strong> SKU</span>
+        <label style="display: inline-flex; align-items: center; gap: 0.35rem; margin: 0;">
+          <span style="font-size: 0.8rem;">Mỗi trang:</span>
+          <select id="price-matrix-page-size" class="form-control price-matrix-page-size-select" style="width: 78px; min-width: 78px; height: 32px; padding: 0.2rem 1.75rem 0.2rem 0.65rem; font-size: 0.85rem; border-radius: 6px; background-position: right 0.5rem center; background-size: 1rem; cursor: pointer;">
+            <option value="15" ${pageSize === 15 ? 'selected' : ''}>15</option>
+            <option value="25" ${pageSize === 25 ? 'selected' : ''}>25</option>
+            <option value="50" ${pageSize === 50 ? 'selected' : ''}>50</option>
+            <option value="100" ${pageSize === 100 ? 'selected' : ''}>100</option>
+          </select>
+        </label>
+      </div>
+      <div style="display: flex; align-items: center; gap: 0.5rem;">
+        <button class="btn btn-secondary btn-sm" id="price-matrix-prev-page" ${currentPage <= 1 ? 'disabled' : ''} style="display: inline-flex; align-items: center; gap: 0.25rem;">
+          <i data-lucide="chevron-left" style="width: 14px; height: 14px;"></i> Trước
+        </button>
+        <span style="font-size: 0.85rem; color: var(--text-secondary); font-weight: 600; min-width: 80px; text-align: center;">
+          Trang <strong>${currentPage}</strong> / ${totalPages}
+        </span>
+        <button class="btn btn-secondary btn-sm" id="price-matrix-next-page" ${currentPage >= totalPages ? 'disabled' : ''} style="display: inline-flex; align-items: center; gap: 0.25rem;">
+          Sau <i data-lucide="chevron-right" style="width: 14px; height: 14px;"></i>
+        </button>
+      </div>
+    </div>
+  `;
+
+  document.getElementById('price-matrix-prev-page')?.addEventListener('click', () => {
+    if (state.priceMatrixPage > 1) {
+      state.priceMatrixPage -= 1;
+      renderPricelistsTable();
+      document.getElementById('pricelists-panel')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  });
+
+  document.getElementById('price-matrix-next-page')?.addEventListener('click', () => {
+    if (state.priceMatrixPage < totalPages) {
+      state.priceMatrixPage += 1;
+      renderPricelistsTable();
+      document.getElementById('pricelists-panel')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  });
+
+  document.getElementById('price-matrix-page-size')?.addEventListener('change', event => {
+    state.priceMatrixPageSize = Number(event.target.value) || 25;
+    state.priceMatrixPage = 1;
+    renderPricelistsTable();
+  });
+}
+
+export function renderPricelistsTable(options = {}) {
   const body = document.getElementById('pricelists-table-body');
   if (!body) return;
   if (!canManagePriceLists()) {
     pendingChanges.clear();
     pendingDeletes.clear();
   }
-  buildPriceListSelector();
+  const shouldRebuild = options?.rebuildSelector ?? false;
+  const selector = document.getElementById('pricelist-visible-select');
+  if (shouldRebuild || !selector?.querySelector('.price-list-picker-options')) {
+    buildPriceListSelector();
+  } else {
+    updatePriceListSelectorSummary();
+  }
   populateMatrixFilters();
 
   const selectedLists = sortPriceLists(visiblePriceLists().filter(priceList => state.selectedPriceListIds.includes(priceList.id)));
@@ -279,27 +400,39 @@ export function renderPricelistsTable() {
     `;
   }
 
-  const products = getFilteredMatrixProducts();
+  const allProducts = getFilteredMatrixProducts();
   const effectivePriceItems = buildEffectivePriceItems();
 
   if (!selectedLists.length) {
     body.innerHTML = '<tr><td colspan="4" class="empty-table-cell">Chọn ít nhất một bảng giá để hiển thị.</td></tr>';
+    renderPriceMatrixPagination(0, 0);
     return;
   }
-  if (!products.length) {
+  if (!allProducts.length) {
     body.innerHTML = `<tr><td colspan="${4 + selectedLists.length}" class="empty-table-cell">Không tìm thấy SKU phù hợp.</td></tr>`;
+    renderPriceMatrixPagination(0, 0);
     return;
   }
 
+  const pageSize = Number(state.priceMatrixPageSize) || 25;
+  const totalPages = Math.max(1, Math.ceil(allProducts.length / pageSize));
+  if (state.priceMatrixPage > totalPages) state.priceMatrixPage = totalPages;
+  if (!state.priceMatrixPage || state.priceMatrixPage < 1) state.priceMatrixPage = 1;
+
+  const startIndex = (state.priceMatrixPage - 1) * pageSize;
+  const products = allProducts.slice(startIndex, startIndex + pageSize);
+
   body.innerHTML = products.map(product => `
     <tr>
-      <td class="sticky-col sticky-code sku-code">${product.code}</td>
-      <td class="sticky-col sticky-name" title="${product.name}">${product.name}</td>
-      <td class="sticky-col sticky-brand">${getBrandName(product.brandId || product.brand, product.brand || '')}</td>
+      <td class="sticky-col sticky-code sku-code"><span class="table-code-chip code-chip-product">${product.code}</span></td>
+      <td class="sticky-col sticky-name" title="${product.name}" style="font-weight: 700; color: #0f172a;">${product.name}</td>
+      <td class="sticky-col sticky-brand"><span style="font-weight: 600; color: #334155;">${getBrandName(product.brandId || product.brand, product.brand || '')}</span></td>
       <td class="sticky-col sticky-package">${product.displaySpecification || `${product.packageType} ${product.packageWeight ?? ''} ${product.packageWeightUnit || ''}`}</td>
       ${selectedLists.map(priceList => renderCell(product, priceList, effectivePriceItems)).join('')}
     </tr>
   `).join('');
+
+  renderPriceMatrixPagination(allProducts.length, totalPages);
 
   document.querySelectorAll('.price-matrix-input').forEach(input => {
     input.addEventListener('focus', () => {
@@ -831,13 +964,28 @@ export function setupPricelistManagement() {
   });
   document.getElementById('pl-type')?.addEventListener('change', updatePricelistTypeFields);
   ['price-matrix-product-search', 'price-matrix-brand-filter', 'price-matrix-package-filter', 'price-matrix-group-filter'].forEach(id => {
-    document.getElementById(id)?.addEventListener('input', renderPricelistsTable);
-    document.getElementById(id)?.addEventListener('change', renderPricelistsTable);
+    document.getElementById(id)?.addEventListener('input', () => {
+      state.priceMatrixPage = 1;
+      renderPricelistsTable();
+    });
+    document.getElementById(id)?.addEventListener('change', () => {
+      state.priceMatrixPage = 1;
+      renderPricelistsTable();
+    });
   });
+  let tableRenderDebounceTimer = null;
   document.getElementById('pricelist-visible-select')?.addEventListener('change', event => {
     if (!event.target.classList.contains('price-list-visible-check')) return;
+    const optionRow = event.target.closest('.price-list-picker-option');
+    if (optionRow) {
+      optionRow.classList.toggle('is-selected', event.target.checked);
+    }
     state.selectedPriceListIds = [...document.querySelectorAll('.price-list-visible-check:checked')].map(input => input.value);
-    renderPricelistsTable();
+    updatePriceListSelectorSummary();
+    clearTimeout(tableRenderDebounceTimer);
+    tableRenderDebounceTimer = setTimeout(() => {
+      renderPricelistsTable({ rebuildSelector: false });
+    }, 120);
   });
   document.getElementById('pricelist-visible-select')?.addEventListener('input', event => {
     if (event.target.id === 'price-list-picker-search') {
@@ -852,6 +1000,14 @@ export function setupPricelistManagement() {
     }
   });
   document.getElementById('pricelist-visible-select')?.addEventListener('click', event => {
+    if (event.target.closest('#price-list-picker-search-clear')) {
+      event.preventDefault();
+      const input = document.getElementById('price-list-picker-search');
+      if (input) input.value = '';
+      buildPriceListSelector();
+      document.getElementById('price-list-picker-search')?.focus();
+      return;
+    }
     const editButton = event.target.closest('.edit-price-list');
     const deleteButton = event.target.closest('.delete-price-list');
     if (editButton) {
@@ -885,4 +1041,3 @@ export function setupPricelistManagement() {
     }
   });
 }
-

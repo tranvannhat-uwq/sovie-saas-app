@@ -406,27 +406,49 @@ export function formatDateOnly(dateStr) {
 export function showToast(message, type = 'success') {
   const container = document.getElementById('toast-container');
   if (!container) return;
+
+  // Dọn các toast đang xử lý khi có toast hoàn thành
+  if (message.startsWith('Đã làm mới') || message.startsWith('Đã cập nhật') || message.startsWith('Đã lưu')) {
+    const existing = container.querySelectorAll('.toast');
+    existing.forEach(t => {
+      if (t.textContent.includes('Đang làm mới') || t.textContent.includes('Đang xử lý')) {
+        t.remove();
+      }
+    });
+  }
+
   const toast = document.createElement('div');
-  toast.className = `toast ${type === 'danger' ? 'toast-danger' : type === 'warning' ? 'toast-warning' : ''}`;
+  toast.className = `toast ${type === 'danger' ? 'toast-danger' : type === 'warning' ? 'toast-warning' : type === 'info' ? 'toast-info' : ''}`;
   
   let iconName = 'check-circle';
   if (type === 'danger') iconName = 'alert-triangle';
-  if (type === 'warning') iconName = 'alert-circle';
+  else if (type === 'warning') iconName = 'alert-circle';
+  else if (type === 'info') iconName = 'info';
   
   toast.innerHTML = `
     <i data-lucide="${iconName}"></i>
     <span>${message}</span>
   `;
+
+  // Cho phép bấm vào toast để tắt ngay lập tức
+  toast.style.cursor = 'pointer';
+  toast.title = 'Bấm để đóng';
+  const removeToast = () => {
+    if (toast.isConnected) {
+      toast.remove();
+    }
+  };
+  toast.onclick = removeToast;
   
   container.appendChild(toast);
   safeCreateIcons();
   
-  // Fade out và xóa khỏi DOM
+  // Fade out và xóa chắc chắn khỏi DOM sau 3 giây
   setTimeout(() => {
     toast.classList.add('toast-fade-out');
-    toast.addEventListener('animationend', () => {
-      toast.remove();
-    });
+    setTimeout(removeToast, 300);
+    toast.addEventListener('animationend', removeToast, { once: true });
+    toast.addEventListener('transitionend', removeToast, { once: true });
   }, 3000);
 }
 

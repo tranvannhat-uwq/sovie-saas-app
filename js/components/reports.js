@@ -1,7 +1,7 @@
 import { state } from '../state.js';
 import { formatCurrency, safeCreateIcons, formatDateTime, getUserDisplayName, getManagerDisplayName, getCustomerName, getProvinceNameByCode } from '../utils.js';
-import { dbFetchPhase5Report } from '../services/supabase.js?v=20260831-provisioning-v2';
-import { buildCustomerDebtDisplayHistory, getCustomerDebtPostingDate } from '../domain/customer-debt.js?v=20260831-provisioning-v2';
+import { dbFetchPhase5Report } from '../services/supabase.js?v=20260909-inline-filter-v4';
+import { buildCustomerDebtDisplayHistory, getCustomerDebtPostingDate } from '../domain/customer-debt.js?v=20260909-inline-filter-v4';
 
 const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
 

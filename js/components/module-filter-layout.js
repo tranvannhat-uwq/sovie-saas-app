@@ -329,7 +329,7 @@ export function createFilterHeading(label, title = 'Bộ lọc') {
     <span class="module-filter-count" hidden aria-live="polite">0</span>
     <span class="module-filter-actions">
       <button class="module-filter-reset" type="button" title="Đặt lại bộ lọc" aria-label="Đặt lại bộ lọc"><i data-lucide="rotate-ccw"></i></button>
-      <button class="module-filter-toggle" type="button" title="Thu gọn bộ lọc" aria-label="Thu gọn bộ lọc" aria-expanded="true"><i data-lucide="chevron-left"></i></button>
+      <button class="module-filter-toggle" type="button" title="Đóng bộ lọc" aria-label="Đóng bộ lọc"><i data-lucide="x"></i></button>
     </span>`;
   return heading;
 }
@@ -550,11 +550,18 @@ function updateFilterCount(sidebar) {
     badge.setAttribute('aria-label', `${count} điều kiện lọc đang bật`);
   }
 
-  const mobileTriggerBadge = sidebar.closest('.module-split-layout')?.querySelector('.module-filter-mobile-trigger .module-filter-count');
-  if (mobileTriggerBadge) {
-    mobileTriggerBadge.textContent = String(count);
-    mobileTriggerBadge.hidden = count === 0;
-  }
+  const triggers = getFilterTriggers(sidebar);
+  triggers.forEach(trigger => {
+    const triggerBadge = trigger.querySelector('.module-filter-count');
+    if (!triggerBadge) return;
+    triggerBadge.textContent = String(count);
+    triggerBadge.hidden = count === 0;
+  });
+
+  triggers.forEach(trigger => {
+    trigger.classList.toggle('has-active-filters', count > 0);
+    trigger.setAttribute('aria-label', count > 0 ? `Mở bộ lọc, ${count} điều kiện đang bật` : 'Mở bộ lọc');
+  });
 
   sidebar.classList.toggle('has-active-filters', count > 0);
   createActiveFilterChips(sidebar);
@@ -618,6 +625,12 @@ function addFieldLabel(field) {
   field.dataset.filterFieldReady = 'true';
 }
 
+function getFilterTriggers(sidebar) {
+  if (!sidebar?.id) return [];
+  return [...document.querySelectorAll('.module-filter-mobile-trigger')]
+    .filter(trigger => trigger.getAttribute('aria-controls') === sidebar.id);
+}
+
 function sanitizeFilterStyles(node) {
   if (!node || node.nodeType !== 1) return;
   node.style.removeProperty('width');
@@ -674,37 +687,107 @@ function decorateFilterGroup(group) {
 }
 
 function openMobileDrawer(sidebar) {
+  document.querySelectorAll('.module-filter-sidebar.is-mobile-open').forEach(openSidebar => {
+    if (openSidebar !== sidebar) closeMobileDrawer(openSidebar);
+  });
   sidebar.classList.add('is-mobile-open');
+  sidebar.setAttribute('aria-hidden', 'false');
   const backdrop = sidebar.parentElement?.querySelector('.module-filter-backdrop');
   if (backdrop) backdrop.hidden = false;
+  getFilterTriggers(sidebar).forEach(trigger => trigger.setAttribute('aria-expanded', 'true'));
   document.body.classList.add('module-filter-drawer-open');
+  window.setTimeout(() => {
+    sidebar.querySelector('input:not([type="hidden"]), select, button')?.focus();
+  }, 0);
 }
 
 function closeMobileDrawer(sidebar) {
   sidebar.classList.remove('is-mobile-open');
+  sidebar.setAttribute('aria-hidden', 'true');
   const backdrop = sidebar.parentElement?.querySelector('.module-filter-backdrop');
   if (backdrop) backdrop.hidden = true;
+  const trigger = getFilterTriggers(sidebar)[0];
+  if (trigger) {
+    trigger.setAttribute('aria-expanded', 'false');
+    trigger.focus({ preventScroll: true });
+  }
   document.body.classList.remove('module-filter-drawer-open');
+}
+
+function placeFilterTrigger(layout, sidebar, content, trigger) {
+  const cashbookToolbar = layout.querySelector('.so-quy-search-group');
+  const cashbookSearch = cashbookToolbar?.querySelector('.so-quy-search-wrapper');
+  if (cashbookToolbar && cashbookSearch) {
+    const tools = document.createElement('div');
+    tools.className = 'so-quy-search-tools';
+    cashbookSearch.before(tools);
+    tools.append(cashbookSearch, trigger);
+    trigger.classList.add('module-filter-mobile-trigger-cashbook');
+    return;
+  }
+
+  const owner = layout.parentElement;
+  const listHeading = owner?.querySelector(':scope > .panel-header, :scope > .platform-accounts-toolbar')
+    || content.querySelector(':scope > .panel-header, :scope > .platform-accounts-toolbar');
+  if (listHeading) {
+    listHeading.classList.add('module-list-heading-with-filter');
+    let actions = [...listHeading.children].slice(1).find(child => child.matches('div, nav'));
+    if (!actions) {
+      actions = document.createElement('div');
+      listHeading.append(actions);
+    }
+    actions.classList.add('module-list-heading-actions');
+    actions.prepend(trigger);
+    trigger.classList.add('module-filter-mobile-trigger-inline');
+    return;
+  }
+
+  const toolbar = document.createElement('div');
+  toolbar.className = 'module-list-toolbar';
+  const title = document.createElement('h3');
+  title.className = 'module-list-toolbar-title';
+  title.textContent = sidebar.querySelector('.module-filter-heading small')?.textContent?.trim() || 'Danh sách';
+  toolbar.append(title, trigger);
+  trigger.classList.add('module-filter-mobile-trigger-inline');
+  content.prepend(toolbar);
 }
 
 function setupMobileDrawer(layout, sidebar) {
   if (layout.querySelector('.module-filter-backdrop')) return;
 
+  const ownerId = layout.closest('[id]')?.id || `module-${document.querySelectorAll('.module-filter-sidebar').length}`;
+  sidebar.id ||= `${ownerId}-filter-popup`;
+  sidebar.setAttribute('role', 'dialog');
+  sidebar.setAttribute('aria-modal', 'true');
+  sidebar.setAttribute('aria-hidden', 'true');
+
   const backdrop = document.createElement('div');
   backdrop.className = 'module-filter-backdrop';
   backdrop.hidden = true;
+  backdrop.setAttribute('aria-hidden', 'true');
   backdrop.addEventListener('click', () => closeMobileDrawer(sidebar));
   layout.append(backdrop);
 
-  const content = layout.querySelector('.module-filter-content');
-  if (content && !content.querySelector('.module-filter-mobile-trigger')) {
+  const content = layout.querySelector('.module-filter-content, .so-quy-content, .so-quy-main');
+  if (content && !layout.querySelector('.module-filter-mobile-trigger')) {
     const trigger = document.createElement('button');
     trigger.type = 'button';
     trigger.className = 'btn btn-secondary btn-sm module-filter-mobile-trigger';
     trigger.innerHTML = '<i data-lucide="sliders-horizontal"></i> Bộ lọc <span class="module-filter-count" hidden>0</span>';
+    trigger.setAttribute('aria-haspopup', 'dialog');
+    trigger.setAttribute('aria-expanded', 'false');
+    trigger.setAttribute('aria-controls', sidebar.id);
     trigger.addEventListener('click', () => openMobileDrawer(sidebar));
-    content.prepend(trigger);
+
+    placeFilterTrigger(layout, sidebar, content, trigger);
   }
+
+  sidebar.addEventListener('keydown', event => {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      closeMobileDrawer(sidebar);
+    }
+  });
 }
 
 function setupFilterInteractions(sidebar) {
@@ -717,10 +800,7 @@ function setupFilterInteractions(sidebar) {
       closeMobileDrawer(sidebar);
       return;
     }
-    const collapsed = sidebar.classList.toggle('is-collapsed');
-    toggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
-    toggle.setAttribute('aria-label', collapsed ? 'Mở bộ lọc' : 'Thu gọn bộ lọc');
-    toggle.title = collapsed ? 'Mở bộ lọc' : 'Thu gọn bộ lọc';
+    openMobileDrawer(sidebar);
   });
 
   reset?.addEventListener('click', () => resetFilters(sidebar));
@@ -898,6 +978,7 @@ export function setupStandaloneSidebar(selector, label) {
 
   sidebar.append(heading, chipsContainer, body, footer);
   sidebar.dataset[FILTER_LAYOUT_READY] = 'true';
+  setupMobileDrawer(sidebar.parentElement, sidebar);
   setupFilterInteractions(sidebar);
   safeCreateIcons();
 }

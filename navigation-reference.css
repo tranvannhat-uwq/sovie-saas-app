@@ -1,0 +1,245 @@
+/*
+ * Canonical authenticated navigation.
+ *
+ * This file is intentionally loaded after the legacy style bundles. Keeping
+ * the small navigation contract isolated prevents older theme experiments
+ * from changing the Stitch-matched application bar.
+ */
+
+#app-layout[data-nav-layout="horizontal"] .sidebar {
+  color: #1e293b !important;
+  border: 0 !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+  background: linear-gradient(90deg, #ffffff 0%, #effcf6 10%, #8cefc8 27%, #22cc94 46%, #0a9dc2 70%, #0965cd 100%) !important;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04) !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+
+#app-layout[data-nav-layout="horizontal"] .brand-project-logo {
+  overflow: visible !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+#app-layout[data-nav-layout="horizontal"] .brand-project-logo img {
+  height: 32px !important;
+  object-fit: contain !important;
+  object-position: left center !important;
+  filter: none !important;
+}
+
+#app-layout[data-nav-layout="horizontal"] .nav-menu {
+  display: flex !important;
+  align-items: center !important;
+  gap: 3px !important;
+  list-style: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+#app-layout[data-nav-layout="horizontal"] .nav-link,
+#app-layout[data-nav-layout="horizontal"] .nav-item:nth-child(n) .nav-link {
+  border: 1px solid transparent !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  font-size: 0.82rem !important;
+  font-weight: 600 !important;
+  padding: 7px 11px !important;
+  border-radius: 8px !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 7px !important;
+  transition: all 0.15s ease !important;
+}
+
+#app-layout[data-nav-layout="horizontal"] .nav-link[data-reference-icon]::before {
+  display: none !important;
+}
+
+#app-layout[data-nav-layout="horizontal"] .nav-link[data-reference-icon] > svg:first-child {
+  display: block !important;
+}
+
+/* 1. Các mục bên trái (trên nền trắng / bạc hà sáng): chữ và icon màu than xám đậm */
+#app-layout[data-nav-layout="horizontal"] .nav-link[data-target="dashboard-panel"],
+#app-layout[data-nav-layout="horizontal"] .nav-item:has(> .nav-link[data-target="dashboard-panel"]) .nav-link {
+  color: #1e293b !important;
+}
+#app-layout[data-nav-layout="horizontal"] .nav-link[data-target="dashboard-panel"] > svg {
+  color: #334155 !important;
+  stroke: #334155 !important;
+}
+
+#app-layout[data-nav-layout="horizontal"] .nav-link[data-target="history-panel"],
+#app-layout[data-nav-layout="horizontal"] .nav-item:has(> .nav-link[data-target="history-panel"]) .nav-link {
+  color: #1e293b !important;
+}
+#app-layout[data-nav-layout="horizontal"] .nav-link[data-target="history-panel"] > svg {
+  color: #334155 !important;
+  stroke: #334155 !important;
+}
+
+#app-layout[data-nav-layout="horizontal"] .nav-link[data-target="so-quy-panel"],
+#app-layout[data-nav-layout="horizontal"] .nav-item:has(> .nav-link[data-target="so-quy-panel"]) .nav-link {
+  color: #1e293b !important;
+}
+#app-layout[data-nav-layout="horizontal"] .nav-link[data-target="so-quy-panel"] > svg {
+  color: #334155 !important;
+  stroke: #334155 !important;
+}
+
+#app-layout[data-nav-layout="horizontal"] .nav-link[data-target="dashboard-panel"]:hover,
+#app-layout[data-nav-layout="horizontal"] .nav-link[data-target="history-panel"]:hover,
+#app-layout[data-nav-layout="horizontal"] .nav-link[data-target="so-quy-panel"]:hover {
+  background: rgba(255, 255, 255, 0.4) !important;
+  color: #0f172a !important;
+}
+
+/* 2. Mục đang chọn: Lên đơn hàng (Pill màu ngọc sáng, icon màu xanh dương, chữ than đậm) */
+#app-layout[data-nav-layout="horizontal"] .nav-link.active,
+#app-layout[data-nav-layout="horizontal"] .nav-item:nth-child(n) .nav-link.active {
+  color: #0f172a !important;
+  background: rgba(255, 255, 255, 0.48) !important;
+  border: 1px solid rgba(0, 0, 0, 0.08) !important;
+  border-radius: 8px !important;
+  font-weight: 700 !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04) !important;
+}
+
+#app-layout[data-nav-layout="horizontal"] .nav-link.active > svg,
+#app-layout[data-nav-layout="horizontal"] .nav-link[data-target="invoice-panel"] > svg {
+  color: #2563eb !important;
+  stroke: #2563eb !important;
+}
+
+#app-layout[data-nav-layout="horizontal"] .nav-link.active::after {
+  display: none !important;
+}
+
+/* 3. Các mục bên phải: đồng bộ màu than xám đậm và icon rõ ràng */
+#app-layout[data-nav-layout="horizontal"] .nav-link[data-target="customers-panel"],
+#app-layout[data-nav-layout="horizontal"] .nav-link[data-target="products-panel"],
+#app-layout[data-nav-layout="horizontal"] .nav-link[data-target="pricelists-panel"],
+#app-layout[data-nav-layout="horizontal"] .purchase-menu-trigger,
+#app-layout[data-nav-layout="horizontal"] .staff-menu-trigger,
+#app-layout[data-nav-layout="horizontal"] .nav-item:has(> .nav-link[data-target="customers-panel"]) .nav-link,
+#app-layout[data-nav-layout="horizontal"] .nav-item:has(> .nav-link[data-target="products-panel"]) .nav-link,
+#app-layout[data-nav-layout="horizontal"] .nav-item:has(> .nav-link[data-target="pricelists-panel"]) .nav-link {
+  color: var(--vi-on-surface-variant, #424655) !important;
+  font-weight: 600 !important;
+}
+
+#app-layout[data-nav-layout="horizontal"] .nav-link[data-target="customers-panel"] > svg,
+#app-layout[data-nav-layout="horizontal"] .nav-link[data-target="products-panel"] > svg,
+#app-layout[data-nav-layout="horizontal"] .nav-link[data-target="pricelists-panel"] > svg,
+#app-layout[data-nav-layout="horizontal"] .purchase-menu-trigger > svg,
+#app-layout[data-nav-layout="horizontal"] .staff-menu-trigger > svg,
+#app-layout[data-nav-layout="horizontal"] .purchase-menu-chevron,
+#app-layout[data-nav-layout="horizontal"] .staff-menu-chevron {
+  color: currentColor !important;
+  stroke: currentColor !important;
+}
+
+#app-layout[data-nav-layout="horizontal"] .nav-link[data-target="customers-panel"]:hover,
+#app-layout[data-nav-layout="horizontal"] .nav-link[data-target="products-panel"]:hover,
+#app-layout[data-nav-layout="horizontal"] .nav-link[data-target="pricelists-panel"]:hover,
+#app-layout[data-nav-layout="horizontal"] .purchase-menu-trigger:hover,
+#app-layout[data-nav-layout="horizontal"] .staff-menu-trigger:hover {
+  background: var(--vi-primary-fixed, #d9e2ff) !important;
+  color: #00419d !important;
+}
+
+#app-layout[data-nav-layout="horizontal"] .purchase-menu-trigger[aria-expanded="true"],
+#app-layout[data-nav-layout="horizontal"] .staff-menu-trigger[aria-expanded="true"] {
+  background: var(--vi-primary-fixed, #d9e2ff) !important;
+  color: #00419d !important;
+}
+
+/* 4. Các nút thao tác góc phải: Chuông thông báo, Cài đặt */
+#app-layout[data-nav-layout="horizontal"] .sidebar-actions {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  margin-left: auto !important;
+  border: 0 !important;
+}
+
+#app-layout[data-nav-layout="horizontal"] .header-help-button,
+#app-layout[data-nav-layout="horizontal"] .activity-header-button,
+#app-layout[data-nav-layout="horizontal"] .btn-settings-toggle {
+  width: 36px !important;
+  height: 36px !important;
+  border-radius: 50% !important;
+  background: rgba(255, 255, 255, 0.8) !important;
+  border: 1px solid rgba(114, 119, 135, 0.22) !important;
+  color: var(--vi-on-surface-variant, #424655) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  position: relative !important;
+  cursor: pointer !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05) !important;
+  transition: all 0.18s ease !important;
+}
+
+#app-layout[data-nav-layout="horizontal"] .header-help-button:hover,
+#app-layout[data-nav-layout="horizontal"] .activity-header-button:hover,
+#app-layout[data-nav-layout="horizontal"] .btn-settings-toggle:hover {
+  background: var(--vi-primary-fixed, #d9e2ff) !important;
+  color: #00419d !important;
+  border-color: rgba(0, 87, 205, 0.3) !important;
+  transform: translateY(-1px) !important;
+}
+
+#app-layout[data-nav-layout="horizontal"] .header-help-button svg,
+#app-layout[data-nav-layout="horizontal"] .activity-header-button svg,
+#app-layout[data-nav-layout="horizontal"] .btn-settings-toggle svg {
+  color: currentColor !important;
+  stroke: currentColor !important;
+  width: 17px !important;
+  height: 17px !important;
+}
+
+#app-layout[data-nav-layout="horizontal"] .header-notify-dot {
+  position: absolute !important;
+  top: 6px !important;
+  right: 6px !important;
+  width: 8px !important;
+  height: 8px !important;
+  border-radius: 50% !important;
+  background: #ef4444 !important;
+  border: 1.5px solid #ffffff !important;
+  box-shadow: 0 0 0 1px rgba(239, 68, 68, 0.3) !important;
+}
+
+#app-layout[data-nav-layout="horizontal"] .header-user-avatar {
+  width: 36px !important;
+  height: 36px !important;
+  border-radius: 50% !important;
+  background: rgba(255, 255, 255, 0.8) !important;
+  border: 1px solid rgba(114, 119, 135, 0.22) !important;
+  color: var(--vi-on-surface-variant, #424655) !important;
+  font-weight: 700 !important;
+  font-size: 13px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  cursor: pointer !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05) !important;
+  margin-left: 2px !important;
+}
+
+@media (min-width: 1200px) {
+  #app-layout[data-nav-layout="horizontal"] .sidebar {
+    height: 64px !important;
+    padding: 0 24px !important;
+    background: linear-gradient(90deg, #ffffff 0%, #effcf6 10%, #8cefc8 27%, #22cc94 46%, #0a9dc2 70%, #0965cd 100%) !important;
+  }
+  #app-layout[data-nav-layout="horizontal"] .main-content {
+    margin-top: 64px !important;
+    background: #f4f6f9 !important;
+  }
+}

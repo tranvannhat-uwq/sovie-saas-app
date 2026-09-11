@@ -1,9 +1,9 @@
 import { state } from '../state.js';
 import { showToast, formatCurrency, safeCreateIcons, formatDateTime } from '../utils.js';
-import { renderAll } from '../main.js?v=20260831-provisioning-v2';
-import { dbSaveCashbookTransaction, dbSaveStartingBalances, dbRecordCustomerPayment, dbCancelCashbookEntry, dbSetCashbookStarred, dbAmendCashbookTransaction, dbReconcileLegacyCustomerReceipt, dbRefreshCustomerFinancialState, dbFetchCashbookTransactionById, dbLoadCashbookForRange, upsertCashbookTransactionSnapshot } from '../services/supabase.js?v=20260831-provisioning-v2';
+import { renderAll } from '../main.js?v=20260909-inline-filter-v4';
+import { dbSaveCashbookTransaction, dbSaveStartingBalances, dbRecordCustomerPayment, dbCancelCashbookEntry, dbSetCashbookStarred, dbAmendCashbookTransaction, dbReconcileLegacyCustomerReceipt, dbRefreshCustomerFinancialState, dbFetchCashbookTransactionById, dbLoadCashbookForRange, upsertCashbookTransactionSnapshot } from '../services/supabase.js?v=20260909-inline-filter-v4';
 import { tenantStorage } from '../services/tenant-storage.js';
-import { getCanonicalCashbookId, isEffectiveCashbookTransaction } from '../domain/cashbook.js?v=20260831-provisioning-v2';
+import { getCanonicalCashbookId, isEffectiveCashbookTransaction } from '../domain/cashbook.js?v=20260909-inline-filter-v4';
 
 // Seed transactions (empty to start clean)
 const seedTransactions = [];
@@ -1519,10 +1519,8 @@ export function renderSoQuyTable() {
 
   tableBody.innerHTML = paginatedTransactions.map(t => {
     const partnerAddress = getTransactionPartnerAddress(t);
-    const valText = t.type === 'thu' ? formatCurrency(t.value) : `-${formatCurrency(t.value)}`;
-    const valStyle = t.type === 'thu'
-      ? 'color: #0070d2; font-weight: 700;'
-      : 'color: var(--color-danger); font-weight: 700;';
+    const isReceipt = t.type === 'thu';
+    const valText = isReceipt ? `+ ${formatCurrency(t.value)}` : `- ${formatCurrency(t.value)}`;
 
     const isExpanded = String(t.id) === String(expandedCashbookTransactionId);
     return `
@@ -1536,28 +1534,30 @@ export function renderSoQuyTable() {
           </button>
         </td>
         <td style="text-align: center;">
-          <span style="font-weight: 700; color: #0070d2; cursor: pointer; text-decoration: underline;" class="so-quy-tx-code">
+          <span class="table-code-chip ${isReceipt ? 'code-chip-receipt' : 'code-chip-payment'} so-quy-tx-code" style="cursor: pointer;">
             ${escapeCashbookHtml(t.id)}
           </span>
         </td>
-        <td style="text-align: center; color: var(--text-muted); font-size: 0.8rem;">
+        <td style="text-align: center; color: var(--text-secondary); font-size: 0.8rem;">
           ${formatDateTime(t.date)}
         </td>
         <td>
-          <div style="font-weight: 500;">${escapeCashbookHtml(t.category)}</div>
-          <span style="font-size: 0.75rem; color: var(--text-muted); font-style: italic;">
+          <div style="font-weight: 600; color: #334155;">${escapeCashbookHtml(t.category)}</div>
+          <span style="font-size: 0.75rem; color: var(--text-muted);">
             ${t.method === 'cash' ? 'Tiền mặt' : (t.method === 'bank' ? 'Ngân hàng' : 'Ví điện tử')}
           </span>
         </td>
         <td>
-          <div style="font-weight: 500;">${escapeCashbookHtml(t.partner)}</div>
+          <div style="font-weight: 700; color: #0f172a;">${escapeCashbookHtml(t.partner)}</div>
           ${t.note ? `<div style="font-size: 0.75rem; color: var(--text-muted); word-break: break-all; margin-top: 0.15rem;">HD: ${escapeCashbookHtml(t.note)}</div>` : ''}
         </td>
         <td style="color: var(--text-secondary); font-size: 0.8rem; line-height: 1.4;">
           ${partnerAddress ? escapeCashbookHtml(partnerAddress) : '<span style="color: var(--text-muted);">-</span>'}
         </td>
-        <td style="text-align: right; ${valStyle}">
-          ${valText}
+        <td style="text-align: right;">
+          <span class="table-amount-pill ${isReceipt ? 'is-positive' : 'is-negative'}">
+            ${valText}
+          </span>
         </td>
       </tr>
       ${isExpanded ? renderCashbookInlineDetail(t) : ''}

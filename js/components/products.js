@@ -1,7 +1,7 @@
 import { state } from '../state.js';
 import { showToast, safeCreateIcons, getBrandName } from '../utils.js';
-import { dbSaveProductsBulk, dbDeleteProduct } from '../services/supabase.js?v=20260831-provisioning-v2';
-import { renderAll } from '../main.js?v=20260831-provisioning-v2';
+import { dbSaveProductsBulk, dbDeleteProduct } from '../services/supabase.js?v=20260909-inline-filter-v4';
+import { renderAll } from '../main.js?v=20260909-inline-filter-v4';
 import { tenantStorage } from '../services/tenant-storage.js';
 import {
   buildProductFamilies,
@@ -127,13 +127,13 @@ export function renderProductsTable() {
       }).join(', ');
       return `
       <tr>
-        <td class="text-center">${start + index + 1}</td>
-        <td class="sku-code">${family.baseCode}</td>
-        <td title="${family.name}">${family.name}</td>
-        <td>${family.brand}</td>
+        <td class="text-center" style="font-weight: 600; color: var(--text-muted);">${start + index + 1}</td>
+        <td class="sku-code"><span class="table-code-chip code-chip-product">${family.baseCode}</span></td>
+        <td title="${family.name}" style="font-weight: 700; color: #0f172a;">${family.name}</td>
+        <td><span style="font-weight: 600; color: #334155;">${family.brand}</span></td>
         <td>${packageNames || '-'}</td>
         <td title="${weights}">${weights || '-'}</td>
-        <td><strong>${family.variants.length} quy cách</strong><br><small>${family.variants.map(variant => variant.code).join(', ')}</small></td>
+        <td><span class="table-code-chip" style="background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; font-size: 0.75rem; margin-bottom: 3px;">${family.variants.length} quy cách</span><br><small style="color: var(--text-secondary);">${family.variants.map(variant => variant.code).join(', ')}</small></td>
         <td><span class="status-badge ${activeVariants.length ? 'status-completed' : 'status-cancelled'}"><i data-lucide="${activeVariants.length ? 'check-circle-2' : 'ban'}"></i> ${activeVariants.length ? `${activeVariants.length} hoạt động` : 'Ngừng áp dụng'}</span></td>
         <td class="text-center">
           <div class="actions-cell">

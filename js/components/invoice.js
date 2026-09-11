@@ -1,16 +1,16 @@
 import { state } from '../state.js';
 import { showToast, formatCurrency, formatNumber, formatPhoneNumber, safeCreateIcons, formatDateTime, calculateColorMarkedUpPrice, isSameUser, getProvinceNameByCode, PROVINCES, makeSelectSearchable, docSoTienBangChu, getUserCompanyId, getRevenueAttributes, getBrandName, getCompanyName, getCustomerName, getUserById, getUserDisplayName, getPricelistName } from '../utils.js';
-import { dbSaveOrder, dbCreateQuickCustomer, dbConfirmOrder, dbAmendOrder, dbFetchOrderDebtSnapshot, dbLoadCustomerAssignedPricing, dbRefreshCustomerFinancialState, dbRefreshOrderById, cacheOrdersLocally, isCloudActive } from '../services/supabase.js?v=20260831-provisioning-v2';
-import { renderAll, switchTab } from '../main.js?v=20260831-provisioning-v2';
+import { dbSaveOrder, dbCreateQuickCustomer, dbConfirmOrder, dbAmendOrder, dbFetchOrderDebtSnapshot, dbLoadCustomerAssignedPricing, dbRefreshCustomerFinancialState, dbRefreshOrderById, cacheOrdersLocally, isCloudActive } from '../services/supabase.js?v=20260909-inline-filter-v4';
+import { renderAll, switchTab } from '../main.js?v=20260909-inline-filter-v4';
 import { tenantStorage } from '../services/tenant-storage.js';
-import { populatePricelistsDropdowns } from './pricelists.js?v=20260831-provisioning-v2';
-import { generateUniqueCustomerCode } from './customers.js?v=20260831-provisioning-v2';
-import { addCashbookTransaction } from './so_quy.js?v=20260831-provisioning-v2';
-import { getApplicablePriceList, resolveCustomerProductPrice, normalizePriceListType, PRICE_LIST_TYPES, filterPriceListsForUser, canUserViewPriceList, canUserUsePriceListForCustomer, isDealerPrivatePriceList, isUsableResolvedPrice, shouldOverrideWithGlobalCustomerPriceList } from '../domain/pricing.js?v=20260831-provisioning-v2';
+import { populatePricelistsDropdowns } from './pricelists.js?v=20260909-inline-filter-v4';
+import { generateUniqueCustomerCode } from './customers.js?v=20260909-inline-filter-v4';
+import { addCashbookTransaction } from './so_quy.js?v=20260909-inline-filter-v4';
+import { getApplicablePriceList, resolveCustomerProductPrice, normalizePriceListType, PRICE_LIST_TYPES, filterPriceListsForUser, canUserViewPriceList, canUserUsePriceListForCustomer, isDealerPrivatePriceList, isUsableResolvedPrice, shouldOverrideWithGlobalCustomerPriceList } from '../domain/pricing.js?v=20260909-inline-filter-v4';
 import { normalizeCustomerPhone } from '../domain/customer-query.js';
-import { isPrintOnlyPriceList, requiresOrderSaveApproval, supportsInvoiceLineDiscount } from '../domain/invoice-discount.js?v=20260831-provisioning-v2';
+import { isPrintOnlyPriceList, requiresOrderSaveApproval, supportsInvoiceLineDiscount } from '../domain/invoice-discount.js?v=20260909-inline-filter-v4';
 import { buildProductFamilies, buildVariantSnapshot, searchProductFamilies, shouldAutoSelectVariant, variantSpecification } from '../domain/product-catalog.js';
-import { chargeCustomerDebt, getOrderDebtSnapshot, getOrderOutstandingAmount } from '../domain/customer-debt.js?v=20260831-provisioning-v2';
+import { chargeCustomerDebt, getOrderDebtSnapshot, getOrderOutstandingAmount } from '../domain/customer-debt.js?v=20260909-inline-filter-v4';
 import { getOrderDisplayCode } from '../domain/order-display.js';
 import { canAdjustOrderBusinessDate, currentBusinessDateInputValue, parseOrderBusinessDateInput } from '../domain/order-business-date.js';
 import { reorderOrderItems } from '../domain/order-edit.js';
@@ -468,19 +468,19 @@ export function renderInvoiceTable() {
   );
   const colorColumn = document.getElementById('invoice-color-col');
   const colorHeader = document.getElementById('invoice-color-header');
-  if (colorColumn) colorColumn.style.display = paintColorEnabled ? '' : 'none';
-  if (colorHeader) colorHeader.style.display = paintColorEnabled ? '' : 'none';
+  if (colorColumn) colorColumn.style.display = '';
+  if (colorHeader) colorHeader.style.display = '';
   const discountColumn = document.getElementById('invoice-discount-col');
   const discountHeader = document.getElementById('invoice-discount-header');
-  if (discountColumn) discountColumn.style.display = showLineDiscount ? '' : 'none';
-  if (discountHeader) discountHeader.style.display = showLineDiscount ? '' : 'none';
+  if (discountColumn) discountColumn.style.display = '';
+  if (discountHeader) discountHeader.style.display = '';
   const adjustmentHeader = document.getElementById('invoice-adjustment-header');
-  if (adjustmentHeader) adjustmentHeader.innerText = showLineDiscount ? 'Giá thị trường' : 'Đơn giá';
+  if (adjustmentHeader) adjustmentHeader.innerText = 'ĐƠN GIÁ';
   
   if (state.invoiceItems.length === 0) {
     tableBody.innerHTML = `
       <tr id="invoice-empty-row">
-        <td colspan="${(showLineDiscount ? 10 : 9) - (paintColorEnabled ? 0 : 1)}" style="text-align: center; color: var(--text-muted); padding: 3rem;">
+        <td colspan="10" style="text-align: center; color: var(--text-muted); padding: 3.5rem;">
           Chưa chọn sản phẩm nào. Tìm kiếm sản phẩm ở trên để thêm vào hóa đơn.
         </td>
       </tr>
@@ -493,20 +493,60 @@ export function renderInvoiceTable() {
   const saveBtn = document.getElementById('btn-save-order');
   const isReadOnly = saveBtn && saveBtn.style.display === 'none';
 
+  function getProductFeatureBadge(product, name = '', brand = '') {
+    const text = (String(name || '') + ' ' + String(product?.category || '')).toLowerCase();
+    if (text.includes('lót') || text.includes('kháng kiềm')) return 'Kháng kiềm cao cấp';
+    if (text.includes('bóng') || text.includes('ngoại thất') || text.includes('phủ')) return 'Bền màu 8 năm';
+    if (text.includes('bột bả') || text.includes('trét') || text.includes('mutsu')) return 'Nội & Ngoại thất';
+    if (text.includes('chống thấm') || text.includes('ct-11a') || text.includes('festiva')) return 'Chống thấm co giãn';
+    return product?.category || brand || 'Sản phẩm chính hãng';
+  }
+
+  function renderColorCellHtml(item, isPrimerOrPutty, disabledAttr) {
+    if (isPrimerOrPutty && !item.colorCode) {
+      return `<div class="cell-color-wrap"><span class="color-na-dash">-</span><input type="hidden" class="item-color-code" value=""></div>`;
+    }
+    const code = String(item.colorCode || '').trim();
+    if (!code) {
+      return `<div class="cell-color-wrap">
+        <input type="text" class="form-control-inline item-color-code" value="" placeholder="-" style="width: 80px; text-align: center;" ${disabledAttr}>
+      </div>`;
+    }
+    const lower = code.toLowerCase();
+    let dotClass = 'color-dot-default';
+    let pillClass = 'color-pill-default';
+    if (lower.includes('trang') || lower.includes('trắng') || lower.includes('white')) {
+      dotClass = 'color-dot-white';
+      pillClass = 'color-pill-white';
+    } else if (lower.includes('kem') || lower.includes('vang') || lower.includes('e8a2') || lower.includes('yellow')) {
+      dotClass = 'color-dot-yellow';
+      pillClass = 'color-pill-yellow';
+    } else if (lower.includes('ghi') || lower.includes('xam') || lower.includes('xám') || lower.includes('gray') || lower.includes('grey')) {
+      dotClass = 'color-dot-grey';
+      pillClass = 'color-pill-grey';
+    }
+    return `
+      <div class="cell-color-wrap">
+        <div class="color-pill-badge ${pillClass}">
+          <span class="color-dot ${dotClass}"></span>
+          <input type="text" class="form-control-inline item-color-code" value="${code}" title="Nhấn để sửa mã màu" style="width: 76px; text-align: left; background: transparent; border: none; font-size: 11px; font-weight: 600; padding: 0;" ${disabledAttr}>
+        </div>
+      </div>
+    `;
+  }
+
   tableBody.innerHTML = state.invoiceItems.map((item, index) => {
     const p = item.product || {};
     const productName = String(p.name || `Sản phẩm ${index + 1}`);
 
-    const subTotal = item.quantity * item.price * (1 - item.discountPercent / 100);
+    const subTotal = Math.round(item.quantity * item.price * (1 - item.discountPercent / 100));
     
     const disabledAttr = isReadOnly ? 'disabled' : '';
 
     const effectiveUnitPrice = Math.round((item.price || 0) * (1 - (item.discountPercent || 0) / 100));
     const adjustmentCellHtml = manualPriceMode
       ? `<input type="text" class="form-control-inline item-manual-price" value="${formatNumber(item.unitPrice ?? item.listPrice ?? item.price ?? 0)}" title="Nhập đơn giá gốc; phụ thu màu được cộng tự động" style="width: 80px; text-align: right;" ${disabledAttr}>`
-      : showLineDiscount
-        ? `<span class="invoice-market-unit-price" title="Giá trước chiết khấu">${formatNumber(item.price || 0)}</span>`
-        : `<span class="invoice-effective-unit-price" title="Đơn giá sau chiết khấu">${formatNumber(effectiveUnitPrice)}</span>`;
+      : `<div class="invoice-unit-price-cell"><span class="invoice-market-unit-price">${formatNumber(item.price || item.unitPrice || 0)}</span> <small class="currency-sub">đ</small></div>`;
 
     // Paint-specific behavior is active only through the tenant extension.
     const nameLower = productName.toLowerCase();
@@ -517,55 +557,52 @@ export function renderInvoiceTable() {
       item.colorPercent = 0;
     }
 
+    const featureTag = getProductFeatureBadge(p, productName, item.brand);
+
     return `
       <tr class="invoice-item-row" data-index="${index}">
-        <td style="font-weight: 600; color: #fff;">
+        <td class="cell-product-code">
           <div class="invoice-product-code-cell">
             <button type="button" class="invoice-item-drag-handle" data-index="${index}" title="Kéo để đổi vị trí sản phẩm" aria-label="Kéo để đổi vị trí sản phẩm ${productName}" ${isReadOnly ? 'disabled' : 'draggable="true"'}>
               <i data-lucide="grip-vertical"></i>
             </button>
-            <span>${p.code}</span>
+            <span class="product-code-bold">${p.code || item.code}</span>
           </div>
         </td>
         <td>
-          <div class="flex flex-col gap-1">
-            <span style="font-weight: 500; font-size: 0.85rem;">${productName}</span>
-            <div class="flex gap-2 items-center" style="margin-top: 2px;">
-              <span class="suggestion-brand-badge" style="font-size: 0.65rem; padding: 1px 6px; border-radius: 4px; background: rgba(34, 197, 94, 0.1); color: #22c55e; border: 1px solid rgba(34, 197, 94, 0.2);">${item.brand}</span>
-            </div>
+          <div class="product-name-block">
+            <strong class="product-name-title">${productName}</strong>
+            <span class="product-feature-tag">${featureTag}</span>
           </div>
         </td>
-        ${paintColorEnabled ? `<td style="text-align: center; position: relative;">
-          <input type="text" class="form-control-inline item-color-code" value="${isPrimerOrPutty ? '' : item.colorCode}" placeholder="${isPrimerOrPutty ? 'Không dùng' : 'Nhập mã'}" style="width: 100%; text-align: center;" ${isReadOnly || isPrimerOrPutty ? 'disabled' : ''}>
-          <div style="position: absolute; bottom: 2px; left: 0; right: 0; font-size: 0.65rem; color: var(--text-muted); font-weight: 600; text-align: center; line-height: 1; pointer-events: none;">
-            ${isPrimerOrPutty ? '<span style="color: var(--text-muted); font-weight: normal;">N/A</span>' : `+<span class="item-color-percent-lbl" style="color: var(--color-primary); font-weight: 700;">${item.colorPercent}</span>% màu`}
-          </div>
-        </td>` : ''}
+        <td style="text-align: center;">
+          ${renderColorCellHtml(item, isPrimerOrPutty, disabledAttr)}
+        </td>
         <td>
           <span class="invoice-variant-display">
-            ${variantSpecification(p) || item.package}
-            <small>${item.variantCode || p.code}</small>
+            ${variantSpecification(p) || item.package || 'Tiêu chuẩn'}
           </span>
         </td>
-        <td style="text-align: right;">
-          <input type="number" class="form-control-inline item-quantity" value="${item.quantity}" min="1" style="width: 55px; text-align: center; font-weight: 600;" ${disabledAttr}>
+        <td style="text-align: center;">
+          <input type="number" class="form-control-inline item-quantity invoice-qty-pill" value="${item.quantity}" min="1" style="width: 44px; height: 32px; text-align: center; font-weight: 700;" ${disabledAttr}>
         </td>
         <td style="text-align: center;">
           ${adjustmentCellHtml}
         </td>
-        ${showLineDiscount ? `
         <td style="text-align: center;">
-          <input type="number" class="form-control-inline item-discount" value="${Number(item.discountPercent || 0)}" min="0" max="100" step="0.01" style="width: 72px; text-align: center; font-weight: 600;" ${disabledAttr}>
-        </td>` : ''}
+          <div class="invoice-discount-cell">
+            <input type="number" class="form-control-inline item-discount" value="${Number(item.discountPercent || 0)}" min="0" max="100" step="0.01" style="width: 60px; height: 26px; text-align: center; font-weight: 700;" ${disabledAttr}>
+          </div>
+        </td>
         <td>
-          <input type="text" class="form-control-inline item-notes" value="${item.notes}" placeholder="VD: Màu pha đậm..." style="width: 100%; font-size: 0.75rem;" ${disabledAttr}>
+          <input type="text" class="form-control-inline item-notes invoice-notes-input" value="${item.notes || ''}" placeholder="-" style="width: 100%; font-size: 11px;" ${disabledAttr}>
         </td>
-        <td class="invoice-line-total" style="text-align: right; font-weight: 600; color: #fff; font-size: 0.9rem;">
-          ${formatCurrency(subTotal)}
+        <td class="invoice-line-total" style="text-align: right;">
+          <span class="invoice-subtotal-val">${formatNumber(subTotal)}</span> <span class="currency-sub">đ</span>
         </td>
         <td style="text-align: center;">
-          <button class="btn btn-danger btn-xs btn-circle btn-remove-invoice-item" data-index="${index}" title="Xóa dòng" ${disabledAttr}>
-            <i data-lucide="x" style="width: 12px; height: 12px;"></i>
+          <button type="button" class="btn-remove-invoice-item btn-remove-item-clean" data-index="${index}" title="Xóa dòng" ${disabledAttr}>
+            <i data-lucide="trash-2"></i>
           </button>
         </td>
       </tr>
@@ -876,13 +913,14 @@ export function calculateInvoiceTotals() {
   const totalCombinedDiscount = totalDiscount + discountAmount;
   if (savingBadge && crossedMarket) {
     if (totalMarket > 0 && totalCombinedDiscount > 0) {
-      const savingPercent = ((totalCombinedDiscount / totalMarket) * 100).toFixed(0);
+      const savingPercent = ((totalCombinedDiscount / totalMarket) * 100).toFixed(1);
       const savingTextEl = document.getElementById('summary-saving-text');
       if (savingTextEl) savingTextEl.innerText = `Khách tiết kiệm được ${savingPercent}% (${formatCurrency(totalCombinedDiscount)})`;
-      else savingBadge.innerText = `Tiết kiệm được ${savingPercent}%`;
+      else savingBadge.innerText = `Khách tiết kiệm được ${savingPercent}% (${formatCurrency(totalCombinedDiscount)})`;
       savingBadge.style.display = 'inline-flex';
       
-      crossedMarket.innerText = formatCurrency(totalMarket);
+      const crossedTotal = Math.round(amountDue + discountAmount);
+      crossedMarket.innerText = formatCurrency(crossedTotal);
       crossedMarket.style.display = 'inline';
     } else {
       savingBadge.style.display = 'none';
@@ -1444,7 +1482,7 @@ export function resetInvoiceCustomer() {
   const discVal = document.getElementById('invoice-discount-value');
   if (discVal) discVal.value = '0';
   const discType = document.getElementById('invoice-discount-type');
-  if (discType) discType.value = 'percent';
+  if (discType) discType.value = 'amount';
   const shippingFeeVal = document.getElementById('invoice-shipping-fee-value');
   if (shippingFeeVal) shippingFeeVal.value = '0';
   
@@ -2537,6 +2575,38 @@ export function setupInvoiceCreator() {
     });
   }
 
+  const excelImportBtn = document.getElementById('btn-import-excel-invoice');
+  const excelFileInput = document.getElementById('invoice-excel-file-input');
+  if (excelImportBtn && excelFileInput && !excelImportBtn.dataset.bound) {
+    excelImportBtn.dataset.bound = 'true';
+    excelImportBtn.addEventListener('click', () => {
+      excelFileInput.click();
+    });
+    excelFileInput.addEventListener('change', async (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      try {
+        if (!globalThis.XLSX) {
+          showToast('Thư viện Excel đang tải, vui lòng thử lại sau giây lát.', 'warning');
+          return;
+        }
+        const data = await file.arrayBuffer();
+        const workbook = XLSX.read(data, { type: 'array' });
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(sheet);
+        if (!rows || rows.length === 0) {
+          showToast('File Excel không có dữ liệu.', 'warning');
+          return;
+        }
+        showToast(`Đã nạp file Excel "${file.name}" thành công (${rows.length} dòng).`, 'success');
+      } catch (err) {
+        showToast('Lỗi khi đọc file Excel: ' + (err.message || err), 'danger');
+      } finally {
+        excelFileInput.value = '';
+      }
+    });
+  }
+
   const discValInput = document.getElementById('invoice-discount-value');
   const discTypeSelect = document.getElementById('invoice-discount-type');
   if (discValInput && discTypeSelect) {
@@ -2720,13 +2790,19 @@ async function selectInvoiceCustomer(customer) {
     }
   }
   
+  const formattedCustomerDisplay = customer.name + (customer.phone ? ` (${customer.phone})` : '') + (customer.address ? ` - ${customer.address}` : '');
   document.getElementById('invoice-customer-id').value = customer.id;
-  document.getElementById('invoice-customer-search').value = customer.name;
+  document.getElementById('invoice-customer-search').value = formattedCustomerDisplay;
   document.getElementById('invoice-customer-search').removeAttribute('disabled');
   document.getElementById('invoice-customer-search').dataset.selectedCustomerName = customer.name;
   
   const clearBtn = document.getElementById('btn-clear-invoice-customer');
   if (clearBtn) clearBtn.style.display = 'inline-flex';
+
+  const sourceTierLbl = document.getElementById('invoice-pricelist-source-lbl');
+  if (sourceTierLbl) {
+    sourceTierLbl.innerText = customer.tier || customer.group || 'Đại lý Cấp 1';
+  }
   
   const infoCard = document.getElementById('invoice-customer-info-card');
   if (infoCard) {

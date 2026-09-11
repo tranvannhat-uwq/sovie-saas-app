@@ -48,12 +48,11 @@ test('chart view transitions update one chart instance instead of rebuilding the
   assert.doesNotMatch(dashboard.slice(dashboard.indexOf('function renderServerRevenueChart'), dashboard.indexOf('function dashboardRequestFiltersForRange')), /revenueChartInstance\.destroy\(\)/);
 });
 
-test('revenue chart animates progressively and respects reduced motion', () => {
-  assert.match(dashboard, /prefers-reduced-motion:\s*reduce/);
-  assert.match(dashboard, /duration:\s*900/);
-  assert.match(dashboard, /easing:\s*'easeOutQuart'/);
-  assert.match(dashboard, /context\.dataIndex \* 35/);
-  assert.match(dashboard, /animation:\s*getRevenueChartAnimation\(\)/);
+test('dashboard charts use the static animation-free design system', () => {
+  assert.match(dashboard, /animation:\s*false/);
+  assert.match(dashboard, /duration:\s*0/);
+  assert.doesNotMatch(dashboard, /getRevenueChartAnimation/);
+  assert.doesNotMatch(dashboard, /createLinearGradient/);
 });
 
 test('chart cards have accessible labels and empty states', () => {

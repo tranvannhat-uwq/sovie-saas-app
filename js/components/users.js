@@ -1,11 +1,11 @@
 import { state, resetTenantBusinessState } from '../state.js';
 import { showToast, safeCreateIcons, isSameUser, getCompanyNameById } from '../utils.js';
-import { dbSaveUser, dbDeleteUser, isCloudActive, supabaseClient, fetchCloudData, clearSupabaseAuthStorage, getMaintenanceStatus, loadSaasContext, clearTenantStorageContext, transferSaasOrganizationOwnership } from '../services/supabase.js?v=20260831-provisioning-v2';
-import { startRealtimeSync, stopRealtimeSync } from '../services/realtime.js?v=20260831-provisioning-v2';
-import { renderAll, switchTab } from '../main.js?v=20260831-provisioning-v2';
-import { populateManagedByDropdown } from './customers.js?v=20260831-provisioning-v2';
-import { openWorkspaceOnboarding, renderWorkspaceSwitcher, renderSubscriptionAccessNotice } from './workspaces.js?v=20260831-provisioning-v2';
-import { clearPlatformAdminState, hydratePlatformAdmin } from './platform-admin.js?v=20260831-provisioning-v2';
+import { dbSaveUser, dbDeleteUser, isCloudActive, supabaseClient, fetchCloudData, clearSupabaseAuthStorage, getMaintenanceStatus, loadSaasContext, clearTenantStorageContext, transferSaasOrganizationOwnership } from '../services/supabase.js?v=20260909-inline-filter-v4';
+import { startRealtimeSync, stopRealtimeSync } from '../services/realtime.js?v=20260909-inline-filter-v4';
+import { renderAll, switchTab } from '../main.js?v=20260909-inline-filter-v4';
+import { populateManagedByDropdown } from './customers.js?v=20260909-inline-filter-v4';
+import { openWorkspaceOnboarding, renderWorkspaceSwitcher, renderSubscriptionAccessNotice } from './workspaces.js?v=20260909-inline-filter-v4';
+import { clearPlatformAdminState, hydratePlatformAdmin } from './platform-admin.js?v=20260909-inline-filter-v4';
 import {
   LOGIN_ERROR,
   classifySupabaseError,
@@ -57,9 +57,11 @@ export function renderUsersTable() {
       && active && !protectedOwner && Boolean(u.authUserId);
     return `
       <tr>
-        <td style="text-align: center; color: var(--text-muted);">${index + 1}</td>
-        <td style="font-weight: 600; color: #fff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${u.username}">${u.username}</td>
-        <td>${dName}</td>
+        <td style="text-align: center; color: var(--text-muted); font-weight: 600;">${index + 1}</td>
+        <td style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${u.username}">
+          <span class="table-code-chip code-chip-user">${u.username}</span>
+        </td>
+        <td style="font-weight: 700; color: #0f172a;">${dName}</td>
         <td>
           <span class="role-badge ${u.isExternal ? 'role-warehouse' : (u.role === 'owner' ? 'role-owner' : u.role === 'admin' ? 'role-admin' : u.role === 'accounting' ? 'role-accounting' : 'role-sales')}">
             <i data-lucide="${u.role === 'owner' ? 'crown' : (u.role === 'admin' ? 'shield-check' : u.role === 'accounting' ? 'calculator' : u.role === 'sale' ? 'briefcase' : 'user')}"></i>

@@ -5,11 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="stylesheet" href="../style.css">
   <link rel="stylesheet" href="../ui-system.css">
+  <link rel="stylesheet" href="../navigation-reference.css">
+  <link rel="stylesheet" href="../luminous-engine.css">
   <title>Navigation theme harness</title>
 </head>
 <body>
   <script>window.__app_initialized = true;</script>
-  <div class="app-container" id="app-layout" data-ui-role="admin" data-nav-layout="vertical">
+  <div class="app-container" id="app-layout" data-ui-role="admin" data-nav-layout="horizontal">
   <aside class="sidebar">
     <div class="brand"><div class="brand-project-logo"><img src="../sovie-logo.png?v=20260815-sovie-v2" alt="SoVie"></div></div>
     <nav class="app-navigation" aria-label="Điều hướng nghiệp vụ"><ul class="nav-menu">
@@ -32,7 +34,7 @@
     <div class="sidebar-actions">
       <div class="global-settings-dropdown" style="position:relative;">
         <button type="button" class="btn-settings-toggle" id="btn-settings-toggle">⚙</button>
-        <div class="global-settings-menu" id="global-settings-menu">
+        <div class="global-settings-menu" id="global-settings-menu" style="display:none;">
           <div class="nav-layout-settings" id="nav-layout-settings">
             <div class="nav-layout-options">
               <button type="button" class="nav-layout-option" data-nav-layout="vertical">Dọc bên trái</button>

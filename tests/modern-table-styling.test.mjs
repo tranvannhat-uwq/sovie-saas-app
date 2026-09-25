@@ -7,8 +7,8 @@ import { fileURLToPath } from 'node:url';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = relativePath => fs.readFileSync(path.join(root, relativePath), 'utf8');
 
-test('style.css defines modern table system with code chips, role badges, and amounts', () => {
-  const css = read('style.css');
+test('styles/base.css defines modern table system with code chips, role badges, and amounts', () => {
+  const css = read('styles/base.css');
 
   // Table code chips
   assert.match(css, /\.table-code-chip/);

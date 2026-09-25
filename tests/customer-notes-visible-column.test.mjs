@@ -10,7 +10,7 @@ const read = relative => fs.readFileSync(path.join(root, relative), 'utf8');
 test('customer column picker offers the notes column and the table renders it', () => {
   const customers = read('js/components/customers.js');
   const html = read('index.html');
-  const css = read('style.css');
+  const css = read('styles/base.css');
 
   assert.match(customers, /\{ key: 'notes', label: 'Ghi chú', width: 220 \}/);
   assert.match(customers, /<td data-customer-column="notes" title="\$\{escapeCustomerHtml\(notes\)\}"><div class="customer-notes-cell">/);

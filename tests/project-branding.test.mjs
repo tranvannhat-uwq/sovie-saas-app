@@ -24,8 +24,8 @@ test('SoVie is the primary project brand in navigation and login', () => {
 });
 
 test('project logo presentation is prominent and responsive', () => {
-  const css = read('style.css');
-  const uiCss = read('ui-system.css');
+  const css = read('styles/base.css');
+  const uiCss = read('styles/app.css');
 
   assert.match(css, /\.brand-project-logo\s*\{[\s\S]*background:\s*#ffffff;[\s\S]*box-shadow:/);
   assert.match(css, /\.login-story-brand\s*\{[\s\S]*width:\s*142px;[\s\S]*background:\s*#fff;[\s\S]*box-shadow:/);

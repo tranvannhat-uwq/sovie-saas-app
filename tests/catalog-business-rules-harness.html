@@ -4,7 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Catalog and business rules harness</title>
-  <link rel="stylesheet" href="../style.css">
+  <link rel="stylesheet" href="../styles/base.css">
+  <link rel="stylesheet" href="../styles/app.css">
 </head>
 <body style="padding: 2rem;">
   <main class="glass-panel" style="max-width: 560px; margin: 0 auto;">
@@ -20,7 +21,7 @@
     <p>Giờ chốt mẫu: <strong id="finalized-time"></strong></p>
   </main>
   <script type="module">
-    import { parseOrderBusinessDateInput } from '../js/domain/order-business-date.js?v=20260804-order-time1';
+    import { parseOrderBusinessDateInput } from '../js/domain/order-business-date.js';
 
     const productPackageTypes = ['Thùng', 'Lon', 'Hộp', 'Bao', 'Túi', 'Chai', 'Gói', 'Kg', 'Lít', 'Cái', 'Bộ', 'Mét', 'Lọ'];
     document.getElementById('package-type').innerHTML = productPackageTypes

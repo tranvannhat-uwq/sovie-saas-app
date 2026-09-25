@@ -12,7 +12,7 @@
     frame.addEventListener('load', () => {
       const script = frame.contentDocument.createElement('script');
       script.type = 'module';
-      script.src = '/tests/processing-print-browser-entry.js?v=20260814-processing-print-v2';
+      script.src = '/tests/processing-print-browser-entry.js';
       frame.contentDocument.head.appendChild(script);
 
       const check = setInterval(() => {

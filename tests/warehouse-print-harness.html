@@ -12,7 +12,7 @@
     frame.addEventListener('load', () => {
       const script = frame.contentDocument.createElement('script');
       script.type = 'module';
-      script.src = '/tests/warehouse-print-browser-entry.js?v=20260809-activity8';
+      script.src = '/tests/warehouse-print-browser-entry.js';
       frame.contentDocument.head.appendChild(script);
 
       const check = setInterval(() => {

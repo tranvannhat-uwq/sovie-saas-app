@@ -2,15 +2,16 @@ import { state } from '../state.js';
 import { COMPANY_SUPABASE_URL, COMPANY_SUPABASE_KEY, assertSaasStagingConnection, defaultProducts } from '../config.js';
 import { showToast, updateDbStatusUI, isSameUser, getRevenueAttributes, getBrandById } from '../utils.js';
 import { rawMaterialsSeed } from '../components/goods_seed.js';
-import { normalizePriceListType, filterPriceListsForUser, canUserViewPriceList, canUserUsePriceListForCustomer } from '../domain/pricing.js?v=20260909-inline-filter-v4';
-import { isPrintOnlyPriceList } from '../domain/invoice-discount.js?v=20260909-inline-filter-v4';
+import { normalizePriceListType, filterPriceListsForUser, canUserViewPriceList, canUserUsePriceListForCustomer } from '../domain/pricing.js';
+import { isPrintOnlyPriceList } from '../domain/invoice-discount.js';
 import { collectAllPages } from '../domain/pagination.js';
-import { getCustomerDebtPostingDate, mergeCustomerDebtHistory } from '../domain/customer-debt.js?v=20260909-inline-filter-v4';
-import { loadAuthorizedPricingCache, saveAuthorizedPricingCache } from './pricing-cache.js?v=20260909-inline-filter-v4';
+import { getCustomerDebtPostingDate, mergeCustomerDebtHistory } from '../domain/customer-debt.js';
+import { loadAuthorizedPricingCache, saveAuthorizedPricingCache } from './pricing-cache.js';
 import { resolveActiveSaasContext } from '../domain/saas-context.js';
 import { resolveBusinessCapabilities } from '../domain/business-capabilities.js';
 import { resolveCatalogContext } from '../domain/generic-catalog.js';
-import { normalizeIndustryKey, normalizePlatformCustomerPayload } from '../domain/tenant-provisioning.js?v=20260909-inline-filter-v4';
+import { normalizeIndustryKey, normalizePlatformCustomerPayload } from '../domain/tenant-provisioning.js';
+import { mergeCloudReadHealth } from '../domain/cloud-read-health.js';
 import {
   isEffectiveOrderHistoryRow,
   isOrderInHistoryWindow,
@@ -28,17 +29,10 @@ export function getCloudReadHealth() {
 }
 
 function publishCloudReadHealth(failedDomains = [], attemptedDomains = []) {
-  const nextFailures = new Set(cloudReadHealth.failedDomains);
-  attemptedDomains.filter(Boolean).forEach(domain => nextFailures.delete(domain));
-  failedDomains.filter(Boolean).forEach(domain => nextFailures.add(domain));
-  const uniqueFailures = [...nextFailures];
-  cloudReadHealth = Object.freeze({
-    status: uniqueFailures.length > 0 ? 'degraded' : 'healthy',
-    failedDomains: uniqueFailures
-  });
+  cloudReadHealth = mergeCloudReadHealth(cloudReadHealth, failedDomains, attemptedDomains);
   updateDbStatusUI(
-    uniqueFailures.length > 0 ? 'cloud_degraded' : 'cloud',
-    uniqueFailures.length > 0 ? 'Cloud đã nối • Lỗi đọc dữ liệu' : ''
+    cloudReadHealth.status === 'degraded' ? 'cloud_degraded' : 'cloud',
+    cloudReadHealth.status === 'degraded' ? 'Cloud đã nối • Lỗi đọc dữ liệu' : ''
   );
   return cloudReadHealth;
 }
@@ -1340,17 +1334,19 @@ export async function dbLoadCashbookForRange(startIso, endExclusiveIso) {
 }
 
 async function fetchOrderRowsForHistoryWindow(startIso = null, endExclusiveIso = null) {
-  let query = supabaseClient
-    .from(tableOrdersName)
-    .select('*')
-    .order('order_date', { ascending: false })
-    .order('created_at', { ascending: false })
-    .limit(500);
-  if (startIso) query = query.gte('order_date', startIso);
-  if (endExclusiveIso) query = query.lt('order_date', endExclusiveIso);
-  const { data, error } = await query;
-  if (error) throw error;
-  return data || [];
+  const loadPages = (dateColumn, onlyMissingOrderDate = false) => collectAllPages((offset, end) => {
+    let query = supabaseClient.from(tableOrdersName).select('*', { count: 'exact' });
+    if (onlyMissingOrderDate) query = query.is('order_date', null);
+    if (startIso) query = query.gte(dateColumn, startIso);
+    if (endExclusiveIso) query = query.lt(dateColumn, endExclusiveIso);
+    query = query.order(dateColumn, { ascending: false }).order('id', { ascending: false });
+    return query.range(offset, end);
+  }, 500);
+
+  const datedRows = await loadPages('order_date');
+  if (!startIso && !endExclusiveIso) return datedRows;
+  const legacyRows = await loadPages('created_at', true);
+  return [...datedRows, ...legacyRows];
 }
 
 function replaceLoadedOrderWindow(rawOrders, startIso = null, endExclusiveIso = null) {
@@ -1366,8 +1362,14 @@ function replaceLoadedOrderWindow(rawOrders, startIso = null, endExclusiveIso = 
   };
   const retained = (state.savedOrders || []).filter(order => !isInsideWindow(order));
   const mapped = (rawOrders || []).map(order => mapOrderRowForState(order, false));
+  const seenIds = new Set();
   state.savedOrders = [...mapped, ...retained]
-    .filter((order, index, rows) => rows.findIndex(item => String(item.id) === String(order.id)) === index)
+    .filter(order => {
+      const id = String(order.id);
+      if (seenIds.has(id)) return false;
+      seenIds.add(id);
+      return true;
+    })
     .sort((left, right) => new Date(right.date || 0) - new Date(left.date || 0));
   cacheOrdersLocally(state.savedOrders);
   return mapped;
@@ -1377,9 +1379,12 @@ export async function dbLoadOrdersForHistoryRange(startIso = null, endExclusiveI
   if (!isCloudActive || !supabaseClient) return false;
   try {
     const rows = await fetchOrderRowsForHistoryWindow(startIso, endExclusiveIso);
-    return replaceLoadedOrderWindow(rows, startIso, endExclusiveIso);
+    const loaded = replaceLoadedOrderWindow(rows, startIso, endExclusiveIso);
+    publishCloudReadHealth([], ['orders']);
+    return loaded;
   } catch (error) {
     console.warn('Không thể tải lịch sử đơn hàng theo khoảng ngày:', error);
+    publishCloudReadHealth(['orders'], ['orders']);
     return false;
   }
 }
@@ -1601,7 +1606,10 @@ export async function fetchCloudData(options = {}) {
         cacheOrdersLocally(state.savedOrders);
       } catch (ordErr) {
         recordReadFailure('orders', ordErr, 'Could not load orders from Supabase, fallback to tenant cache:');
-        state.savedOrders = JSON.parse(tenantStorage.getItem('billing_system_orders') || '[]');
+        const cachedOrders = JSON.parse(tenantStorage.getItem('billing_system_orders') || '[]');
+        // A parallel history load may already hold more authoritative rows than
+        // the bounded browser cache. A failed weekly refresh must not erase it.
+        if ((state.savedOrders || []).length === 0) state.savedOrders = cachedOrders;
       }
     };
 
@@ -2278,7 +2286,7 @@ export async function syncLocalToCloud() {
       showToast(`Cloud đã kết nối nhưng chưa đọc được: ${result.failedDomains.join(', ')}. Dữ liệu đang thấy có thể là cache cũ.`, 'danger');
       return false;
     }
-    showToast('Đã tải lại dữ liệu mới nhất từ Cloud. Cache trình duyệt không được ghi ngược lên database.', 'success');
+    showToast('Đã tải lại dữ liệu cơ bản từ Cloud. Lịch sử đơn tải theo khoảng thời gian trên trang Lịch sử.', 'success');
     return true;
   } catch (error) {
     console.error('Cloud refresh failed:', error);
@@ -2576,6 +2584,11 @@ async function legacyLocalUploadDisabled() {
 }
 
 // --- Thao tác CSDL chi tiết (Sản phẩm) ---
+function rejectUnavailableCloudWrite(resourceLabel) {
+  showToast(`${resourceLabel} chỉ được thay đổi khi đã kết nối và xác thực với Cloud.`, 'danger');
+  return false;
+}
+
 export async function dbSaveProduct(product) {
   if (isCloudActive && supabaseClient) {
     try {
@@ -2681,12 +2694,12 @@ export async function dbSaveProduct(product) {
       return false;
     }
   }
-  return true;
+  return rejectUnavailableCloudWrite('Sản phẩm');
 }
 
 export async function dbSaveProductsBulk(products) {
   if (!Array.isArray(products) || products.length === 0) return true;
-  if (!isCloudActive || !supabaseClient) return true;
+  if (!isCloudActive || !supabaseClient) return rejectUnavailableCloudWrite('Danh sách sản phẩm');
 
   try {
     const { data: existingProducts, error: fetchError } = await supabaseClient
@@ -2788,7 +2801,7 @@ export async function dbSaveProductsBulk(products) {
 }
 
 export async function dbRenameBrandProducts(brandId, oldName, newName) {
-  if (!isCloudActive || !supabaseClient) return true;
+  if (!isCloudActive || !supabaseClient) return rejectUnavailableCloudWrite('Sản phẩm theo thương hiệu');
 
   try {
     const changes = {
@@ -2838,7 +2851,7 @@ export async function dbDeleteProduct(code, brand) {
       return false;
     }
   }
-  return true;
+  return rejectUnavailableCloudWrite('Sản phẩm');
 }
 
 // --- Thao tác CSDL chi tiết (Khách hàng) ---
@@ -2908,7 +2921,7 @@ export async function dbSaveCustomer(customer) {
       return false;
     }
   }
-  return true;
+  return rejectUnavailableCloudWrite('Khách hàng');
 }
 
 // Quick customer creation is available from the order screen to every role,
@@ -2916,7 +2929,7 @@ export async function dbSaveCustomer(customer) {
 // table writes. The database forces Sale users to own the new customer and
 // ignores every financial field from the browser.
 export async function dbCreateQuickCustomer(customer) {
-  if (!isCloudActive || !supabaseClient) return true;
+  if (!isCloudActive || !supabaseClient) return rejectUnavailableCloudWrite('Khách hàng');
 
   try {
     const command = {
@@ -2972,7 +2985,7 @@ export async function dbSaveCustomersBulk(customers) {
       return false;
     }
   }
-  return true;
+  return rejectUnavailableCloudWrite('Danh sách khách hàng');
 }
 
 // Customer profile fields and imported financial baselines use separate write
@@ -3450,7 +3463,7 @@ export async function dbDeleteCustomer(id) {
       return false;
     }
   }
-  return true;
+  return rejectUnavailableCloudWrite('Khách hàng');
 }
 
 export async function dbDeleteCustomersBulk(customerIds) {
@@ -3486,7 +3499,7 @@ export async function dbDeleteCustomersBulk(customerIds) {
 // --- Thao tác CSDL chi tiết (Bảng giá) ---
 export async function dbSavePricelist(pricelist) {
   if (state.currentUser?.role === 'sale') {
-    showToast('TÃ i khoáº£n kinh doanh khÃ´ng cÃ³ quyá»n lÆ°u báº£ng giÃ¡.', 'danger');
+    showToast('Tài khoản kinh doanh không có quyền lưu bảng giá.', 'danger');
     return false;
   }
   if (isCloudActive && supabaseClient) {
@@ -3522,15 +3535,16 @@ export async function dbSavePricelist(pricelist) {
       return false;
     }
   }
-  return true;
+  return rejectUnavailableCloudWrite('Bảng giá');
 }
 
 export async function dbSavePriceListItems(items) {
   if (state.currentUser?.role === 'sale') {
-    showToast('TÃ i khoáº£n kinh doanh khÃ´ng cÃ³ quyá»n lÆ°u chi tiáº¿t báº£ng giÃ¡.', 'danger');
+    showToast('Tài khoản kinh doanh không có quyền lưu chi tiết bảng giá.', 'danger');
     return false;
   }
-  if (isCloudActive && supabaseClient && items.length > 0) {
+  if (!Array.isArray(items) || items.length === 0) return true;
+  if (isCloudActive && supabaseClient) {
     try {
       const dbRows = items.map(item => ({
         id: item.id || `${item.priceListId}:${item.productId}`,
@@ -3563,16 +3577,16 @@ export async function dbSavePriceListItems(items) {
       return true;
     } catch(err) {
       console.error(err);
-      showToast('KhÃ´ng thá»ƒ lÆ°u chi tiáº¿t giÃ¡ lÃªn Ä‘Ã¡m mÃ¢y: ' + err.message, 'danger');
+      showToast('Không thể lưu chi tiết giá lên đám mây: ' + err.message, 'danger');
       return false;
     }
   }
-  return true;
+  return rejectUnavailableCloudWrite('Chi tiết bảng giá');
 }
 
 export async function dbDeletePriceListItem(priceListId, productId) {
   if (state.currentUser?.role === 'sale') {
-    showToast('TÃ i khoáº£n kinh doanh khÃ´ng cÃ³ quyá»n xÃ³a giÃ¡.', 'danger');
+    showToast('Tài khoản kinh doanh không có quyền xóa giá.', 'danger');
     return false;
   }
   if (isCloudActive && supabaseClient) {
@@ -3590,12 +3604,12 @@ export async function dbDeletePriceListItem(priceListId, productId) {
       return false;
     }
   }
-  return true;
+  return rejectUnavailableCloudWrite('Chi tiết bảng giá');
 }
 
 export async function dbDeletePricelist(id) {
   if (state.currentUser?.role === 'sale') {
-    showToast('TÃ i khoáº£n kinh doanh khÃ´ng cÃ³ quyá»n ngá»«ng báº£ng giÃ¡.', 'danger');
+    showToast('Tài khoản kinh doanh không có quyền ngừng bảng giá.', 'danger');
     return false;
   }
   if (isCloudActive && supabaseClient) {
@@ -3613,7 +3627,7 @@ export async function dbDeletePricelist(id) {
       return false;
     }
   }
-  return true;
+  return rejectUnavailableCloudWrite('Bảng giá');
 }
 
 // --- Thao tác CSDL chi tiết (Hóa đơn / Đơn hàng) ---
@@ -3649,7 +3663,7 @@ export async function dbSaveOrder(order) {
       const error = new Error(`403: Price list ${forbiddenId} is not available for sales`);
       error.status = 403;
       console.error(error);
-      showToast('403: Báº£ng giÃ¡ khÃ´ng Ä‘Æ°á»£c cáº¥p quyá»n cho kinh doanh.', 'danger');
+      showToast('403: Bảng giá không được cấp quyền cho kinh doanh.', 'danger');
       return false;
     }
   }
@@ -3761,7 +3775,7 @@ export async function dbSaveOrder(order) {
       return false;
     }
   }
-  return true;
+  return rejectUnavailableCloudWrite('Đơn hàng');
 }
 
 export async function dbDeleteOrder(id, status = null) {
@@ -3774,11 +3788,13 @@ export async function dbDeleteOrder(id, status = null) {
           .eq('id', id);
         if (error) throw error;
       } else if (status === 'settled') {
-        showToast('Đơn đã chốt không được xóa vật lý. Hủy/đảo giao dịch sẽ được bổ sung ở giai đoạn 2.', 'warning');
+        showToast('Đơn đã chốt không được xóa vật lý. Hãy dùng chức năng hủy đơn để tạo giao dịch đảo.', 'warning');
         return false;
       } else {
-        // Unknown status is treated as draft-only. Finalized history is immutable.
-        await supabaseClient.from(tableDraftOrdersName).delete().eq('id', id);
+        // Never guess the storage table: a stale/missing status must not turn
+        // an immutable finalized order into a draft-delete request.
+        showToast('Không xác định được trạng thái đơn hàng. Vui lòng tải lại lịch sử trước khi xóa.', 'warning');
+        return false;
       }
       return true;
     } catch(err) {
@@ -3787,7 +3803,7 @@ export async function dbDeleteOrder(id, status = null) {
       return false;
     }
   }
-  return true;
+  return false;
 }
 
 export async function dbDeleteAllOrders() {
@@ -3806,7 +3822,7 @@ export async function dbDeleteAllOrders() {
       return false;
     }
   }
-  return true;
+  return rejectUnavailableCloudWrite('Lịch sử đơn nháp');
 }
 
 // --- Thao tác CSDL chi tiết (Người dùng & Auth) ---
@@ -3888,7 +3904,7 @@ export async function dbSaveUser(user, { initialPassword = '' } = {}) {
       return false;
     }
   }
-  return true;
+  return rejectUnavailableCloudWrite('Thành viên');
 }
 
 export async function dbDeleteUser(id) {
@@ -3926,7 +3942,7 @@ export async function dbDeleteUser(id) {
       return false;
     }
   }
-  return true;
+  return rejectUnavailableCloudWrite('Thành viên');
 }
 
 // --- Thao tác CSDL chi tiết (Hãng sơn) ---
@@ -3973,25 +3989,28 @@ export async function dbSaveBrand(brand, oldName = null) {
       return false;
     }
   }
-  return true;
+  return rejectUnavailableCloudWrite('Thương hiệu');
 }
 
 export async function dbDeleteBrand(name, id = null) {
   if (isCloudActive && supabaseClient) {
     try {
       if (id) {
-        await supabaseClient.from(tableBrandsName).delete().eq('id', id);
+        const { error } = await supabaseClient.from(tableBrandsName).delete().eq('id', id);
+        if (error) throw error;
       }
       if (name) {
-        await supabaseClient.from(tableBrandsName).delete().ilike('name', name);
+        const { error } = await supabaseClient.from(tableBrandsName).delete().ilike('name', name);
+        if (error) throw error;
       }
       return true;
     } catch(err) {
       console.error(err);
+      showToast('Không thể xóa thương hiệu trên đám mây: ' + err.message, 'danger');
       return false;
     }
   }
-  return true;
+  return rejectUnavailableCloudWrite('Thương hiệu');
 }
 
 // --- Thao tác CSDL chi tiết (Sổ quỹ & Số dư đầu kỳ) ---
@@ -4796,7 +4815,7 @@ export async function dbConfirmOrder(order) {
       const error = new Error(`403: Price list ${forbiddenId} is not available for sales`);
       error.status = 403;
       console.error(error);
-      showToast('403: Báº£ng giÃ¡ khÃ´ng Ä‘Æ°á»£c cáº¥p quyá»n cho kinh doanh.', 'danger');
+      showToast('403: Bảng giá không được cấp quyền cho kinh doanh.', 'danger');
       return false;
     }
   }

@@ -4,7 +4,9 @@ import test from 'node:test';
 
 const read = relative => fs.readFileSync(new URL(`../${relative}`, import.meta.url), 'utf8');
 const html = read('index.html');
-const css = read('luminous-engine.css');
+const css = read('styles/app.css');
+
+const invoice = read('js/components/invoice.js');
 
 test('order adjustments use a simple compact two-row control', () => {
   assert.match(html, /class="summary-adjustments-simple"/);
@@ -23,6 +25,11 @@ test('order adjustments use a simple compact two-row control', () => {
   assert.match(css, /\.summary-adjustments-simple \.adjustment-pill-input\s*\{[\s\S]*?width:\s*132px/);
   assert.match(css, /> #invoice-shipping-fee-value\s*\{[\s\S]*?width:\s*auto !important;[\s\S]*?min-width:\s*0 !important/);
   assert.match(css, /> \.pill-unit-tag\s*\{[\s\S]*?flex:\s*0 0 54px !important/);
+});
+
+test('discount type defaults to percent in html and reset logic', () => {
+  assert.match(html, /<select id="invoice-discount-type"[^>]*>[\s\S]*?<option value="percent" selected>%/);
+  assert.match(invoice, /discType\.value\s*=\s*'percent'/);
 });
 
 test('quick customer action keeps its label on one line', () => {

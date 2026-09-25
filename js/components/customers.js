@@ -1,12 +1,16 @@
 import { state } from '../state.js';
 import { showToast, formatCurrency, safeCreateIcons, formatPhoneNumber, isSameUser, getProvinceNameByCode, getManagerDisplayName, PROVINCES, makeSelectSearchable, getCompanyIdByBrand, normalizeCompanyId, formatDateOnly } from '../utils.js';
-import { dbSaveCustomer, dbDeleteCustomer, dbDeleteCustomersBulk, dbSaveCustomersBulk, dbImportCustomerFinancialBaselines, dbFetchCustomers, dbFetchCustomerById, dbRefreshCustomerFinancialState, dbRefreshOrderById, dbFetchCashbookTransactionById, dbRecordCustomerPayment, dbAdjustCustomerDebt, dbFetchCustomerOrderHistory, dbFetchCustomersOrderHistory } from '../services/supabase.js?v=20260909-inline-filter-v4';
-import { renderAll } from '../main.js?v=20260909-inline-filter-v4';
+import { dbSaveCustomer, dbDeleteCustomer, dbDeleteCustomersBulk, dbSaveCustomersBulk, dbImportCustomerFinancialBaselines, dbFetchCustomers, dbFetchCustomerById, dbRefreshCustomerFinancialState, dbRefreshOrderById, dbFetchCashbookTransactionById, dbRecordCustomerPayment, dbAdjustCustomerDebt, dbFetchCustomerOrderHistory, dbFetchCustomersOrderHistory } from '../services/supabase.js';
+import { renderAll } from '../main.js';
 import { tenantStorage } from '../services/tenant-storage.js';
-import { applyActivePriceListToInvoice, resetInvoiceCustomer } from './invoice.js?v=20260909-inline-filter-v4';
-import { addCashbookTransaction } from './so_quy.js?v=20260909-inline-filter-v4';
-import { getOrderFinancialBreakdown } from '../domain/order-financials.js?v=20260909-inline-filter-v4';
-import { buildCustomerDebtDisplayHistory, collectCustomerDebt, getCustomerDebtPostingDate } from '../domain/customer-debt.js?v=20260909-inline-filter-v4';
+import { applyActivePriceListToInvoice, resetInvoiceCustomer } from './invoice.js';
+import { addCashbookTransaction } from './so_quy.js';
+import {
+  getOrderFinancialBreakdown,
+  isSalesReturnActive,
+  getSalesReturnRefundAmount
+} from '../domain/order-financials.js';
+import { buildCustomerDebtDisplayHistory, collectCustomerDebt, getCustomerDebtPostingDate } from '../domain/customer-debt.js';
 import { businessDateKey, parseExcelDate } from '../domain/import-date.js';
 import { buildCustomerImportColumnMap, normalizeExcelHeader, normalizeExcelSheetName } from '../domain/customer-import-columns.js';
 import { customerDateKey, customerDaysSince, finiteCustomerNumber, normalizeCustomerSearch, queryCustomerRows } from '../domain/customer-query.js';
@@ -2168,20 +2172,21 @@ export function downloadCustomerExcelTemplate() {
 
 // --- Logic hiển thị chi tiết đại lý và lịch sử công nợ ---
 const CUSTOMER_ORDER_EXPORT_COLUMNS = [
-  'Mã hóa đơn', 'Thời gian', 'Ngày cập nhật', 'Mã trả hàng',
+  'Mã hóa đơn', 'Thời gian', 'Ngày cập nhật', 'Mã trả hàng', 'Mã đơn hàng gốc', 'Ngày trả hàng',
   'Mã khách hàng', 'Tên khách hàng', 'Điện thoại', 'Địa chỉ (Khách hàng)',
   'Khu vực (Khách hàng)', 'Bảng giá', 'Kinh doanh quản lý',
   'Người bán', 'Người tạo', 'Ghi chú', 'Tổng tiền hàng', 'Tổng giảm giá',
-  'Tổng sau giảm giá', 'Phí vận chuyển', 'Khách cọc', 'Còn phải thu',
+  'Tổng sau giảm giá', 'Phí vận chuyển', 'Khách cọc', 'Còn phải thu', 'Giá trị trả hàng',
+  'Thành tiền/Doanh thu thuần', 'Doanh thu thuần', 'Tổng thanh toán',
   'Trạng thái', 'Mã hàng', 'Tên hàng', 'Thương hiệu', 'Quy cách', 'ĐVT',
   'Ghi chú hàng hóa', 'Số lượng', 'Đơn giá',
   'Giảm giá %', 'Giảm giá', 'Giá bán', 'Thành tiền'
 ];
 
 const CUSTOMER_ORDER_EXPORT_COLUMN_GROUPS = [
-  { title: 'Thông tin hóa đơn', columns: ['Mã hóa đơn', 'Thời gian', 'Ngày cập nhật', 'Mã trả hàng', 'Trạng thái', 'Người bán', 'Người tạo', 'Ghi chú'] },
+  { title: 'Thông tin hóa đơn', columns: ['Mã hóa đơn', 'Thời gian', 'Ngày cập nhật', 'Mã trả hàng', 'Mã đơn hàng gốc', 'Ngày trả hàng', 'Trạng thái', 'Người bán', 'Người tạo', 'Ghi chú'] },
   { title: 'Thông tin khách hàng', columns: ['Mã khách hàng', 'Tên khách hàng', 'Điện thoại', 'Địa chỉ', 'Khu vực', 'Bảng giá', 'Kinh doanh quản lý'] },
-  { title: 'Thông tin thanh toán', columns: ['Tổng tiền hàng', 'Tổng giảm giá', 'Tổng sau giảm giá', 'Phí vận chuyển', 'Khách cọc', 'Còn phải thu'] },
+  { title: 'Thông tin thanh toán', columns: ['Tổng tiền hàng', 'Tổng giảm giá', 'Tổng sau giảm giá', 'Phí vận chuyển', 'Khách cọc', 'Còn phải thu', 'Giá trị trả hàng', 'Thành tiền/Doanh thu thuần'] },
   { title: 'Thông tin sản phẩm', columns: ['Mã hàng', 'Tên hàng', 'Thương hiệu/Nhãn sơn', 'Quy cách', 'Đơn vị tính', 'Ghi chú hàng hóa', 'Số lượng', 'Đơn giá', 'Giảm giá %', 'Giảm giá', 'Giá bán', 'Thành tiền'] }
 ];
 
@@ -2275,13 +2280,13 @@ function getLineAmount(item) {
   return Math.round(qty * unitPrice * (1 - discountPercent / 100));
 }
 
-function buildCustomerOrderExportRows(orders, customer) {
+function buildCustomerOrderExportRows(orders, customer, { preReturn = true } = {}) {
   const provinceName = getProvinceNameByCode(customer.brandDiscounts && customer.brandDiscounts.province);
   return orders.flatMap(order => {
     // Keep the order visible in Excel even when an old/guest order has no
     // hydrated item rows. Product columns remain blank for that one row.
     const items = Array.isArray(order.items) && order.items.length > 0 ? order.items : [{}];
-    const financials = getOrderFinancialBreakdown(order, state.salesReturns || []);
+    const financials = getOrderFinancialBreakdown(order, preReturn ? [] : (state.salesReturns || []));
     return items.map(item => {
       const qty = toExportNumber(item.quantity);
       const unitPrice = toExportNumber(item.price ?? item.unitPrice ?? item.listPrice);
@@ -2294,6 +2299,8 @@ function buildCustomerOrderExportRows(orders, customer) {
         'Thời gian': formatExportDateTime(order.date || order.orderDate || order.createdAt),
         'Ngày cập nhật': formatExportDateTime(order.updatedAt || order.createdAt || order.date),
         'Mã trả hàng': getOrderReturnCodes(order.id),
+        'Mã đơn hàng gốc': order.id || '',
+        'Ngày trả hàng': '',
         'Mã khách hàng': customer.code || customer.id || '',
         'Tên khách hàng': customer.name || order.customerName || '',
         'Điện thoại': customer.phone || order.customerPhone || '',
@@ -2317,6 +2324,10 @@ function buildCustomerOrderExportRows(orders, customer) {
           toExportNumber(order.shippingFeeAmount ?? order.shipping_fee_amount) -
           toExportNumber(order.paidAmount ?? order.paid_amount ?? order.otherFeeAmount ?? order.other_fee_amount)
         )),
+        'Giá trị trả hàng': 0,
+        'Thành tiền/Doanh thu thuần': financials.isRevenueEligible ? financials.totalPayment : 0,
+        'Doanh thu thuần': financials.isRevenueEligible ? financials.totalPayment : 0,
+        'Tổng thanh toán': financials.isRevenueEligible ? financials.totalPayment : 0,
         'Trạng thái': getOrderStatusLabel(order.status || 'settled'),
         'Mã hàng': item.variantCode || item.productCode || item.code || item.variantId || item.productId || '',
         'Tên hàng': item.productName || item.name || item.product?.name || '',
@@ -2348,7 +2359,8 @@ const HISTORY_ORDER_ITEM_EXPORT_COLUMNS = [
 ];
 
 function buildHistoryOrderExportRow(order, customer) {
-  const detailRows = buildCustomerOrderExportRows([order], customer);
+  const options = arguments[2] || { preReturn: true };
+  const detailRows = buildCustomerOrderExportRows([order], customer, options);
   if (detailRows.length === 0) return null;
   if (detailRows.length === 1) return detailRows[0];
 
@@ -2363,12 +2375,96 @@ function buildHistoryOrderExportRow(order, customer) {
   return orderRow;
 }
 
+function buildHistoryReturnExportRow(ret, order, customer = {}) {
+  const refundAmount = getSalesReturnRefundAmount(ret);
+  const items = Array.isArray(ret.items) && ret.items.length > 0 ? ret.items : [{}];
+  const provinceName = getProvinceNameByCode(customer.brandDiscounts && customer.brandDiscounts.province);
+  const orderDate = order ? (order.date || order.orderDate || order.createdAt) : ret.createdAt;
+  const returnDate = ret.returnDate || ret.createdAt || orderDate;
+
+  const detailRows = items.map(item => {
+    const qty = toExportNumber(item.quantity);
+    const unitPrice = toExportNumber(item.refundPrice ?? item.price ?? item.unitPrice ?? 0);
+    const discountPercent = toExportNumber(item.deductionPercent ?? 0);
+    const lineAmount = item.subtotal !== undefined && item.subtotal !== null && item.subtotal !== ''
+      ? toExportNumber(item.subtotal)
+      : Math.round(qty * unitPrice * (1 - discountPercent / 100));
+
+    return {
+      'Mã hóa đơn': ret.id || '',
+      'Thời gian': formatExportDateTime(returnDate),
+      'Ngày cập nhật': formatExportDateTime(ret.updatedAt || ret.createdAt || returnDate),
+      'Mã trả hàng': ret.id || '',
+      'Mã đơn hàng gốc': order?.id || ret.saleId || ret.orderId || '',
+      'Ngày trả hàng': formatExportDateTime(returnDate),
+      'Mã khách hàng': customer.code || customer.id || ret.customerId || order?.customerId || '',
+      'Tên khách hàng': customer.name || ret.customerName || order?.customerName || 'Khách lẻ',
+      'Điện thoại': customer.phone || order?.customerPhone || '',
+      'Địa chỉ (Khách hàng)': customer.address || order?.customerAddress || '',
+      'Địa chỉ': customer.address || order?.customerAddress || '',
+      'Khu vực (Khách hàng)': provinceName || '',
+      'Khu vực': provinceName || '',
+      'Bảng giá': getPricelistName(order?.pricelistId || customer.pricelistId),
+      'Kinh doanh quản lý': getDisplayUserName(customer.managedBy || customer.managed_by),
+      'Người bán': getDisplayUserName(ret.salespersonId || order?.salespersonId || order?.createdBy),
+      'Người tạo': getDisplayUserName(ret.createdBy),
+      'Ghi chú': ret.reason || ret.notes || '',
+      'Tổng tiền hàng': -refundAmount,
+      'Tổng giảm giá': 0,
+      'Tổng sau giảm giá': -refundAmount,
+      'Phí vận chuyển': 0,
+      'Khách cọc': 0,
+      'Còn phải thu': -toExportNumber(ret.debtReductionAmount || 0),
+      'Giá trị trả hàng': refundAmount,
+      'Thành tiền/Doanh thu thuần': -refundAmount,
+      'Doanh thu thuần': -refundAmount,
+      'Tổng thanh toán': -refundAmount,
+      'Trạng thái': 'Trả hàng',
+      'Mã hàng': item.variantCode || item.productCode || item.code || item.variantId || item.productId || '',
+      'Tên hàng': item.productName || item.name || item.product?.name || '',
+      'Thương hiệu': item.productBrand || item.brand || '',
+      'Thương hiệu/Nhãn sơn': item.productBrand || item.brand || '',
+      'Quy cách': item.specificationSnapshot || item.weightOrVolumeSnapshot || item.displaySpecification || '',
+      'ĐVT': item.unitName || item.unit || item.packagingName || '',
+      'Đơn vị tính': item.unitName || item.unit || item.packagingName || '',
+      'Ghi chú hàng hóa': item.note || item.notes || '',
+      'Số lượng': qty > 0 ? -qty : (qty < 0 ? qty : -1),
+      'Đơn giá': unitPrice,
+      'Giảm giá %': discountPercent,
+      'Giảm giá': 0,
+      'Giá bán': unitPrice,
+      'Thành tiền': -refundAmount
+    };
+  });
+
+  if (detailRows.length === 0) return null;
+  if (detailRows.length === 1) return detailRows[0];
+
+  const returnRow = { ...detailRows[0] };
+  HISTORY_ORDER_ITEM_EXPORT_COLUMNS.forEach(column => {
+    if (column === 'Thành tiền') {
+      returnRow[column] = -refundAmount;
+    } else {
+      returnRow[column] = detailRows
+        .map(row => row[column] ?? '')
+        .join('\n');
+    }
+  });
+  return returnRow;
+}
+
 function getSavedCustomerOrderExportColumns() {
   try {
     const parsed = JSON.parse(tenantStorage.getItem(CUSTOMER_ORDER_EXPORT_COLUMNS_STORAGE_KEY) || '[]');
     const allowed = new Set(DEFAULT_CUSTOMER_ORDER_EXPORT_COLUMNS);
     const valid = parsed.filter(col => allowed.has(col));
-    return valid.length > 0 ? valid : DEFAULT_CUSTOMER_ORDER_EXPORT_COLUMNS;
+    if (valid.length > 0) {
+      if (!valid.includes('Thành tiền/Doanh thu thuần')) {
+        valid.push('Thành tiền/Doanh thu thuần');
+      }
+      return valid;
+    }
+    return DEFAULT_CUSTOMER_ORDER_EXPORT_COLUMNS;
   } catch (e) {
     return DEFAULT_CUSTOMER_ORDER_EXPORT_COLUMNS;
   }
@@ -2796,6 +2892,7 @@ async function exportCustomerOrderHistoryExcel() {
     } else {
       orders = await dbFetchCustomersOrderHistory(scopedCustomers.map(c => c.id), startIso, endExclusiveIso, status);
     }
+    const exportedReturnIds = new Set();
     const exportRows = orders.flatMap(order => {
       const customer = customerById.get(String(order.customerId || order.customer_id)) || {
         id: order.customerId || order.customer_id || '',
@@ -2807,11 +2904,36 @@ async function exportCustomerOrderHistoryExcel() {
         managedBy: order.customerManagerId || order.customer_manager_id || '',
         brandDiscounts: {}
       };
+      const rows = [];
       if (isHistoryExport) {
         const row = buildHistoryOrderExportRow(order, customer);
-        return row ? [row] : [];
+        if (row) rows.push(row);
+      } else {
+        rows.push(...buildCustomerOrderExportRows([order], customer));
       }
-      return buildCustomerOrderExportRows([order], customer);
+
+      // Export associated active returns within scope
+      const orderReturns = (state.salesReturns || []).filter(ret => {
+        if (!isSalesReturnActive(ret)) return false;
+        const retOrderId = String(ret.saleId || ret.orderId || ret.sale_id || ret.order_id || '');
+        if (retOrderId !== String(order.id)) return false;
+        const retTime = new Date(ret.returnDate || ret.createdAt || ret.date).getTime();
+        if (Number.isFinite(retTime)) {
+          if (startTime && retTime < startTime) return false;
+          if (endTime && retTime >= endTime) return false;
+        }
+        return true;
+      });
+
+      orderReturns.forEach(ret => {
+        const returnId = String(ret.id || '');
+        if (returnId && exportedReturnIds.has(returnId)) return;
+        if (returnId) exportedReturnIds.add(returnId);
+        const returnRow = buildHistoryReturnExportRow(ret, order, customer);
+        if (returnRow) rows.push(returnRow);
+      });
+
+      return rows;
     });
     if (exportRows.length === 0) {
       showToast('Không có đơn hàng phù hợp để xuất Excel.', 'warning');

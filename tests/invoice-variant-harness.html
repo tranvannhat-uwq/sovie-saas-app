@@ -5,7 +5,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Invoice Variant UI Harness</title>
-  <link rel="stylesheet" href="../style.css">
+  <link rel="stylesheet" href="../styles/base.css">
+  <link rel="stylesheet" href="../styles/app.css">
 </head>
 <body style="padding: 16px;">
   <main class="glass-panel">
@@ -55,7 +56,7 @@
     });
     window.addEventListener('load', async () => {
       const { state } = await import('../js/state.js');
-      const { renderInvoiceTable, setupInvoiceCreator } = await import('../js/components/invoice.js?v=20260809-activity8');
+      const { renderInvoiceTable, setupInvoiceCreator } = await import('../js/components/invoice.js');
 
     state.currentUser = { id: 'admin-test', username: 'admin-test', displayName: 'Admin Test', role: 'admin' };
     state.products = [

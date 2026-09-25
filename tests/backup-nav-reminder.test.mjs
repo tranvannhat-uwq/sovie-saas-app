@@ -19,7 +19,7 @@ test('end-of-day backup reminder and shortcut are removed from the application s
 test('backup remains available only from the Cloud configuration section', () => {
   const html = read('index.html');
   const backup = read('js/services/backup.js');
-  const css = read('style.css');
+  const css = read('styles/base.css');
   const backupSection = html.slice(html.indexOf('id="backup-section"'), html.indexOf('<!-- Báo cáo & KPI Panel -->'));
   assert.match(backupSection, /id="btn-export-backup"/);
   assert.match(backupSection, /Sao lưu & Khôi phục dữ liệu/);

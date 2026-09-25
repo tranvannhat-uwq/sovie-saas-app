@@ -9,10 +9,14 @@ const service = fs.readFileSync(path.join(root, 'js/services/supabase.js'), 'utf
 const realtime = fs.readFileSync(path.join(root, 'js/services/realtime.js'), 'utf8');
 const main = fs.readFileSync(path.join(root, 'js/main.js'), 'utf8');
 const utils = fs.readFileSync(path.join(root, 'js/utils.js'), 'utf8');
+const health = fs.readFileSync(path.join(root, 'js/domain/cloud-read-health.js'), 'utf8');
 
 test('Realtime subscription never masks failed Cloud reads', () => {
   assert.match(service, /export function getCloudReadHealth\(\)/);
-  assert.match(service, /status: uniqueFailures\.length > 0 \? 'degraded' : 'healthy'/);
+  assert.match(service, /cloudReadHealth = mergeCloudReadHealth\(cloudReadHealth, failedDomains, attemptedDomains\)/);
+  assert.match(health, /status: uniqueFailures\.length > 0 \? 'degraded' : 'healthy'/);
+  assert.match(service, /publishCloudReadHealth\(\[\], \['orders'\]\)/);
+  assert.match(service, /publishCloudReadHealth\(\['orders'\], \['orders'\]\)/);
   assert.match(realtime, /getCloudReadHealth\(\)/);
   assert.match(realtime, /health\.status === 'degraded' \? 'cloud_degraded' : 'cloud'/);
   assert.match(utils, /status === 'cloud_degraded'/);

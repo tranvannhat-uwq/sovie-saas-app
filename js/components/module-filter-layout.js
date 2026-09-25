@@ -37,6 +37,7 @@ export const FILTER_LABELS = Object.freeze({
   'platform-account-search': 'Tìm kiếm',
   'platform-account-status': 'Trạng thái',
   'report-debt-search': 'Tìm kiếm khách hàng',
+  'report-return-search': 'Tìm kiếm dữ liệu trả hàng',
   'report-return-filter': 'Nhóm dữ liệu'
 });
 
@@ -692,9 +693,10 @@ function openMobileDrawer(sidebar) {
   });
   sidebar.classList.add('is-mobile-open');
   sidebar.setAttribute('aria-hidden', 'false');
-  const backdrop = sidebar.parentElement?.querySelector('.module-filter-backdrop');
+  const backdrop = sidebar._filterBackdrop;
   if (backdrop) backdrop.hidden = false;
   getFilterTriggers(sidebar).forEach(trigger => trigger.setAttribute('aria-expanded', 'true'));
+  document.documentElement.classList.add('module-filter-drawer-open');
   document.body.classList.add('module-filter-drawer-open');
   window.setTimeout(() => {
     sidebar.querySelector('input:not([type="hidden"]), select, button')?.focus();
@@ -704,13 +706,14 @@ function openMobileDrawer(sidebar) {
 function closeMobileDrawer(sidebar) {
   sidebar.classList.remove('is-mobile-open');
   sidebar.setAttribute('aria-hidden', 'true');
-  const backdrop = sidebar.parentElement?.querySelector('.module-filter-backdrop');
+  const backdrop = sidebar._filterBackdrop;
   if (backdrop) backdrop.hidden = true;
   const trigger = getFilterTriggers(sidebar)[0];
   if (trigger) {
     trigger.setAttribute('aria-expanded', 'false');
     trigger.focus({ preventScroll: true });
   }
+  document.documentElement.classList.remove('module-filter-drawer-open');
   document.body.classList.remove('module-filter-drawer-open');
 }
 
@@ -723,6 +726,19 @@ function placeFilterTrigger(layout, sidebar, content, trigger) {
     cashbookSearch.before(tools);
     tools.append(cashbookSearch, trigger);
     trigger.classList.add('module-filter-mobile-trigger-cashbook');
+    return;
+  }
+
+  const searchToolbar = content.querySelector(':scope > .module-list-toolbar');
+  if (searchToolbar) {
+    let actions = searchToolbar.querySelector(':scope > .module-list-toolbar-actions');
+    if (!actions) {
+      actions = document.createElement('div');
+      actions.className = 'module-list-toolbar-actions';
+      searchToolbar.append(actions);
+    }
+    actions.append(trigger);
+    trigger.classList.add('module-filter-mobile-trigger-inline');
     return;
   }
 
@@ -753,16 +769,19 @@ function placeFilterTrigger(layout, sidebar, content, trigger) {
 }
 
 function setupMobileDrawer(layout, sidebar) {
-  if (layout.querySelector('.module-filter-backdrop')) return;
+  if (sidebar.dataset.filterOverlayReady === 'true') return;
+  sidebar.dataset.filterOverlayReady = 'true';
 
   const ownerId = layout.closest('[id]')?.id || `module-${document.querySelectorAll('.module-filter-sidebar').length}`;
   sidebar.id ||= `${ownerId}-filter-popup`;
+  sidebar.dataset.filterOwner = ownerId;
   sidebar.setAttribute('role', 'dialog');
   sidebar.setAttribute('aria-modal', 'true');
   sidebar.setAttribute('aria-hidden', 'true');
 
   const backdrop = document.createElement('div');
   backdrop.className = 'module-filter-backdrop';
+  sidebar._filterBackdrop = backdrop;
   backdrop.hidden = true;
   backdrop.setAttribute('aria-hidden', 'true');
   backdrop.addEventListener('click', () => closeMobileDrawer(sidebar));
@@ -782,11 +801,16 @@ function setupMobileDrawer(layout, sidebar) {
     placeFilterTrigger(layout, sidebar, content, trigger);
   }
 
-  sidebar.addEventListener('keydown', event => {
-    if (event.key === 'Escape') {
-      event.preventDefault();
-      closeMobileDrawer(sidebar);
-    }
+  // The panels animate with transform/backdrop-filter. Keeping fixed overlays
+  // inside them makes the filter window position against the panel, so portal
+  // the dialog and backdrop to the app root while leaving the trigger in place.
+  const overlayRoot = document.getElementById('app-layout') || document.body;
+  overlayRoot.append(backdrop, sidebar);
+
+  document.addEventListener('keydown', event => {
+    if (event.key !== 'Escape' || !sidebar.classList.contains('is-mobile-open')) return;
+    event.preventDefault();
+    closeMobileDrawer(sidebar);
   });
 }
 
@@ -814,12 +838,51 @@ function setupFilterInteractions(sidebar) {
   updateFilterCount(sidebar);
 }
 
-export function setupSplitSurface({ root, filterSelectors, label = 'Tinh chỉnh dữ liệu hiển thị', title = 'Bộ lọc' }) {
+export function setupSplitSurface({ root, filterSelectors, searchSelectors = [], label = 'Tinh chỉnh dữ liệu hiển thị', title = 'Bộ lọc' }) {
   if (!root || root.dataset[FILTER_LAYOUT_READY] === 'true') return;
-  const filterNodes = filterSelectors
+  let filterNodes = filterSelectors
     .map(selector => root.querySelector(selector))
     .filter((node, index, nodes) => node && nodes.indexOf(node) === index);
-  if (filterNodes.length === 0) return;
+
+  const searchNodes = [];
+  for (const selector of searchSelectors) {
+    const match = root.querySelector(selector);
+    if (!match) continue;
+
+    let searchNode = match.matches('.search-wrapper, .platform-search')
+      ? match
+      : match.closest('.search-wrapper, .platform-search') || match;
+    const input = searchNode.matches('input') ? searchNode : searchNode.querySelector('input');
+    if (!input) continue;
+
+    if (searchNode === input) {
+      const wrapper = document.createElement('div');
+      wrapper.className = 'search-wrapper module-list-search';
+      const icon = document.createElement('i');
+      icon.dataset.lucide = 'search';
+      icon.className = 'search-icon';
+      input.replaceWith(wrapper);
+      wrapper.append(icon, input);
+      searchNode = wrapper;
+    }
+
+    searchNode.classList.add('module-list-search');
+    input.classList.add('form-control-search');
+    if (!input.hasAttribute('aria-label')) input.setAttribute('aria-label', input.placeholder || 'Tìm kiếm');
+    if (!searchNodes.includes(searchNode)) searchNodes.push(searchNode);
+  }
+
+  searchNodes.forEach(node => node.remove());
+  filterNodes = filterNodes.filter(node => {
+    const hasControls = node.matches('input, select, textarea, button, details')
+      || node.querySelector('input:not([type="hidden"]), select, textarea, button, details');
+    if (!hasControls) {
+      node.remove();
+      return false;
+    }
+    return true;
+  });
+  if (filterNodes.length === 0 && searchNodes.length === 0) return;
 
   const preservedHeaders = new Set([...root.children].filter(child => child.classList.contains('panel-header')));
   const layout = document.createElement('div');
@@ -849,9 +912,28 @@ export function setupSplitSurface({ root, filterSelectors, label = 'Tinh chỉnh
   const content = document.createElement('div');
   content.className = 'module-filter-content';
 
+  let toolbar = null;
+  if (searchNodes.length) {
+    toolbar = document.createElement('div');
+    toolbar.className = 'module-list-toolbar';
+    const searchGroup = document.createElement('div');
+    searchGroup.className = 'module-list-toolbar-search';
+    searchNodes.forEach(node => searchGroup.append(node));
+    toolbar.append(searchGroup);
+  }
+
   [...root.children].forEach(child => {
     if (!preservedHeaders.has(child) && child !== layout && child !== sidebar && child !== content) content.append(child);
   });
+
+  if (toolbar) content.prepend(toolbar);
+
+  if (filterNodes.length === 0) {
+    root.append(content);
+    root.dataset[FILTER_LAYOUT_READY] = 'true';
+    safeCreateIcons();
+    return;
+  }
 
   layout.append(sidebar, content);
   root.append(layout);
@@ -862,10 +944,10 @@ export function setupSplitSurface({ root, filterSelectors, label = 'Tinh chỉnh
   safeCreateIcons();
 }
 
-function setupPanelSurface(panelId, filterSelectors, label, title) {
+function setupPanelSurface(panelId, filterSelectors, label, title, searchSelectors = []) {
   const panel = document.getElementById(panelId);
   const root = panel?.querySelector(':scope > .glass-panel');
-  setupSplitSurface({ root, filterSelectors, label, title });
+  setupSplitSurface({ root, filterSelectors, searchSelectors, label, title });
 }
 
 export function setupCompactCustomerFilterGroups(filterPanel) {
@@ -910,14 +992,10 @@ function setupCustomerSurface() {
     const searchWrap = queryToolbar.querySelector('.search-wrapper');
     if (searchWrap) {
       sanitizeFilterStyles(searchWrap);
-      const searchLbl = document.createElement('label');
-      searchLbl.className = 'module-filter-field-label';
-      searchLbl.textContent = 'Tìm kiếm';
-      searchLbl.htmlFor = 'customer-search-input';
-      searchWrap.before(searchLbl);
+      searchWrap.querySelector('input')?.setAttribute('aria-label', 'Tìm kiếm khách hàng');
     }
 
-    const managerWrap = queryToolbar.querySelector('.customer-legacy-manager-filter');
+    const managerWrap = queryToolbar.querySelector('.customer-manager-filter');
     if (managerWrap) {
       sanitizeFilterStyles(managerWrap);
       const mgrLbl = document.createElement('label');
@@ -950,6 +1028,7 @@ function setupCustomerSurface() {
       '.customer-sort-toolbar',
       '#customer-advanced-filter-panel'
     ],
+    searchSelectors: ['#customer-search-input'],
     label: 'Khách hàng và phân loại',
     title: 'Bộ lọc'
   });
@@ -987,12 +1066,14 @@ function setupReportSurfaces() {
   setupSplitSurface({
     root: document.getElementById('report-subtab-debt'),
     filterSelectors: ['.report-debt-filter-row'],
+    searchSelectors: ['#report-debt-search'],
     label: 'Báo cáo công nợ',
     title: 'Bộ lọc'
   });
   setupSplitSurface({
     root: document.getElementById('report-subtab-returns'),
     filterSelectors: ['.report-return-filter-row'],
+    searchSelectors: ['#report-return-search'],
     label: 'Báo cáo trả hàng',
     title: 'Bộ lọc'
   });
@@ -1004,32 +1085,21 @@ function setupPlatformAdminSurface() {
   setupSplitSurface({
     root,
     filterSelectors: ['.platform-account-filters'],
+    searchSelectors: ['#platform-account-search'],
     label: 'Danh sách doanh nghiệp SaaS',
     title: 'Bộ lọc'
   });
 }
 
-function setupGoodsSurfaces() {
-  [
-    ['inv-raw-tab', 'Nguyên liệu'],
-    ['inv-semi-tab', 'Bán thành phẩm'],
-    ['inv-finished-tab', 'Thành phẩm']
-  ].forEach(([tabId, label]) => {
-    const root = document.getElementById(tabId)?.querySelector(':scope > .glass-panel');
-    setupSplitSurface({ root, filterSelectors: ['.controls-row'], label, title: 'Bộ lọc' });
-  });
-}
-
 export function setupModuleFilterLayouts() {
-  setupPanelSurface('products-panel', ['.controls-row'], 'Danh sách sản phẩm', 'Bộ lọc');
-  setupPanelSurface('history-panel', ['.controls-row'], 'Lịch sử đơn hàng', 'Bộ lọc');
+  setupPanelSurface('products-panel', ['.controls-row'], 'Danh sách sản phẩm', 'Bộ lọc', ['#product-search-input']);
+  setupPanelSurface('history-panel', ['.controls-row'], 'Lịch sử đơn hàng', 'Bộ lọc', ['#history-search-input']);
   setupCustomerSurface();
-  setupPanelSurface('suppliers-panel', ['.controls-row'], 'Danh sách nhà cung cấp', 'Bộ lọc');
-  setupPanelSurface('pricelists-panel', ['.controls-row'], 'Ma trận bảng giá', 'Bộ lọc');
-  setupPanelSurface('users-panel', ['.controls-row'], 'Thành viên và nhân sự', 'Bộ lọc');
-  setupPanelSurface('activity-log-panel', ['.activity-filters'], 'Nhật ký hoạt động', 'Bộ lọc');
+  setupPanelSurface('suppliers-panel', ['.controls-row'], 'Danh sách nhà cung cấp', 'Bộ lọc', ['#supplier-search-input']);
+  setupPanelSurface('pricelists-panel', ['.controls-row'], 'Ma trận bảng giá', 'Bộ lọc', ['#price-matrix-product-search']);
+  setupPanelSurface('users-panel', ['.controls-row'], 'Thành viên và nhân sự', 'Bộ lọc', ['#user-search-input']);
+  setupPanelSurface('activity-log-panel', ['.activity-filters'], 'Nhật ký hoạt động', 'Bộ lọc', ['#activity-search']);
   setupPlatformAdminSurface();
   setupReportSurfaces();
-  setupGoodsSurfaces();
   setupStandaloneSidebar('#so-quy-panel .so-quy-sidebar', 'Giao dịch thu chi');
 }

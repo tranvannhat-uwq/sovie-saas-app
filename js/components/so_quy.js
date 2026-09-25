@@ -1,9 +1,9 @@
 import { state } from '../state.js';
-import { showToast, formatCurrency, safeCreateIcons, formatDateTime } from '../utils.js';
-import { renderAll } from '../main.js?v=20260909-inline-filter-v4';
-import { dbSaveCashbookTransaction, dbSaveStartingBalances, dbRecordCustomerPayment, dbCancelCashbookEntry, dbSetCashbookStarred, dbAmendCashbookTransaction, dbReconcileLegacyCustomerReceipt, dbRefreshCustomerFinancialState, dbFetchCashbookTransactionById, dbLoadCashbookForRange, upsertCashbookTransactionSnapshot } from '../services/supabase.js?v=20260909-inline-filter-v4';
+import { showToast, formatCurrency, safeCreateIcons, formatDateTime, removeVietnameseTones } from '../utils.js';
+import { renderAll } from '../main.js';
+import { dbSaveCashbookTransaction, dbSaveStartingBalances, dbRecordCustomerPayment, dbCancelCashbookEntry, dbSetCashbookStarred, dbAmendCashbookTransaction, dbReconcileLegacyCustomerReceipt, dbRefreshCustomerFinancialState, dbFetchCashbookTransactionById, dbLoadCashbookForRange, upsertCashbookTransactionSnapshot } from '../services/supabase.js';
 import { tenantStorage } from '../services/tenant-storage.js';
-import { getCanonicalCashbookId, isEffectiveCashbookTransaction } from '../domain/cashbook.js?v=20260909-inline-filter-v4';
+import { getCanonicalCashbookId, isEffectiveCashbookTransaction } from '../domain/cashbook.js';
 
 // Seed transactions (empty to start clean)
 const seedTransactions = [];
@@ -1181,14 +1181,15 @@ function getProcessedData() {
     const linkedSupplier = t.supplierId
       ? state.suppliers.find(s => String(s.id) === String(t.supplierId))
       : findSupplierByInput(t.partner);
+    const categoryKey = removeVietnameseTones(t.category || '').toLowerCase();
     const isCustomer = state.customers.some(c => c.name === t.partner) ||
-                       t.category.toLowerCase().includes('khÃ¡ch hÃ ng') ||
-                       t.category.toLowerCase().includes('tiá»n hÃ ng') ||
-                       t.id.startsWith('TTM');
+                       categoryKey.includes('khach hang') ||
+                       categoryKey.includes('tien hang') ||
+                       String(t.id || '').startsWith('TTM');
     const isSupplier = !!linkedSupplier ||
-                       t.category.toLowerCase().includes('nháº­p hÃ ng') ||
-                       t.category.toLowerCase().includes('nhÃ  cung cáº¥p') ||
-                       t.id.startsWith('TCM');
+                       categoryKey.includes('nhap hang') ||
+                       categoryKey.includes('nha cung cap') ||
+                       String(t.id || '').startsWith('TCM');
 
     if (activeFilters.partnerType === 'customer') {
       if (!isCustomer) return false;

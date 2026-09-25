@@ -1,11 +1,11 @@
 import { state, resetTenantBusinessState } from '../state.js';
 import { showToast, safeCreateIcons, isSameUser, getCompanyNameById } from '../utils.js';
-import { dbSaveUser, dbDeleteUser, isCloudActive, supabaseClient, fetchCloudData, clearSupabaseAuthStorage, getMaintenanceStatus, loadSaasContext, clearTenantStorageContext, transferSaasOrganizationOwnership } from '../services/supabase.js?v=20260909-inline-filter-v4';
-import { startRealtimeSync, stopRealtimeSync } from '../services/realtime.js?v=20260909-inline-filter-v4';
-import { renderAll, switchTab } from '../main.js?v=20260909-inline-filter-v4';
-import { populateManagedByDropdown } from './customers.js?v=20260909-inline-filter-v4';
-import { openWorkspaceOnboarding, renderWorkspaceSwitcher, renderSubscriptionAccessNotice } from './workspaces.js?v=20260909-inline-filter-v4';
-import { clearPlatformAdminState, hydratePlatformAdmin } from './platform-admin.js?v=20260909-inline-filter-v4';
+import { dbSaveUser, dbDeleteUser, isCloudActive, supabaseClient, fetchCloudData, clearSupabaseAuthStorage, getMaintenanceStatus, loadSaasContext, clearTenantStorageContext, transferSaasOrganizationOwnership } from '../services/supabase.js';
+import { startRealtimeSync, stopRealtimeSync } from '../services/realtime.js';
+import { renderAll, switchTab } from '../main.js';
+import { populateManagedByDropdown } from './customers.js';
+import { openWorkspaceOnboarding, renderWorkspaceSwitcher, renderSubscriptionAccessNotice } from './workspaces.js';
+import { clearPlatformAdminState, hydratePlatformAdmin } from './platform-admin.js';
 import {
   LOGIN_ERROR,
   classifySupabaseError,
@@ -22,9 +22,10 @@ export function renderUsersTable() {
   
   const filtered = (state.users || []).filter(u => {
     if (!u) return false;
-    const uname = (u.username || u.code || '').toLowerCase();
+    const uname = String(u.username || '').toLowerCase();
+    const code = String(u.code || '').toLowerCase();
     const dname = (u.displayName || u.display_name || u.name || '').toLowerCase();
-    return uname.includes(searchVal) || dname.includes(searchVal);
+    return uname.includes(searchVal) || code.includes(searchVal) || dname.includes(searchVal);
   });
   
   if (filtered.length === 0) {
@@ -528,7 +529,7 @@ export async function deleteUser(userId) {
 
 export function populateCustomerEmployeeFilter() {
   const select = document.getElementById('customer-managed-filter');
-  const wrapper = document.getElementById('cust-managed-filter-wrapper');
+  const wrapper = document.getElementById('customer-manager-filter-wrapper');
   if (!select) return;
   
   if (state.currentUser && state.currentUser.role === 'sale') {

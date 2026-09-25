@@ -1,7 +1,7 @@
 import { state } from '../state.js';
-import { dbFetchActivityLogs, dbFetchOrderActivity } from '../services/supabase.js?v=20260909-inline-filter-v4';
-import { switchTab } from '../main.js?v=20260909-inline-filter-v4';
-import { getOrderDisplayCode } from '../domain/order-display.js?v=20260909-inline-filter-v4';
+import { dbFetchActivityLogs, dbFetchOrderActivity } from '../services/supabase.js';
+import { switchTab } from '../main.js';
+import { getOrderDisplayCode } from '../domain/order-display.js';
 import { safeCreateIcons, showToast } from '../utils.js';
 
 const PAGE_SIZE = 20;
@@ -137,7 +137,7 @@ function activitySummary(row) {
 
 function navigateToOrder(orderId) {
   switchTab('history-panel');
-  const input = document.getElementById('order-search-input');
+  const input = document.getElementById('history-search-input');
   if (input) { input.value = orderId; input.dispatchEvent(new Event('input')); }
   document.getElementById('activity-dropdown')?.classList.remove('active');
 }

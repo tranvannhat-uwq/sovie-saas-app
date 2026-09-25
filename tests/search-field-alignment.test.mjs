@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import test from 'node:test';
 
-const css = fs.readFileSync(new URL('../ui-system.css', import.meta.url), 'utf8');
+const css = fs.readFileSync(new URL('../styles/app.css', import.meta.url), 'utf8');
 
 test('search icons have a dedicated lane and never overlap placeholder text', () => {
   assert.match(css, /\.search-wrapper \.form-control-search\s*\{[\s\S]*?padding:\s*8px 12px 8px 42px !important/);

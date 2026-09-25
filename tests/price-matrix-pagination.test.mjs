@@ -55,7 +55,7 @@ test('excel export preserves all filtered products rather than only the current 
 
 test('page size select has proper width and right-padding to avoid overlapping the dropdown arrow', () => {
   const pricelistsContent = read('js/components/pricelists.js');
-  const styleContent = read('style.css');
+  const styleContent = read('styles/base.css');
 
   assert.match(pricelistsContent, /price-matrix-page-size-select/);
   assert.match(styleContent, /select#price-matrix-page-size[\s\S]*?padding:\s*0\.2rem\s+1\.75rem/);

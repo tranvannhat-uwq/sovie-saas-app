@@ -52,12 +52,14 @@ test('routine refresh actions do not download every business table', () => {
   assert.match(cashbook, /dbFetchCashbookTransactionById/);
 });
 
-test('invoice history defaults to the current week and filters orders at Supabase', () => {
+test('invoice history defaults to the current week and pages through the selected date window', () => {
   assert.match(html, /<option value="week" selected>Tuần này<\/option>/);
   assert.match(service, /fetchOrderRowsForHistoryWindow\(currentWeek\.startIso, currentWeek\.endExclusiveIso\)/);
-  assert.match(service, /\.gte\('order_date', startIso\)/);
-  assert.match(service, /\.lt\('order_date', endExclusiveIso\)/);
-  assert.match(service, /\.limit\(500\)/);
+  assert.match(service, /loadPages = \(dateColumn, onlyMissingOrderDate = false\) => collectAllPages/);
+  assert.match(service, /\.gte\(dateColumn, startIso\)/);
+  assert.match(service, /\.lt\(dateColumn, endExclusiveIso\)/);
+  assert.match(service, /return query\.range\(offset, end\);[\s\S]*?\}, 500\)/);
+  assert.match(service, /loadPages\('created_at', true\)/);
   assert.doesNotMatch(service, /p_limit:\s*10000/);
   assert.match(history, /const onDateFilterChange = \(\) => \{[\s\S]*reloadHistoryDateWindow\(\)/);
   assert.match(history, /if \(dateMode !== 'all'\)[\s\S]*oDate >= endExclusiveDate/);

@@ -3,7 +3,7 @@ window.print = () => {
 };
 
 const { state } = await import('../js/state.js');
-const { renderAndPrintOrder } = await import('../js/components/invoice.js?v=20260814-processing-print-v2');
+const { renderAndPrintOrder } = await import('../js/components/invoice.js');
 
 state.currentUser = { id: 'admin-print-test', username: 'admin', role: 'admin' };
 state.customers = [{

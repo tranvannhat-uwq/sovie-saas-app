@@ -8,7 +8,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = relative => fs.readFileSync(path.join(root, relative), 'utf8');
 const html = read('index.html');
 const cashbook = read('js/components/so_quy.js');
-const css = read('style.css');
+const css = read('styles/base.css');
 
 test('cashbook table provides page size and page navigation controls', () => {
   for (const id of [

@@ -57,7 +57,7 @@ test('market pricing exposes line discount input but agent invoice never prints 
 });
 
 test('purchase table uses the full scoped layout and all ten columns', async () => {
-  const css = await read('style.css');
+  const css = await read('styles/base.css');
   const purchases = await read('js/components/purchases.js');
   assert.match(css, /\.purchase-page\s*\{[^}]*width:\s*100%/s);
   assert.match(css, /\.purchase-table\s*\{[^}]*min-width:\s*1120px/s);

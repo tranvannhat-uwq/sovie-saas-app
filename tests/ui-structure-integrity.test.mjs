@@ -7,9 +7,9 @@ import { fileURLToPath } from 'node:url';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
 const users = fs.readFileSync(path.join(root, 'js/components/users.js'), 'utf8');
-const css = fs.readFileSync(path.join(root, 'style.css'), 'utf8');
-const uiSystem = fs.readFileSync(path.join(root, 'ui-system.css'), 'utf8');
-const luminousEngine = fs.readFileSync(path.join(root, 'luminous-engine.css'), 'utf8');
+const css = fs.readFileSync(path.join(root, 'styles/base.css'), 'utf8');
+const uiSystem = fs.readFileSync(path.join(root, 'styles/app.css'), 'utf8');
+const luminousEngine = fs.readFileSync(path.join(root, 'styles/app.css'), 'utf8');
 
 test('all navigation targets exist exactly once', () => {
   const ids = [...html.matchAll(/\bid="([^"]+)"/g)].map(match => match[1]);
@@ -34,6 +34,15 @@ test('application navigation and login dialog use valid accessible structure', (
   assert.match(html, /<h1 id="login-title">/);
 });
 
+test('shared design tokens have one canonical root owner', () => {
+  const stylesheetFiles = ['base.css', 'app.css', 'landing.css', 'print.css'];
+  const rootOwners = stylesheetFiles.filter(file =>
+    /(^|\n):root\s*\{/m.test(fs.readFileSync(path.join(root, 'styles', file), 'utf8')));
+  assert.deepEqual(rootOwners, ['base.css']);
+  assert.match(css, /--bg-primary:\s*var\(--vi-surface\)/);
+  assert.match(css, /--vi-primary:\s*#0057cd/);
+});
+
 test('authenticated shell exposes a consistent role-aware visual system', () => {
   assert.match(html, /id="header-role-chip"/);
   assert.match(users, /appLayout\.dataset\.uiRole = visualRole/);
@@ -44,9 +53,9 @@ test('authenticated shell exposes a consistent role-aware visual system', () => 
   assert.match(uiSystem, /linear-gradient\(112deg, rgba\(255,255,255,\.99\).*#e7f9f1 100%\)/);
   assert.match(uiSystem, /#app-layout \.nav-link\.active/);
   assert.match(uiSystem, /#app-layout \.platform-summary-card\.is-attention/);
-  assert.match(luminousEngine, /SoVie Luminous Engine/);
-  assert.match(luminousEngine, /--vi-secondary-container:\s*#3cfe3b/);
-  assert.match(luminousEngine, /--vi-tertiary-container:\s*#e72226/);
+  assert.match(luminousEngine, /SoVie application theme/);
+  assert.match(css, /--vi-secondary-container:\s*#3cfe3b/);
+  assert.match(css, /--vi-tertiary-container:\s*#e72226/);
   assert.match(luminousEngine, /\.login-shell \.login-story h2[\s\S]*color:\s*var\(--vi-on-surface\) !important/);
   assert.match(luminousEngine, /\.login-shell \.login-story-kicker[\s\S]*color:\s*var\(--vi-primary\) !important/);
 });

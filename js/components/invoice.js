@@ -1,16 +1,16 @@
 import { state } from '../state.js';
 import { showToast, formatCurrency, formatNumber, formatPhoneNumber, safeCreateIcons, formatDateTime, calculateColorMarkedUpPrice, isSameUser, getProvinceNameByCode, PROVINCES, makeSelectSearchable, docSoTienBangChu, getUserCompanyId, getRevenueAttributes, getBrandName, getCompanyName, getCustomerName, getUserById, getUserDisplayName, getPricelistName } from '../utils.js';
-import { dbSaveOrder, dbCreateQuickCustomer, dbConfirmOrder, dbAmendOrder, dbFetchOrderDebtSnapshot, dbLoadCustomerAssignedPricing, dbRefreshCustomerFinancialState, dbRefreshOrderById, cacheOrdersLocally, isCloudActive } from '../services/supabase.js?v=20260909-inline-filter-v4';
-import { renderAll, switchTab } from '../main.js?v=20260909-inline-filter-v4';
+import { dbSaveOrder, dbCreateQuickCustomer, dbConfirmOrder, dbAmendOrder, dbFetchOrderDebtSnapshot, dbLoadCustomerAssignedPricing, dbRefreshCustomerFinancialState, dbRefreshOrderById, cacheOrdersLocally, isCloudActive } from '../services/supabase.js';
+import { renderAll, switchTab } from '../main.js';
 import { tenantStorage } from '../services/tenant-storage.js';
-import { populatePricelistsDropdowns } from './pricelists.js?v=20260909-inline-filter-v4';
-import { generateUniqueCustomerCode } from './customers.js?v=20260909-inline-filter-v4';
-import { addCashbookTransaction } from './so_quy.js?v=20260909-inline-filter-v4';
-import { getApplicablePriceList, resolveCustomerProductPrice, normalizePriceListType, PRICE_LIST_TYPES, filterPriceListsForUser, canUserViewPriceList, canUserUsePriceListForCustomer, isDealerPrivatePriceList, isUsableResolvedPrice, shouldOverrideWithGlobalCustomerPriceList } from '../domain/pricing.js?v=20260909-inline-filter-v4';
+import { populatePricelistsDropdowns } from './pricelists.js';
+import { generateUniqueCustomerCode } from './customers.js';
+import { addCashbookTransaction } from './so_quy.js';
+import { getApplicablePriceList, resolveCustomerProductPrice, normalizePriceListType, PRICE_LIST_TYPES, filterPriceListsForUser, canUserViewPriceList, canUserUsePriceListForCustomer, isDealerPrivatePriceList, isUsableResolvedPrice, shouldOverrideWithGlobalCustomerPriceList } from '../domain/pricing.js';
 import { normalizeCustomerPhone } from '../domain/customer-query.js';
-import { isPrintOnlyPriceList, requiresOrderSaveApproval, supportsInvoiceLineDiscount } from '../domain/invoice-discount.js?v=20260909-inline-filter-v4';
+import { isPrintOnlyPriceList, requiresOrderSaveApproval, supportsInvoiceLineDiscount } from '../domain/invoice-discount.js';
 import { buildProductFamilies, buildVariantSnapshot, searchProductFamilies, shouldAutoSelectVariant, variantSpecification } from '../domain/product-catalog.js';
-import { chargeCustomerDebt, getOrderDebtSnapshot, getOrderOutstandingAmount } from '../domain/customer-debt.js?v=20260909-inline-filter-v4';
+import { chargeCustomerDebt, getOrderDebtSnapshot, getOrderOutstandingAmount } from '../domain/customer-debt.js';
 import { getOrderDisplayCode } from '../domain/order-display.js';
 import { canAdjustOrderBusinessDate, currentBusinessDateInputValue, parseOrderBusinessDateInput } from '../domain/order-business-date.js';
 import { reorderOrderItems } from '../domain/order-edit.js';
@@ -1482,7 +1482,7 @@ export function resetInvoiceCustomer() {
   const discVal = document.getElementById('invoice-discount-value');
   if (discVal) discVal.value = '0';
   const discType = document.getElementById('invoice-discount-type');
-  if (discType) discType.value = 'amount';
+  if (discType) discType.value = 'percent';
   const shippingFeeVal = document.getElementById('invoice-shipping-fee-value');
   if (shippingFeeVal) shippingFeeVal.value = '0';
   

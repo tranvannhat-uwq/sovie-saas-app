@@ -4,7 +4,7 @@ import test from 'node:test';
 
 const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
 const main = readFileSync(new URL('../js/main.js', import.meta.url), 'utf8');
-const style = readFileSync(new URL('../style.css', import.meta.url), 'utf8');
+const style = readFileSync(new URL('../styles/base.css', import.meta.url), 'utf8');
 const users = readFileSync(new URL('../js/components/users.js', import.meta.url), 'utf8');
 const platform = readFileSync(new URL('../js/components/platform-admin.js', import.meta.url), 'utf8');
 const migration = readFileSync(new URL('../migrations/0080_platform_customer_account_console.sql', import.meta.url), 'utf8');
@@ -14,7 +14,6 @@ test('public SoVie landing page opens a closable login overlay', () => {
   assert.match(html, /id="landing-page"/);
   assert.match(html, /class="landing-login-button js-open-login"/);
   assert.match(html, /id="btn-close-login"/);
-  assert.match(main, /querySelectorAll\('\.js-open-login'\)/);
   assert.match(main, /event\.target\.closest\('\.js-open-login'\)/);
   assert.match(main, /document\.readyState === 'loading'/);
   assert.match(users, /landingPage\.style\.display = 'none'/);

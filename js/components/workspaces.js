@@ -13,7 +13,7 @@ import {
   setPrimarySaasCustomDomain,
   verifySaasCustomDomainDns,
   validateSaasOrganizationSlug
-} from '../services/supabase.js?v=20260909-inline-filter-v4';
+} from '../services/supabase.js';
 
 let onboardingRequired = false;
 let slugWasEdited = false;

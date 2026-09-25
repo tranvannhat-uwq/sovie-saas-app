@@ -1,31 +1,31 @@
 import { state } from './state.js';
 import { COMPANY_SUPABASE_URL, COMPANY_SUPABASE_KEY, defaultProducts } from './config.js';
-import { connectSupabase, disconnectSupabase, retrySupabaseConnection, syncLocalToCloud, isCloudActive, supabaseClient, loadLocalStorageBackup, backfillMultiCompanyAndRevenueData, clearSupabaseAuthStorage, fetchCloudData, getMaintenanceStatus, setMaintenanceMode, loadSaasContext } from './services/supabase.js?v=20260909-inline-filter-v4';
-import { setupBackupRestoreListeners } from './services/backup.js?v=20260909-inline-filter-v4';
-import { updateDashboardStats, setupDashboardFilters, setupDashboardQuickActions } from './components/dashboard.js?v=20260909-inline-filter-v4';
-import { renderProductsTable, setupExcelImportAndTemplate, setupProductManagement } from './components/products.js?v=20260909-inline-filter-v4';
-import { renderCustomersTable, setupCustomerManagement, populateManagedByDropdown } from './components/customers.js?v=20260909-inline-filter-v4';
-import { renderInvoiceTable, setupInvoiceCreator, resetInvoiceBuilder, resetInvoiceCustomer } from './components/invoice.js?v=20260909-inline-filter-v4';
-import { renderPricelistsTable, setupPricelistManagement, populatePricelistsDropdowns } from './components/pricelists.js?v=20260909-inline-filter-v4';
-import { renderUsersTable, setupUserManagement, handleLogin, handleLogout, showLoginGate, applyUserPermissions, populateCustomerEmployeeFilter, loadAuthenticatedProfile, createPlatformOnlyUser, clearAuthenticatedSessionState, startMaintenanceMonitor, openInvitationPasswordSetup } from './components/users.js?v=20260909-inline-filter-v4';
-import { setupHistoryPanel, renderHistoryOrders } from './components/history.js?v=20260909-inline-filter-v4';
-import { renderBrandsTable, setupBrandsPanel } from './components/brands.js?v=20260909-inline-filter-v4';
-import { setupSoQuyPanel, renderSoQuyTable } from './components/so_quy.js?v=20260909-inline-filter-v4';
-import { renderSuppliersTable, setupSupplierManagement, populateSupplierDatalist } from './components/suppliers.js?v=20260909-inline-filter-v4';
-import { renderGoodsPanel, setupGoodsPanel } from './components/goods.js?v=20260909-inline-filter-v4';
-import { setupReportsPanel, renderDebtReport, renderReturnsReport } from './components/reports.js?v=20260909-inline-filter-v4';
+import { connectSupabase, disconnectSupabase, retrySupabaseConnection, syncLocalToCloud, isCloudActive, supabaseClient, loadLocalStorageBackup, backfillMultiCompanyAndRevenueData, clearSupabaseAuthStorage, fetchCloudData, getMaintenanceStatus, setMaintenanceMode, loadSaasContext } from './services/supabase.js';
+import { setupBackupRestoreListeners } from './services/backup.js';
+import { updateDashboardStats, setupDashboardFilters, setupDashboardQuickActions } from './components/dashboard.js';
+import { renderProductsTable, setupExcelImportAndTemplate, setupProductManagement } from './components/products.js';
+import { renderCustomersTable, setupCustomerManagement, populateManagedByDropdown } from './components/customers.js';
+import { renderInvoiceTable, setupInvoiceCreator, resetInvoiceBuilder, resetInvoiceCustomer } from './components/invoice.js';
+import { renderPricelistsTable, setupPricelistManagement, populatePricelistsDropdowns } from './components/pricelists.js';
+import { renderUsersTable, setupUserManagement, handleLogin, handleLogout, showLoginGate, applyUserPermissions, populateCustomerEmployeeFilter, loadAuthenticatedProfile, createPlatformOnlyUser, clearAuthenticatedSessionState, startMaintenanceMonitor, openInvitationPasswordSetup } from './components/users.js';
+import { setupHistoryPanel, renderHistoryOrders, reloadHistoryDateWindow } from './components/history.js';
+import { renderBrandsTable, setupBrandsPanel } from './components/brands.js';
+import { setupSoQuyPanel, renderSoQuyTable } from './components/so_quy.js';
+import { renderSuppliersTable, setupSupplierManagement, populateSupplierDatalist } from './components/suppliers.js';
+import { renderGoodsPanel } from './components/goods.js';
+import { setupReportsPanel, renderDebtReport, renderReturnsReport } from './components/reports.js';
 import { showToast, safeCreateIcons, updateDbStatusUI } from './utils.js';
-import { startRealtimeSync, stopRealtimeSync } from './services/realtime.js?v=20260909-inline-filter-v4';
-import { setupActivityLog, renderActivityLog } from './components/activity-log.js?v=20260909-inline-filter-v4';
-import { setupNavigationColorSettings, setupNavigationDropdowns } from './components/navigation-theme.js?v=20260909-inline-filter-v4';
-import { setupModuleFilterLayouts } from './components/module-filter-layout.js?v=20260909-inline-filter-v4';
-import { openWorkspaceOnboarding, renderWorkspaceSwitcher, renderSubscriptionAccessNotice, setupWorkspaceManagement } from './components/workspaces.js?v=20260909-inline-filter-v4';
-import { hydratePlatformAdmin, renderPlatformAdmin, setupPlatformAdmin } from './components/platform-admin.js?v=20260909-inline-filter-v4';
+import { startRealtimeSync, stopRealtimeSync } from './services/realtime.js';
+import { setupActivityLog, renderActivityLog } from './components/activity-log.js';
+import { setupNavigationDropdowns } from './components/navigation-theme.js';
+import { setupModuleFilterLayouts } from './components/module-filter-layout.js';
+import { openWorkspaceOnboarding, renderWorkspaceSwitcher, renderSubscriptionAccessNotice, setupWorkspaceManagement } from './components/workspaces.js';
+import { hydratePlatformAdmin, renderPlatformAdmin, setupPlatformAdmin } from './components/platform-admin.js';
 
 const PANEL_CLOUD_DOMAINS = Object.freeze({
   'invoice-panel': ['pricelists'],
   'pricelists-panel': ['pricelists'],
-  'history-panel': ['orders', 'salesReturns'],
+  'history-panel': ['salesReturns'],
   'so-quy-panel': ['cashbook', 'startingBalances'],
   'suppliers-panel': ['suppliers'],
   'goods-panel': ['suppliers', 'purchases']
@@ -70,7 +70,8 @@ function renderPanelCloudLoading(panelId) {
     'pricelists-panel': ['pricelists-table-body', '<tr><td colspan="8" style="text-align:center;padding:3rem;color:var(--text-muted);">Đang tải chi tiết bảng giá…</td></tr>'],
     'history-panel': ['history-orders-container', '<div class="empty-state"><div class="empty-state-title">Đang tải lịch sử giao dịch…</div></div>'],
     'so-quy-panel': ['so-quy-table-body', '<tr><td colspan="8" style="text-align:center;padding:3rem;color:var(--text-muted);">Đang tải dữ liệu Sổ quỹ…</td></tr>'],
-    'suppliers-panel': ['suppliers-table-body', '<tr><td colspan="10" style="text-align:center;padding:3rem;color:var(--text-muted);">Đang tải nhà cung cấp…</td></tr>']
+    'suppliers-panel': ['suppliers-table-body', '<tr><td colspan="10" style="text-align:center;padding:3rem;color:var(--text-muted);">Đang tải nhà cung cấp…</td></tr>'],
+    'goods-panel': ['goods-panel', '<div class="purchase-loading-state" role="status" aria-live="polite"><span class="loading-spinner" aria-hidden="true"></span><span>Đang tải phiếu mua hàng…</span></div>']
   };
   const target = targets[panelId];
   if (!target) return;
@@ -103,6 +104,10 @@ export async function ensurePanelCloudData(panelId, { force = false, domains: do
       .forEach(domain => loadedPanelDomains.add(domain));
     if (state.currentTab === panelId) renderAll();
     return result;
+  }).catch(error => {
+    console.error(`Không tải được dữ liệu Cloud cho ${panelId}:`, error);
+    if (state.currentTab === panelId) renderAll();
+    return { failedDomains: domains, error };
   }).finally(() => pendingPanelDomainLoads.delete(loadKey));
   pendingPanelDomainLoads.set(loadKey, load);
   return load;
@@ -233,6 +238,11 @@ export function switchTab(panelId) {
   else if (panelId === 'reports-panel') heading.innerText = 'Báo cáo nghiệp vụ';
   else if (panelId === 'activity-log-panel') heading.innerText = 'Lịch sử hoạt động';
 
+  const dashHeaderActions = document.getElementById('dashboard-header-actions');
+  if (dashHeaderActions) {
+    dashHeaderActions.style.display = panelId === 'dashboard-panel' ? 'inline-flex' : 'none';
+  }
+
   const todayStr = new Date().toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
   const dashDate = document.getElementById('dashboard-live-date');
   if (dashDate) dashDate.textContent = todayStr;
@@ -251,9 +261,10 @@ export function switchTab(panelId) {
   
   // Tự động làm mới dữ liệu và thống kê trên tất cả các tab khi chuyển đổi
   const waitForCloud = panelNeedsCloudData(panelId);
-  if (waitForCloud && !panelHasPricingSnapshot(panelId)) renderPanelCloudLoading(panelId);
+  if ((waitForCloud || (panelId === 'history-panel' && isCloudActive)) && !panelHasPricingSnapshot(panelId)) renderPanelCloudLoading(panelId);
   else renderAll();
   void ensurePanelCloudData(panelId);
+  if (panelId === 'history-panel' && isCloudActive) void reloadHistoryDateWindow();
   if (panelId === 'settings-panel') void refreshMaintenanceSettings();
 }
 
@@ -467,13 +478,6 @@ function setupLoginInteractions() {
     loginForm.addEventListener('submit', handleLogin);
   }
 
-  document.querySelectorAll('.js-open-login').forEach(button => {
-    button.addEventListener('click', () => {
-      if (loginScreen) loginScreen.style.display = 'flex';
-      document.getElementById('login-username')?.focus();
-    });
-  });
-
   if (!document.documentElement?.dataset?.loginDelegationReady) {
     if (document.documentElement) document.documentElement.dataset.loginDelegationReady = 'true';
     document.addEventListener('click', event => {
@@ -507,7 +511,6 @@ async function initApp() {
   if (dateLbl) dateLbl.innerText = today.toLocaleDateString('vi-VN');
 
   setupModuleFilterLayouts();
-  setupNavigationColorSettings();
   setupNavigation();
   setupProductManagement();
   setupCustomerManagement();
@@ -525,7 +528,6 @@ async function initApp() {
   setupWorkspaceManagement();
   setupPlatformAdmin();
   setupBrandsPanel();
-  setupGoodsPanel();
   setupReportsPanel();
   setupActivityLog();
   setupBackupRestoreListeners(renderAll);
@@ -566,11 +568,6 @@ async function initApp() {
     updateDbStatusUI('local');
   }
   
-  const loginForm = document.getElementById('login-form');
-  if (loginForm) {
-    loginForm.addEventListener('submit', handleLogin);
-  }
-
   if (isCloudActive && supabaseClient) {
     supabaseClient.auth.onAuthStateChange((event) => {
       if (event === 'PASSWORD_RECOVERY') {
@@ -630,20 +627,7 @@ async function initApp() {
   }
 
   const landingPage = document.getElementById('landing-page');
-  const loginScreen = document.getElementById('login-screen');
   safeCreateIcons();
-  document.querySelectorAll('.js-open-login').forEach(button => {
-    button.addEventListener('click', () => {
-      if (loginScreen) loginScreen.style.display = 'flex';
-      document.getElementById('login-username')?.focus();
-    });
-  });
-  document.getElementById('btn-close-login')?.addEventListener('click', () => {
-    if (loginScreen) loginScreen.style.display = 'none';
-  });
-  loginScreen?.addEventListener('click', event => {
-    if (event.target === loginScreen) loginScreen.style.display = 'none';
-  });
   
   let recoveredCloudLoad = null;
   if (activeUser) {

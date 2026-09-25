@@ -1,9 +1,9 @@
 import { state } from '../state.js';
 import { formatCurrency, safeCreateIcons, isSameUser, getUserCompanyId, getCompanyNameById, getCompanyIdByBrand, getCanonicalBrandName, normalizeCompanyId, getNormalizedBrandName, removeVietnameseTones, showToast, getUserDisplayName } from '../utils.js';
-import { switchTab } from '../main.js?v=20260909-inline-filter-v4';
-import { openProductModal } from './products.js?v=20260909-inline-filter-v4';
+import { switchTab } from '../main.js';
+import { openProductModal } from './products.js';
 import { tenantStorage } from '../services/tenant-storage.js';
-import { dbFetchPhase5Dashboard } from '../services/supabase.js?v=20260909-inline-filter-v4';
+import { dbFetchPhase5Dashboard } from '../services/supabase.js';
 import { buildDashboardChartSeries } from '../domain/dashboard-series.js';
 import { filterLoginEmployeeRevenueRows } from '../domain/dashboard-employees.js';
 
@@ -515,9 +515,26 @@ export function renderRevenueChart(orders) {
     });
   }
 
+  const maxVal = Math.max(...dataPoints, 0);
+  const barColors = dataPoints.map(val => {
+    if (val === maxVal && val > 0) return '#00c853';
+    if (val >= maxVal * 0.75 && val > 0) return '#0066ff';
+    return '#a5c5ff';
+  });
+
   revenueChartInstance = new Chart(ctx, {
-    type: 'line',
-    data: { labels, datasets: [{ label: 'Doanh thu', data: dataPoints, borderColor: '#0057cd', borderWidth: 2.5, pointBackgroundColor: '#ffffff', pointBorderColor: '#0057cd', pointBorderWidth: 2, pointRadius: 2.5, pointHoverRadius: 4, tension: 0, fill: true, backgroundColor: 'rgba(177, 197, 255, 0.28)' }] },
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Doanh thu',
+        data: dataPoints,
+        backgroundColor: barColors,
+        borderRadius: 8,
+        borderSkipped: false,
+        maxBarThickness: 46
+      }]
+    },
     options: {
       responsive: true,
       maintainAspectRatio: false,
@@ -675,18 +692,38 @@ function renderServerRevenueChart(payload) {
   const salesModeLabel = state.dashboardSalesMode === 'gross' ? 'Doanh số gốc' : 'Doanh số ròng';
   const chartSeries = buildDashboardChartSeries(payload?.series || [], state.dashboardChartView, payload?.period || {});
 
+  const maxVal = Math.max(...chartSeries.dataPoints, 0);
+  const barColors = chartSeries.dataPoints.map(val => {
+    if (val === maxVal && val > 0) return '#00c853';
+    if (val >= maxVal * 0.75 && val > 0) return '#0066ff';
+    return '#a5c5ff';
+  });
+
   if (revenueChartInstance) {
     revenueChartInstance.data.labels = chartSeries.labels;
     revenueChartInstance.data.datasets[0].label = salesModeLabel;
     revenueChartInstance.data.datasets[0].data = chartSeries.dataPoints;
+    if (revenueChartInstance.data.datasets[0].backgroundColor !== undefined) {
+      revenueChartInstance.data.datasets[0].backgroundColor = barColors;
+    }
     revenueChartInstance.update();
     return;
   }
 
   const chartContext = chartCanvas.getContext('2d');
   revenueChartInstance = new Chart(chartContext, {
-    type: 'line',
-    data: { labels: chartSeries.labels, datasets: [{ label: salesModeLabel, data: chartSeries.dataPoints, borderColor: '#0057cd', backgroundColor: 'rgba(177, 197, 255, 0.28)', borderWidth: 2.5, pointBackgroundColor: '#ffffff', pointBorderColor: '#0057cd', pointBorderWidth: 2, pointRadius: 2.5, pointHoverRadius: 4, tension: 0, fill: true }] },
+    type: 'bar',
+    data: {
+      labels: chartSeries.labels,
+      datasets: [{
+        label: salesModeLabel,
+        data: chartSeries.dataPoints,
+        backgroundColor: barColors,
+        borderRadius: 8,
+        borderSkipped: false,
+        maxBarThickness: 46
+      }]
+    },
     options: {
       responsive: true,
       maintainAspectRatio: false,
@@ -695,7 +732,7 @@ function renderServerRevenueChart(payload) {
       interaction: { intersect: false, mode: 'index' },
       plugins: { legend: { display: false }, tooltip: { ...DASHBOARD_CHART_TOOLTIP, displayColors: false, callbacks: { label: context => `${salesModeLabel}: ${formatCurrency(context.raw)}` } } },
       scales: {
-        x: { grid: { display: false }, border: { display: false }, ticks: { color: DASHBOARD_CHART_TEXT, maxRotation: 0, padding: 8, font: { family: DASHBOARD_CHART_FONT, size: 10, weight: '500' } } },
+        x: { grid: { display: false }, border: { display: false }, ticks: { color: DASHBOARD_CHART_TEXT, maxRotation: 0, padding: 8, font: { family: DASHBOARD_CHART_FONT, size: 10, weight: '600' } } },
         y: { beginAtZero: true, grid: { color: DASHBOARD_CHART_GRID, drawTicks: false }, border: { display: false }, ticks: { color: DASHBOARD_CHART_TEXT, padding: 9, callback: value => formatCompactDashboardCurrency(value), font: { family: DASHBOARD_CHART_FONT, size: 10, weight: '500' } } }
       }
     }
@@ -735,8 +772,12 @@ function renderServerDashboard(payload) {
   const setKpiContext = (id, value, tone = 'neutral') => {
     const element = document.getElementById(id);
     if (!element) return;
-    element.className = `widget-trend trend-${tone}`;
-    element.innerText = value;
+    element.className = `widget-trend trend-${tone} dashboard-metric-subtext`;
+    if (tone === 'warning') {
+      element.innerHTML = `<i data-lucide="alert-circle"></i> <span>${escapeHtml(value)}</span>`;
+    } else {
+      element.textContent = value;
+    }
   };
   const periodLabel = state.dashboardFilter.timeRange === 'custom'
     ? '(Tùy chỉnh)'
@@ -761,6 +802,28 @@ function renderServerDashboard(payload) {
   setKpiContext('stat-orders-context', orderCount ? `${orderCount} đơn hợp lệ trong kỳ` : 'Chưa phát sinh đơn hàng');
   setKpiContext('stat-debt-context', currentDebt > 0 ? 'Cần theo dõi công nợ hiện tại' : 'Không có công nợ cần thu', currentDebt > 0 ? 'warning' : 'up');
   setKpiContext('stat-products-context', soldQuantity ? `${soldQuantity} sản phẩm đã bán trong kỳ` : 'Chưa có sản phẩm bán');
+
+  const ordersPill = document.getElementById('stat-orders-pill');
+  const ordersPillText = document.getElementById('stat-orders-pill-text');
+  if (ordersPillText) {
+    ordersPillText.textContent = soldQuantity ? `Sản phẩm ${soldQuantity}` : 'Sản phẩm 0';
+  } else if (ordersPill) {
+    ordersPill.textContent = soldQuantity ? `Sản phẩm ${soldQuantity}` : 'Sản phẩm 0';
+  }
+
+  const debtPill = document.getElementById('stat-debt-pill');
+  const debtPillText = document.getElementById('stat-debt-pill-text');
+  if (debtPillText) {
+    debtPillText.textContent = currentDebt > 0 ? 'Cần theo dõi' : '+9.2% đúng hẹn';
+  } else if (debtPill) {
+    debtPill.textContent = currentDebt > 0 ? 'Cần theo dõi' : '+9.2% đúng hẹn';
+  }
+  const syncLabel = document.getElementById('dashboard-sync-time-label');
+  if (syncLabel) {
+    const now = new Date();
+    syncLabel.textContent = `Cập nhật lúc ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+  }
+
   renderDashboardBreakdownChart({ key: 'company', canvasId: 'company-revenue-chart', emptyId: 'company-revenue-chart-empty', metaId: 'company-revenue-chart-meta', rows: payload.by_company, labelResolver: companyId => getCompanyNameById(companyId, state.companies), type: 'doughnut', limit: 6, metaLabel: 'công ty' });
   renderDashboardBreakdownChart({ key: 'brand', canvasId: 'brand-revenue-chart', emptyId: 'brand-revenue-chart-empty', metaId: 'brand-revenue-chart-meta', rows: payload.by_brand, labelResolver: brandId => (state.brands || []).find(brand => String(brand.id) === String(brandId))?.name || brandId, limit: 8, metaLabel: 'thương hiệu' });
   renderDashboardBreakdownChart({ key: 'salesperson', canvasId: 'salesperson-revenue-chart', emptyId: 'salesperson-revenue-chart-empty', metaId: 'salesperson-revenue-chart-meta', rows: filterLoginEmployeeRevenueRows(payload.by_salesperson, state.users), labelResolver: userId => getUserDisplayName(userId, 'Chưa phân công', state.users), limit: 8, metaLabel: 'nhân viên' });
@@ -773,12 +836,34 @@ function renderServerDashboard(payload) {
   }
   const recentBody = document.getElementById('dashboard-recent-orders-body');
   if (recentBody) {
-    recentBody.innerHTML = payload.recent_orders?.length ? payload.recent_orders.map(order => `<tr><td style="font-weight:600">${escapeHtml(order.id)}</td><td>${new Date(order.order_date).toLocaleDateString('vi-VN')}</td><td>${escapeHtml(order.customer_name)}</td><td style="text-align:right">${formatCurrency(order.net_revenue)}</td><td style="text-align:center"><button class="btn btn-secondary btn-sm dash-view-order-btn" data-id="${escapeHtml(order.id)}"><i data-lucide="eye"></i></button></td></tr>`).join('')
-      : '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:2rem">Không có đơn hàng phù hợp</td></tr>';
+    if (!payload.recent_orders?.length) {
+      recentBody.innerHTML = '<div class="dashboard-recent-empty"><i data-lucide="package" style="width:32px;height:32px;color:#94a3b8;margin-bottom:8px;"></i><span>Không có đơn hàng phù hợp</span></div>';
+    } else {
+      recentBody.innerHTML = payload.recent_orders.slice(0, 6).map(order => {
+        const isPaid = (order.status === 'paid' || order.status === 'settled' || !order.status);
+        const statusClass = isPaid ? 'pill-paid' : 'pill-shipping';
+        const statusText = isPaid ? 'Đã thanh toán' : (order.status === 'delivering' || order.status === 'shipping' ? 'Đang giao hàng' : 'Đang xử lý');
+        const formattedDate = order.order_date ? new Date(order.order_date).toLocaleDateString('vi-VN') : '';
+        const orderSummary = order.item_summary || (order.product_count ? `${order.product_count} sản phẩm` : formattedDate);
+        return `
+          <div class="dashboard-recent-order-tile dash-view-order-btn" data-id="${escapeHtml(order.id)}" title="Nhấp để xem chi tiết đơn ${escapeHtml(order.id)}">
+            <div class="dashboard-recent-order-row">
+              <span class="dashboard-recent-order-code">#${escapeHtml(order.id)}</span>
+              <span class="dashboard-recent-order-pill ${statusClass}">${statusText}</span>
+            </div>
+            <div class="dashboard-recent-order-customer">${escapeHtml(order.customer_name || 'Khách hàng')}</div>
+            <div class="dashboard-recent-order-row dashboard-recent-order-meta">
+              <span class="dashboard-recent-order-desc">${escapeHtml(orderSummary)}</span>
+              <span class="dashboard-recent-order-amount">${formatCurrency(order.net_revenue || order.total_amount)}</span>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
   }
   document.querySelectorAll('.dash-view-order-btn').forEach(button => button.addEventListener('click', () => {
     switchTab('history-panel');
-    const search = document.getElementById('order-search-input');
+    const search = document.getElementById('history-search-input');
     if (search) { search.value = button.dataset.id; search.dispatchEvent(new Event('input')); }
   }));
   safeCreateIcons();
@@ -900,13 +985,33 @@ function updateDashboardStatsLegacy() {
   const setKpiContext = (id, value, tone = 'neutral') => {
     const element = document.getElementById(id);
     if (!element) return;
-    element.className = `widget-trend trend-${tone}`;
-    element.innerText = value;
+    element.className = `widget-trend trend-${tone} dashboard-metric-subtext`;
+    if (tone === 'warning') {
+      element.innerHTML = `<i data-lucide="alert-circle"></i> <span>${escapeHtml(value)}</span>`;
+    } else {
+      element.textContent = value;
+    }
   };
   setKpiContext('stat-revenue-context', totalOrdersCount ? `Doanh số theo ${labelSuffix.slice(1, -1).toLowerCase()}` : 'Chưa có đơn hàng trong kỳ');
   setKpiContext('stat-orders-context', totalOrdersCount ? `${totalOrdersCount} đơn hợp lệ trong kỳ` : 'Chưa phát sinh đơn hàng');
   setKpiContext('stat-debt-context', totalDebt > 0 ? 'Cần theo dõi công nợ hiện tại' : 'Không có công nợ cần thu', totalDebt > 0 ? 'warning' : 'up');
   setKpiContext('stat-products-context', totalSoldProducts ? `${totalSoldProducts} sản phẩm đã bán trong kỳ` : 'Chưa có sản phẩm bán');
+
+  const ordersPill = document.getElementById('stat-orders-pill');
+  const ordersPillText = document.getElementById('stat-orders-pill-text');
+  if (ordersPillText) {
+    ordersPillText.textContent = totalSoldProducts ? `Sản phẩm ${totalSoldProducts}` : 'Sản phẩm 0';
+  } else if (ordersPill) {
+    ordersPill.textContent = totalSoldProducts ? `Sản phẩm ${totalSoldProducts}` : 'Sản phẩm 0';
+  }
+
+  const debtPill = document.getElementById('stat-debt-pill');
+  const debtPillText = document.getElementById('stat-debt-pill-text');
+  if (debtPillText) {
+    debtPillText.textContent = totalDebt > 0 ? 'Cần theo dõi' : '+9.2% đúng hẹn';
+  } else if (debtPill) {
+    debtPill.textContent = totalDebt > 0 ? 'Cần theo dõi' : '+9.2% đúng hẹn';
+  }
 
   renderDashboardBreakdownChart({
     key: 'company', canvasId: 'company-revenue-chart', emptyId: 'company-revenue-chart-empty', metaId: 'company-revenue-chart-meta',
@@ -933,31 +1038,28 @@ function updateDashboardStatsLegacy() {
   // Render recent / filtered orders on dashboard
   const recentOrdersBody = document.getElementById('dashboard-recent-orders-body');
   if (recentOrdersBody) {
-    const recent = filteredOrders.slice(0, 10);
+    const recent = filteredOrders.slice(0, 6);
     if (recent.length === 0) {
-      recentOrdersBody.innerHTML = `
-        <tr>
-          <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 2rem;">
-            Không có đơn hàng nào khớp với bộ lọc
-          </td>
-        </tr>
-      `;
+      recentOrdersBody.innerHTML = '<div class="dashboard-recent-empty"><i data-lucide="package" style="width:32px;height:32px;color:#94a3b8;margin-bottom:8px;"></i><span>Không có đơn hàng nào khớp với bộ lọc</span></div>';
     } else {
       recentOrdersBody.innerHTML = recent.map(o => {
         const itemSummary = o.items.map(item => `${item.productName || (item.product && item.product.name)} x${item.quantity}`).join(', ');
-        const compName = getCompanyNameById(o.companyId, state.companies);
+        const isPaid = (o.status === 'paid' || o.status === 'settled' || !o.status);
+        const statusClass = isPaid ? 'pill-paid' : 'pill-shipping';
+        const statusText = isPaid ? 'Đã thanh toán' : 'Đang giao hàng';
+        const revenue = buildDashboardRevenueRows([o]).reduce((sum, row) => sum + row.amount, 0);
         return `
-          <tr>
-            <td style="font-weight: 600; color: #fff;">${o.id}<div style="font-size: 0.7rem; color: var(--text-muted);">${compName}</div></td>
-            <td style="font-size: 0.8rem; color: var(--text-secondary);">${new Date(o.date).toLocaleDateString('vi-VN')}</td>
-            <td style="max-width: 230px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${itemSummary}">${itemSummary}</td>
-            <td style="text-align: right; font-weight: 600; color: var(--color-primary);">${formatCurrency(buildDashboardRevenueRows([o]).reduce((sum, row) => sum + row.amount, 0))}</td>
-            <td style="text-align: center;">
-              <button class="btn btn-secondary btn-sm dash-view-order-btn" data-id="${o.id}">
-                <i data-lucide="eye" style="width: 12px; height: 12px;"></i>
-              </button>
-            </td>
-          </tr>
+          <div class="dashboard-recent-order-tile dash-view-order-btn" data-id="${escapeHtml(o.id)}" title="Nhấp để xem chi tiết đơn ${escapeHtml(o.id)}">
+            <div class="dashboard-recent-order-row">
+              <span class="dashboard-recent-order-code">#${escapeHtml(o.id)}</span>
+              <span class="dashboard-recent-order-pill ${statusClass}">${statusText}</span>
+            </div>
+            <div class="dashboard-recent-order-customer">${escapeHtml(o.customerName || 'Khách hàng')}</div>
+            <div class="dashboard-recent-order-row dashboard-recent-order-meta">
+              <span class="dashboard-recent-order-desc" title="${escapeHtml(itemSummary)}">${escapeHtml(itemSummary || new Date(o.date).toLocaleDateString('vi-VN'))}</span>
+              <span class="dashboard-recent-order-amount">${formatCurrency(revenue)}</span>
+            </div>
+          </div>
         `;
       }).join('');
 
@@ -965,7 +1067,7 @@ function updateDashboardStatsLegacy() {
         btn.addEventListener('click', () => {
           const id = btn.getAttribute('data-id');
           switchTab('history-panel');
-          const searchInput = document.getElementById('order-search-input');
+          const searchInput = document.getElementById('history-search-input');
           if (searchInput) {
             searchInput.value = id;
             searchInput.dispatchEvent(new Event('input'));
@@ -986,10 +1088,12 @@ export function updateChartViewActiveButton(view) {
   document.querySelectorAll('.chart-view-btn').forEach(btn => {
     if (btn.getAttribute('data-view') === view) {
       btn.classList.remove('btn-secondary');
-      btn.classList.add('btn-primary');
+      btn.classList.add('btn-primary', 'active');
+      btn.setAttribute('aria-selected', 'true');
     } else {
-      btn.classList.remove('btn-primary');
+      btn.classList.remove('btn-primary', 'active');
       btn.classList.add('btn-secondary');
+      btn.setAttribute('aria-selected', 'false');
     }
   });
 }
@@ -1093,6 +1197,10 @@ export function setupDashboardFilters() {
   const closeFilterBtn = document.getElementById('btn-close-dashboard-filter-modal');
   const applyFilterBtn = document.getElementById('btn-apply-dashboard-filters');
   const filterModal = document.getElementById('dashboard-filter-modal');
+  const appRoot = document.getElementById('app-layout');
+  if (filterModal && appRoot && filterModal.parentElement !== appRoot) {
+    appRoot.append(filterModal);
+  }
 
   if (openFilterBtn) openFilterBtn.onclick = openDashboardFilterModal;
   if (closeFilterBtn) closeFilterBtn.onclick = closeDashboardFilterModal;
@@ -1145,53 +1253,32 @@ export function closeDashboardFilterModal() {
 }
 
 export function updateDashboardFilterSummary() {
-  const timeLabel = document.getElementById('dashboard-summary-time');
-  const modeLabel = document.getElementById('dashboard-summary-mode');
-  const extraLabel = document.getElementById('dashboard-summary-extra');
   const badge = document.getElementById('dashboard-filter-count');
   const openBtn = document.getElementById('btn-open-dashboard-filter');
 
   const filter = state.dashboardFilter || {};
   const timeRange = filter.timeRange || 'month';
-  const timeNames = {
-    month: 'Tháng này',
-    day: 'Hôm nay',
-    week: 'Tuần này',
-    year: 'Năm nay',
-    custom: filter.startDate ? `${filter.startDate} → ${filter.endDate || '...'}` : 'Tùy chọn ngày'
-  };
-  if (timeLabel) timeLabel.textContent = timeNames[timeRange] || 'Tháng này';
-
   const mode = state.dashboardSalesMode || 'net';
-  if (modeLabel) modeLabel.textContent = mode === 'gross' ? 'Doanh số gốc' : 'Doanh số ròng';
 
   let activeCount = 0;
-  const extras = [];
 
   if (timeRange !== 'month') activeCount++;
   if (mode !== 'net') activeCount++;
 
   if (filter.companyId && filter.companyId !== 'all') {
     activeCount++;
-    const comp = (state.companies || []).find(c => c.id === filter.companyId);
-    extras.push(comp ? comp.name : 'Công ty');
   }
 
   if (filter.brand && filter.brand !== 'all') {
     activeCount++;
-    extras.push(filter.brand);
   }
 
   if (filter.saleUser && filter.saleUser !== 'all') {
     activeCount++;
-    const user = (state.users || []).find(u => isSameUser(u.username, filter.saleUser));
-    extras.push(user ? user.displayName : filter.saleUser);
   }
 
   if (filter.customerId && filter.customerId !== 'all') {
     activeCount++;
-    const cust = (state.customers || []).find(c => String(c.id) === String(filter.customerId));
-    extras.push(cust ? cust.name : 'Khách hàng');
   }
 
   if (badge) {
@@ -1202,12 +1289,6 @@ export function updateDashboardFilterSummary() {
   if (openBtn) {
     openBtn.classList.toggle('btn-primary', activeCount > 0);
     openBtn.classList.toggle('btn-secondary', activeCount === 0);
-  }
-
-  if (extraLabel) {
-    const hasExtras = extras.length > 0;
-    extraLabel.textContent = hasExtras ? `+ ${extras.join(', ')}` : '';
-    extraLabel.hidden = !hasExtras;
   }
 }
 

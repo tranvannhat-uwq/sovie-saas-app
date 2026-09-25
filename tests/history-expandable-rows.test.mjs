@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const history = fs.readFileSync(path.join(root, 'js/components/history.js'), 'utf8');
-const styles = fs.readFileSync(path.join(root, 'style.css'), 'utf8');
+const styles = fs.readFileSync(path.join(root, 'styles/base.css'), 'utf8');
 const tableBranch = history.slice(
   history.indexOf("if (state.historyViewMode === 'details')"),
   history.indexOf('// ---------------------- DẠNG THẺ')

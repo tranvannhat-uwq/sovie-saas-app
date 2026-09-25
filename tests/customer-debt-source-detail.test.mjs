@@ -8,7 +8,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = relativePath => fs.readFileSync(path.join(root, relativePath), 'utf8');
 const html = read('index.html');
 const customerUi = read('js/components/customers.js');
-const styles = read('style.css');
+const styles = read('styles/base.css');
 
 test('customer debt history includes a clickable source-document column and detail modal', () => {
   const historyTable = html.slice(html.indexOf('detail-debt-history-body') - 1800, html.indexOf('detail-debt-history-body') + 200);

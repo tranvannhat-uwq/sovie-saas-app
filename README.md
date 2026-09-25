@@ -7,11 +7,13 @@ Phiên bản web độc lập dùng để thử nghiệm chuyển hệ thống W
 Mở terminal đúng tại thư mục `saas-app`, sau đó chạy:
 
 ```powershell
+npm ci
 npm run dev
 ```
 
-Ứng dụng SaaS chạy tại `http://localhost:3000`. File `package.json` riêng trong
-thư mục này bảo đảm lệnh trên không còn khởi động nhầm `product-billing-app`.
+Ứng dụng SaaS chạy tại `http://localhost:3000`. Dependency phát triển được ghim
+trong `package-lock.json`; dùng Node 20.x hoặc Node 22 trở lên cho máy chủ phát triển. Lệnh
+`npm run deploy` dùng Wrangler 4.127.1 và cần Node 22 trở lên.
 
 ## Nguyên tắc an toàn
 
@@ -43,7 +45,7 @@ npm run deploy
   và tên miền `chamsockhachhang.store`; không đổi custom domain hoặc `CNAME`
   của repository đó khi triển khai SaaS.
 
-- Chuỗi migration `0056`–`0096` đã bổ sung control plane, ranh giới tenant cấp bảng/RPC, capability, generic catalog, onboarding, quản trị thành viên, lời mời email, chuyển quyền Owner, danh bạ nhân sự, vòng đời subscription, quota đơn hàng tháng, custom domain, billing MoMo có IPN ký HMAC, tự xác minh DNS, hàng đợi cấp SSL Cloudflare, quản trị chi nhánh/kho theo quota, backup riêng từng tenant, soft-archive organization, `organization_id NOT NULL` cho 33 bảng nghiệp vụ, bảng điều khiển quản trị khách hàng, luồng khởi tạo tenant, quản lý vòng đời khách hàng, bảng giá thương mại tháng/năm, read model Admin mobile và tên miền chuẩn `sovie.vn`.
+- Chuỗi migration trong mã nguồn hiện có đến `0101`; trạng thái staging được ghi nhận gần nhất trong [docs/SAAS_STAGING_READINESS.md](docs/SAAS_STAGING_READINESS.md) chỉ xác nhận đến `0097`. Đối chiếu `public.schema_migrations` trên staging trước khi áp dụng `0098`–`0101`; repository không tự xác nhận các migration mới hơn đã được triển khai.
 - Bản web SaaS được ghim vào Supabase staging clone `mqxqswwssmemkimnolfu`; cấu hình production không còn nằm trong `js/config.js`.
 - Dữ liệu hiện tại được giữ trong workspace tương thích `legacy-weblendon`.
 - 35 bảng nghiệp vụ và 39 RPC callable đã được cách ly tenant và kiểm thử trên staging; migrations `0063`–`0066` đã bật tạo/chuyển workspace, trial Starter, quota, quản trị membership, lời mời email và chuyển quyền Owner nguyên tử.

@@ -1,0 +1,165 @@
+/* SoVie print stylesheet. Consolidated from the retired UI bundles. */
+
+@media print {
+  html {
+    height: auto !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  body {
+    background: #fff !important;
+    color: #000 !important;
+    font-size: 12pt;
+    display: block !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .app-container,
+  .toast-container,
+  .modal-overlay {
+    display: none !important;
+  }
+
+  #print-invoice-template {
+    display: block !important;
+    width: 100%;
+    font-family: 'Inter', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    color: #000 !important;
+    padding: 20px;
+    background-color: #fff;
+  }
+
+  body.printing-return #print-invoice-template {
+    display: none !important;
+  }
+
+  #print-return-slip-template {
+    display: none;
+  }
+
+  body.printing-return #print-return-slip-template {
+    display: block !important;
+    width: 100%;
+    font-family: 'Inter', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    color: #000 !important;
+    padding: 20px;
+    background-color: #fff;
+  }
+
+
+  .print-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px !important;
+    border-bottom: 2.5px solid #000;
+    padding-bottom: 6px !important;
+  }
+
+  .print-header h1 {
+    font-size: 24pt;
+    font-weight: 900;
+    margin: 0;
+    text-transform: uppercase;
+    color: #000 !important;
+  }
+
+  .print-info-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+    margin-bottom: 12px !important;
+    font-size: 13pt;
+    font-weight: bold;
+    color: #000 !important;
+  }
+
+  .print-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 8px !important;
+    table-layout: fixed;
+  }
+
+  .print-table th {
+    background-color: #f2f2f2 !important;
+    font-weight: bold;
+    text-align: center;
+  }
+  
+  .print-text-right {
+    text-align: right !important;
+  }
+  
+  .print-text-center {
+    text-align: center !important;
+  }
+
+  .print-summary {
+    float: right;
+    width: 350px;
+    margin-top: 6px;
+  }
+
+  .print-summary-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 3px 0;
+    font-size: 12pt;
+    font-weight: bold;
+    color: #000 !important;
+  }
+
+  .print-summary-row.grand-total {
+    border-top: 2px solid #000;
+    font-weight: bold;
+    font-size: 14pt;
+    padding-top: 4px;
+  }
+
+  .print-signatures {
+    margin-top: 15px !important;
+    display: flex;
+    justify-content: space-between;
+    clear: both;
+    font-size: 12pt;
+    font-weight: bold;
+    color: #000 !important;
+  }
+
+  .print-sig-col {
+    text-align: center;
+    width: 40%;
+  }
+
+  .print-sig-space {
+    height: 40px !important;
+  }
+  
+  .print-color-box {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border: 1px solid #000;
+    margin-right: 5px;
+    vertical-align: middle;
+  }
+}
+
+@media print {
+  *,
+  *::before,
+  *::after {
+    box-shadow: none !important;
+    animation: none !important;
+    transition: none !important;
+  }
+}

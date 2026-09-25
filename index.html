@@ -28,26 +28,24 @@
   </script>
   <title>SoVie | Quản lý bán hàng thông minh, vận hành nhẹ nhàng</title>
   <link rel="icon" type="image/png" href="sovie-favicon.png?v=20260815-sovie-icon-v1">
-  <!-- Luminous Engine typography: Space Grotesk for display data, Inter for product UI -->
+  <!-- SoVie typography: Space Grotesk for display data, Inter for product UI -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://unpkg.com" crossorigin>
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
   <!-- Lucide Icons via CDN -->
-  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://unpkg.com/lucide@1.48.0/dist/umd/lucide.min.js" integrity="sha384-Hh7C333mXel+qppGoFs4qAOXp7h67eur4XsQVF2bvHAM3MQ4DX4cQI7oRCzb98J4" crossorigin="anonymous"></script>
   <!-- SheetJS CDN -->
-  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" integrity="sha384-vtjasyidUo0kW94K5MXDXntzOJpQgBKXmE7e2Ga4LG0skTTLeBi97eFAXsqewJjw" crossorigin="anonymous"></script>
   <!-- Supabase CDN -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.1/dist/umd/supabase.min.js" integrity="sha384-q36VSR1ktH2hgqgm+0LDeyqPW8CyZHSxfDSttSPm5ReOJzB+sYThmh7D4fE+jWTs" crossorigin="anonymous"></script>
   <!-- Chart.js CDN -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <!-- Style CSS -->
-  <link rel="stylesheet" href="style.css?v=20260901-quick-customer-modal-v7">
-  <link rel="stylesheet" href="landing.css?v=20260817-saas-platform-v1">
-  <link rel="stylesheet" href="ui-system.css?v=20260910-dashboard-summary-hidden-v7">
-  <link rel="stylesheet" href="navigation-reference.css?v=20260908-bright-sovie-v3">
-  <link rel="stylesheet" href="landing-premium.css?v=20260829-auth-flow-v1">
-  <link rel="stylesheet" href="landing-reference.css?v=20260911-3d-tilt-v6">
-  <link rel="stylesheet" href="luminous-engine.css?v=20260910-luminous-engine-v11-submenu-specificity">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js" integrity="sha384-jb8JQMbMoBUzgWatfe6COACi2ljcDdZQ2OxczGA3bGNeWe+6DChMTBJemed7ZnvJ" crossorigin="anonymous"></script>
+  <link rel="stylesheet" href="styles/base.css?v=20260924-search-filter-order-v1">
+  <link rel="stylesheet" href="styles/app.css?v=20260925-history-actions-v5">
+  <link rel="stylesheet" href="styles/landing.css?v=20260924-search-filter-order-v1">
+  <link rel="stylesheet" href="styles/print.css?v=20260924-search-filter-order-v1">
 </head>
 <body>
 
@@ -69,18 +67,18 @@
           <span>0325.855.222</span>
         </a>
         <button type="button" class="landing-login-button js-open-login">Đăng nhập</button>
-        <button type="button" class="ref-trial js-open-login btn-shimmer">
+        <a class="ref-trial" href="mailto:contact@sovie.vn?subject=%C4%90%C4%83ng%20k%C3%BD%20d%C3%B9ng%20th%E1%BB%AD%20SoVie">
           <span class="ref-trial-full">Bắt đầu quản lý / Dùng thử miễn phí</span>
           <span class="ref-trial-short">Dùng thử ngay</span>
-        </button>
-        <span class="ref-user js-open-login" title="Tài khoản"><i data-lucide="user-round"></i></span>
+        </a>
+        <button type="button" class="ref-user js-open-login" title="Tài khoản" aria-label="Đăng nhập tài khoản"><i data-lucide="user-round"></i></button>
       </div>
     </header>
 
     <main id="top" class="ref-main">
       <div class="ref-notice">
         <span>
-          <b></b>Đơn vị phát triển: <strong>CÔNG TY CỔ PHẦN EMP HOA KỲ</strong><em>•</em>Giải pháp số hóa kho vận &amp; công nợ phân phối chuẩn mực
+          <b></b>Đơn vị phát triển: <strong>CÔNG TY CỔ PHẦN EMP HOA KỲ</strong><em>•</em>Giải pháp số hóa bán hàng &amp; công nợ phân phối
         </span>
         <a href="tel:0325855222">
           <i data-lucide="headset"></i>
@@ -90,22 +88,17 @@
 
       <!-- HERO SECTION -->
       <section class="ref-hero">
-        <div class="ref-orb ref-orb-one"></div>
-        <div class="ref-orb ref-orb-two"></div>
-        <div class="ref-orbit-ring ref-orbit-1"></div>
-        <div class="ref-orbit-ring ref-orbit-2"></div>
-
         <div class="ref-hero-copy">
           <div class="ref-pill" data-hero-item="badge"><b></b>NỀN TẢNG QUẢN LÝ BÁN HÀNG THẾ HỆ MỚI CHO DOANH NGHIỆP VIỆT</div>
           <h1>
             <span class="hero-title-line" data-hero-line>Quản lý bán hàng</span>
             <span class="hero-title-line" data-hero-line><span class="ref-text-highlight">gọn hơn<svg preserveAspectRatio="none" viewBox="0 0 100 8"><path d="M0 7 C 20 7, 40 1, 100 1 Z"></path></svg></span> mỗi ngày.</span>
           </h1>
-          <p class="ref-subtitle" data-hero-item="description">Sở hữu trọn bộ công cụ quản lý tồn kho, đơn hàng, khách hàng và công nợ trên một hệ thống duy nhất — trực quan, chính xác và dễ sử dụng.</p>
+          <p class="ref-subtitle" data-hero-item="description">Sở hữu trọn bộ công cụ quản lý đơn hàng, sản phẩm, bảng giá, khách hàng và công nợ trên một hệ thống duy nhất — trực quan, chính xác và dễ sử dụng.</p>
           <div class="ref-hero-actions" data-hero-item="actions">
-            <button type="button" class="ref-btn-primary js-open-login btn-shimmer">
+            <a class="ref-btn-primary" href="mailto:contact@sovie.vn?subject=%C4%90%C4%83ng%20k%C3%BD%20d%C3%B9ng%20th%E1%BB%AD%20SoVie">
               Bắt đầu quản lý ngay <i data-lucide="arrow-right"></i>
-            </button>
+            </a>
             <a href="#demo-section" class="ref-btn-secondary">
               <i data-lucide="play-circle"></i>
               <span>Khám phá bản dùng thử (Xem Demo)</span>
@@ -123,15 +116,15 @@
             <div class="ref-assurance-card anim-2">
               <div class="ref-assurance-icon amber"><i data-lucide="clock-3"></i></div>
               <div class="ref-assurance-text">
-                <strong>24/7 Sẵn sàng</strong>
-                <span>Dữ liệu liên tục mọi lúc</span>
+                <strong>Truy cập Cloud</strong>
+                <span>Làm việc khi có kết nối</span>
               </div>
             </div>
             <div class="ref-assurance-card anim-3">
               <div class="ref-assurance-icon violet"><i data-lucide="refresh-cw"></i></div>
               <div class="ref-assurance-text">
                 <strong>Realtime Sync</strong>
-                <span>Đồng bộ đơn mây 100%</span>
+                <span>Cập nhật thay đổi giữa các phiên</span>
               </div>
             </div>
             <div class="ref-assurance-card anim-4">
@@ -321,7 +314,7 @@
         <div class="ref-section-header" data-reveal="up">
           <div class="ref-pill"><b></b>TẤT CẢ TRONG MỘT</div>
           <h2>Mọi công cụ bạn cần để bán hàng hiệu quả.</h2>
-          <p>Từ kho hàng đến công nợ, SoVie kết nối mọi nghiệp vụ và biến dữ liệu thành quyết định rõ ràng.</p>
+          <p>Từ đơn hàng đến công nợ, SoVie kết nối các nghiệp vụ đang vận hành và biến dữ liệu thành quyết định rõ ràng.</p>
         </div>
 
         <div class="ref-bento-grid">
@@ -342,7 +335,7 @@
                 </div>
                 <div class="ref-preview-order-right">
                   <strong>12.680.000 ₫</strong>
-                  <span>Đã xuất kho</span>
+                  <span>Đã chốt đơn</span>
                 </div>
               </div>
             </div>
@@ -354,25 +347,25 @@
                 <div class="ref-bento-icon emerald"><i data-lucide="boxes"></i></div>
                 <span class="ref-bento-num">02</span>
               </div>
-              <h3>Kho hàng chính xác</h3>
-              <p>Quản lý sản phẩm, biến thể, đóng gói quy cách chuẩn: Thùng, Lon, Hộp, Bao. Tích hợp công thức pha chế, định mức tiêu hao nguyên vật liệu sản xuất theo thời gian thực.</p>
+              <h3>Sản phẩm &amp; bảng giá chính xác</h3>
+              <p>Quản lý sản phẩm, SKU, quy cách đóng gói và nhiều bảng giá theo từng nhóm khách hàng; giá bán được kiểm tra lại ở máy chủ khi chốt đơn.</p>
             </div>
             <div class="ref-bento-preview">
               <div class="ref-stock-grid">
                 <div class="ref-stock-item">
-                  <small>Tồn Thùng</small>
+                  <small>SKU Thùng</small>
                   <strong><span class="counter" data-count="482">482</span></strong>
                 </div>
                 <div class="ref-stock-item">
-                  <small>Tồn Lon</small>
+                  <small>SKU Lon</small>
                   <strong><span class="counter" data-count="1240">1.240</span></strong>
                 </div>
                 <div class="ref-stock-item">
-                  <small>Tồn Hộp</small>
+                  <small>SKU Hộp</small>
                   <strong><span class="counter" data-count="690">690</span></strong>
                 </div>
                 <div class="ref-stock-item">
-                  <small>Tồn Bao</small>
+                  <small>SKU Bao</small>
                   <strong><span class="counter" data-count="315">315</span></strong>
                 </div>
               </div>
@@ -405,15 +398,15 @@
                 <div class="ref-bento-icon violet"><i data-lucide="chart-no-axes-combined"></i></div>
                 <span class="ref-bento-num">04</span>
               </div>
-              <h3>Báo cáo trực quan &amp; Tính lương</h3>
-              <p>Theo dõi doanh thu theo nhân viên sale, thương hiệu độc quyền, chi nhánh. Tự động tính toán hoa hồng, thưởng KPI và chốt kỳ lương nhân sự chỉ trong vài phút.</p>
+              <h3>Báo cáo &amp; nhật ký rõ ràng</h3>
+              <p>Theo dõi doanh thu, công nợ, trả hàng và hoạt động theo nhân viên, thương hiệu, chi nhánh trong phạm vi quyền được cấp.</p>
             </div>
             <div class="ref-bento-preview">
               <div class="ref-kpi-progress">
-                <div class="ref-kpi-badge-pill">KPI</div>
+                <div class="ref-kpi-badge-pill">BC</div>
                 <div class="ref-kpi-progress-bar-wrap">
                   <div class="ref-kpi-progress-title">
-                    <span>Mục tiêu doanh số Q2</span>
+                    <span>Tiến độ doanh số Q2</span>
                     <span>88.4%</span>
                   </div>
                   <div class="ref-progress-track">
@@ -432,7 +425,7 @@
           <div class="ref-solution-copy" data-reveal="left">
             <div class="ref-pill pill-pink"><b></b>VẬN HÀNH LIỀN MẠCH</div>
             <h2>Một Sổ Việt.<br>Nhiều quyết định tốt.</h2>
-            <p><strong>SoVie — Sổ Việt của doanh nghiệp.</strong> Mọi dữ liệu bán hàng, công nợ, xuất nhập kho và dòng tiền được tổ chức đồng bộ, bảo mật và luôn sẵn sàng để đội ngũ phối hợp hiệu quả ở bất cứ đâu.</p>
+            <p><strong>SoVie — Sổ Việt của doanh nghiệp.</strong> Dữ liệu bán hàng, mua hàng, công nợ và dòng tiền được tổ chức đồng bộ, phân tách theo workspace và sẵn sàng để đội ngũ phối hợp hiệu quả ở bất cứ đâu.</p>
 
             <div class="ref-solution-list">
               <article class="ref-solution-item" data-reveal="up" data-reveal-delay="40">
@@ -463,22 +456,22 @@
 
           <div class="ref-solution-visual" data-reveal="right" data-reveal-delay="80">
             <div class="ref-warehouse-card">
-              <img src="warehouse-operations.jpg?v=20260907-v1" alt="Đội ngũ vận hành sản xuất và trung tâm logistics hiện đại SoVie">
+              <img src="warehouse-operations.jpg?v=20260907-v1" alt="Đội ngũ vận hành kinh doanh và phân phối với SoVie">
               <div class="ref-warehouse-overlay">
                 <span class="ref-warehouse-tag"><span></span> SỔ VIỆT · Trung tâm vận hành</span>
-                <h3>Đơn giản hóa dữ liệu cho hơn 50 ngành nghề sản xuất &amp; phân phối</h3>
+                <h3>Tổ chức dữ liệu bán hàng và phân phối trong một workspace</h3>
                 <div class="ref-warehouse-stats">
                   <div>
-                    <strong class="blue"><span class="counter" data-count="100">100</span>%</strong>
-                    <span>Không thất thoát</span>
+                    <strong class="blue"><span class="counter" data-count="1">1</span></strong>
+                    <span>Workspace riêng</span>
                   </div>
                   <div>
-                    <strong class="emerald">-45%</strong>
-                    <span>Thời gian lên đơn</span>
+                    <strong class="emerald"><span class="counter" data-count="4">4</span></strong>
+                    <span>Vai trò phân quyền</span>
                   </div>
                   <div>
-                    <strong>24/7</strong>
-                    <span>Truy cập mọi nơi</span>
+                    <strong>Cloud</strong>
+                    <span>Đồng bộ nhiều thiết bị</span>
                   </div>
                 </div>
               </div>
@@ -487,8 +480,8 @@
             <div class="ref-backup-card">
               <div class="ref-backup-icon"><i data-lucide="shield-check"></i></div>
               <div class="ref-backup-text">
-                <strong>Tự động sao lưu dữ liệu</strong>
-                <p>Xuất file Excel &amp; đồng bộ Cloud bảo mật chuẩn ngân hàng</p>
+                <strong>Chủ động xuất bản sao dữ liệu</strong>
+                <p>Kiểm kê dữ liệu và xuất file Excel theo từng workspace</p>
               </div>
             </div>
           </div>
@@ -498,9 +491,9 @@
       <!-- PRICING SECTION -->
       <section class="ref-pricing" id="bang-gia">
         <div class="ref-section-header" data-reveal="up">
-          <div class="ref-pill"><b></b>BẢNG GIÁ MINH BẠCH</div>
+          <div class="ref-pill"><b></b>HẠN MỨC GÓI DỊCH VỤ</div>
           <h2>Gói giải pháp linh hoạt theo quy mô kinh doanh</h2>
-          <p>Dễ dàng khởi đầu, mở rộng không giới hạn khi số lượng chi nhánh và đại lý tăng trưởng.</p>
+          <p>Dùng thử Starter trong 14 ngày; các gói trả phí chỉ mở sau khi được tư vấn và phê duyệt thương mại.</p>
         </div>
 
         <div class="ref-price-grid">
@@ -509,57 +502,57 @@
               <small>CỬA HÀNG NHỎ</small>
               <h3>Starter</h3>
               <div class="ref-price-row">
-                <strong class="ref-price-amount">199.000</strong>
-                <span class="ref-price-unit">₫ / tháng</span>
+                <strong class="ref-price-amount">14 ngày</strong>
+                <span class="ref-price-unit">dùng thử</span>
               </div>
               <p class="ref-price-desc">Dành cho các hộ kinh doanh, đại lý độc lập cần chuẩn hóa bán hàng và công nợ cơ bản.</p>
             </div>
             <ul class="ref-price-features">
-              <li><i><i data-lucide="check"></i></i> Tối đa 3 tài khoản người dùng</li>
+              <li><i><i data-lucide="check"></i></i> Tối đa 5 tài khoản người dùng</li>
               <li><i><i data-lucide="check"></i></i> 1 Chi nhánh &amp; 1 Kho hàng</li>
               <li><i><i data-lucide="check"></i></i> Quản lý 500 đơn hàng/tháng</li>
               <li><i><i data-lucide="check"></i></i> Báo cáo doanh thu &amp; Sổ quỹ</li>
             </ul>
-            <button type="button" class="ref-price-btn js-open-login">Dùng thử 14 ngày</button>
+            <a class="ref-price-btn" href="mailto:contact@sovie.vn?subject=%C4%90%C4%83ng%20k%C3%BD%20d%C3%B9ng%20th%E1%BB%AD%20SoVie">Đăng ký dùng thử</a>
           </article>
 
           <article class="ref-price-card featured" data-reveal="scale" data-reveal-delay="90">
             <span class="ref-price-badge-top">● Phổ biến nhất</span>
             <div class="ref-price-header">
               <small>ĐẠI LÝ &amp; NPP QUY MÔ VỪA</small>
-              <h3>Doanh Nghiệp</h3>
+              <h3>Pro</h3>
               <div class="ref-price-row">
-                <strong class="ref-price-amount">499.000</strong>
-                <span class="ref-price-unit">₫ / tháng</span>
+                <strong class="ref-price-amount">Liên hệ</strong>
+                <span class="ref-price-unit">chưa mở bán công khai</span>
               </div>
-              <p class="ref-price-desc">Giải pháp toàn diện kết nối đại lý, tính lương hoa hồng sale và kiểm soát kho nguyên vật liệu.</p>
+              <p class="ref-price-desc">Mở rộng hạn mức vận hành cho doanh nghiệp có nhiều nhân sự và địa điểm.</p>
             </div>
             <ul class="ref-price-features">
-              <li><i><i data-lucide="check"></i></i> <strong>Không giới hạn</strong> người dùng</li>
-              <li><i><i data-lucide="check"></i></i> Đa chi nhánh &amp; Đa kho hàng</li>
-              <li><i><i data-lucide="check"></i></i> Không giới hạn số lượng đơn hàng</li>
-              <li><i><i data-lucide="check"></i></i> Quản lý bao bì (Thùng, Lon, Hộp...)</li>
-              <li><i><i data-lucide="check"></i></i> Công thức sản xuất &amp; Định mức</li>
-              <li><i><i data-lucide="check"></i></i> Tự động tính KPI &amp; Hoa hồng Sale</li>
+              <li><i><i data-lucide="check"></i></i> Tối đa 20 tài khoản người dùng</li>
+              <li><i><i data-lucide="check"></i></i> 5 chi nhánh &amp; 5 kho cấu hình</li>
+              <li><i><i data-lucide="check"></i></i> 5.000 đơn hàng/tháng</li>
+              <li><i><i data-lucide="check"></i></i> Quản lý sản phẩm, bảng giá và khách hàng</li>
+              <li><i><i data-lucide="check"></i></i> Báo cáo doanh thu, công nợ và trả hàng</li>
+              <li><i><i data-lucide="check"></i></i> Nhật ký hoạt động theo workspace</li>
             </ul>
-            <button type="button" class="ref-price-btn js-open-login btn-shimmer">Bắt đầu quản lý ngay</button>
+            <a href="mailto:contact@sovie.vn?subject=T%C6%B0%20v%E1%BA%A5n%20g%C3%B3i%20Pro%20SoVie" class="ref-price-btn">Liên hệ mở gói Pro</a>
           </article>
 
           <article class="ref-price-card" data-reveal="scale" data-reveal-delay="180">
             <div class="ref-price-header">
               <small>TẬP ĐOÀN &amp; CHUỖI LỚN</small>
-              <h3>Doanh Nghiệp Lớn</h3>
+              <h3>Business</h3>
               <div class="ref-price-row">
                 <strong class="ref-price-amount">Liên hệ</strong>
                 <span class="ref-price-unit">tùy chỉnh</span>
               </div>
-              <p class="ref-price-desc">May đo theo yêu cầu sản xuất đặc thù, tích hợp ERP, máy in nhiệt và Custom Domain riêng.</p>
+              <p class="ref-price-desc">Hạn mức lớn cho chuỗi doanh nghiệp và một tên miền riêng sau khi hoàn tất cấu hình.</p>
             </div>
             <ul class="ref-price-features">
-              <li><i><i data-lucide="check"></i></i> Tên miền riêng (Custom domain)</li>
-              <li><i><i data-lucide="check"></i></i> Cơ sở dữ liệu Cloud chuyên biệt</li>
-              <li><i><i data-lucide="check"></i></i> Tích hợp cổng MoMo / Ngân hàng tự động</li>
-              <li><i><i data-lucide="check"></i></i> Hỗ trợ kỹ thuật Onsite 24/7 từ EMP Hoa Kỳ</li>
+              <li><i><i data-lucide="check"></i></i> Tối đa 100 tài khoản người dùng</li>
+              <li><i><i data-lucide="check"></i></i> 20 chi nhánh &amp; 20 kho cấu hình</li>
+              <li><i><i data-lucide="check"></i></i> 25.000 đơn hàng/tháng</li>
+              <li><i><i data-lucide="check"></i></i> 1 tên miền riêng sau khi xác minh</li>
             </ul>
             <a href="tel:0325855222" class="ref-price-btn">Liên hệ tư vấn riêng</a>
           </article>
@@ -568,14 +561,12 @@
 
       <!-- CTA BANNER -->
       <section class="ref-cta-banner" id="loi-ich">
-        <div class="ref-orb ref-orb-one"></div>
-        <div class="ref-orb ref-orb-two"></div>
         <div class="ref-cta-content" data-reveal="up">
           <span class="ref-cta-pill">SẴN SÀNG ĐỔI MỚI</span>
           <h2>Sẵn sàng nâng cấp cách bạn vận hành doanh nghiệp?</h2>
-          <p>Quản lý bán hàng thông minh, vận hành nhẹ nhàng. Dùng thử miễn phí 14 ngày đầy đủ tính năng, không cần cài đặt phức tạp.</p>
+          <p>Quản lý bán hàng thông minh, vận hành nhẹ nhàng. Dùng thử miễn phí 14 ngày theo hạn mức Starter, không cần cài đặt phức tạp.</p>
           <div class="ref-cta-actions">
-            <button type="button" class="btn-white js-open-login btn-shimmer">Đăng ký dùng thử 14 ngày</button>
+            <a class="btn-white" href="mailto:contact@sovie.vn?subject=%C4%90%C4%83ng%20k%C3%BD%20d%C3%B9ng%20th%E1%BB%AD%20SoVie">Đăng ký dùng thử 14 ngày</a>
             <a href="tel:0325855222" class="btn-outline">
               <i data-lucide="phone"></i>
               <span>Hotline hỗ trợ: 0325.855.222</span>
@@ -594,7 +585,7 @@
             <img src="sovie-logo.png?v=20260815-sovie-v2" alt="SoVie">
           </div>
           <div class="ref-footer-company">CÔNG TY CỔ PHẦN EMP HOA KỲ</div>
-          <p>Sổ Việt số hóa toàn diện quy trình vận hành, kế toán và bán hàng cho doanh nghiệp Việt Nam.</p>
+          <p>Sổ Việt kết nối bán hàng, mua hàng, công nợ và sổ quỹ cho doanh nghiệp Việt Nam.</p>
           <div class="ref-footer-contact">
             <span><i data-lucide="phone"></i> Hotline: <strong>0325.855.222 · 0985.769.689</strong></span>
             <span><i data-lucide="mail"></i> Email: <strong>contact@sovie.vn</strong></span>
@@ -606,7 +597,7 @@
           <h4>Sản phẩm</h4>
           <div class="ref-footer-links">
             <a href="#tinh-nang">Quản lý Bán hàng</a>
-            <a href="#tinh-nang">Kho vận &amp; Hàng hóa</a>
+            <a href="#tinh-nang">Sản phẩm &amp; Bảng giá</a>
             <a href="#tinh-nang">Kế toán Doanh nghiệp</a>
             <a href="#tinh-nang">Báo cáo Tài chính</a>
             <a href="#bang-gia">Bảng giá chi tiết</a>
@@ -618,7 +609,7 @@
           <div class="ref-footer-links">
             <a href="#giai-phap">Doanh nghiệp Thương mại</a>
             <a href="#giai-phap">Chuỗi Bán lẻ &amp; F&amp;B</a>
-            <a href="#giai-phap">Doanh nghiệp Sản xuất</a>
+            <a href="#giai-phap">Doanh nghiệp Phân phối</a>
             <a href="#giai-phap">Doanh nghiệp Dịch vụ</a>
             <a href="#khach-hang">Câu chuyện thành công</a>
           </div>
@@ -627,11 +618,11 @@
         <div class="ref-footer-col">
           <h4>Hỗ trợ &amp; Pháp lý</h4>
           <div class="ref-footer-links">
-            <a href="#">Tài liệu hướng dẫn</a>
-            <a href="#">Cộng đồng hỗ trợ</a>
-            <a href="#">Điều khoản dịch vụ</a>
-            <a href="#">Chính sách bảo mật</a>
-            <a href="#">Quy chế bảo vệ dữ liệu</a>
+            <a href="mailto:contact@sovie.vn?subject=Y%C3%AAu%20c%E1%BA%A7u%20t%C3%A0i%20li%E1%BB%87u%20SoVie">Yêu cầu tài liệu hướng dẫn</a>
+            <a href="mailto:contact@sovie.vn?subject=H%E1%BB%97%20tr%E1%BB%A3%20SoVie">Liên hệ hỗ trợ</a>
+            <a href="mailto:contact@sovie.vn?subject=Y%C3%AAu%20c%E1%BA%A7u%20%C4%91i%E1%BB%81u%20kho%E1%BA%A3n%20SoVie">Yêu cầu điều khoản dịch vụ</a>
+            <a href="mailto:contact@sovie.vn?subject=Y%C3%AAu%20c%E1%BA%A7u%20ch%C3%ADnh%20s%C3%A1ch%20b%E1%BA%A3o%20m%E1%BA%ADt%20SoVie">Yêu cầu chính sách bảo mật</a>
+            <a href="mailto:contact@sovie.vn?subject=Y%C3%AAu%20c%E1%BA%A7u%20quy%20ch%E1%BA%BF%20b%E1%BA%A3o%20v%E1%BB%87%20d%E1%BB%AF%20li%E1%BB%87u%20SoVie">Yêu cầu quy chế bảo vệ dữ liệu</a>
           </div>
         </div>
       </div>
@@ -655,55 +646,55 @@
       <nav class="app-navigation" aria-label="Điều hướng nghiệp vụ">
         <ul class="nav-menu">
         <li class="nav-item">
-          <a class="nav-link active" data-target="dashboard-panel" data-reference-icon="space_dashboard">
+          <a class="nav-link active" href="#dashboard-panel" data-target="dashboard-panel">
             <i data-lucide="layout-dashboard"></i>
             Tổng quan
           </a>
         </li>
         <li class="nav-item platform-admin-nav" id="platform-admin-nav" style="display: none;">
-          <a class="nav-link" data-target="platform-admin-panel" data-reference-icon="admin_panel_settings">
+          <a class="nav-link" href="#platform-admin-panel" data-target="platform-admin-panel">
             <i data-lucide="shield-check"></i>
             Khách hàng SaaS
           </a>
         </li>
         <li class="nav-item">
-          <a class="nav-link" data-target="invoice-panel" data-reference-icon="receipt_long">
+          <a class="nav-link" href="#invoice-panel" data-target="invoice-panel">
             <i data-lucide="file-spreadsheet"></i>
             Lên đơn hàng
           </a>
         </li>
         <li class="nav-item">
-          <a class="nav-link" data-target="history-panel" data-reference-icon="history">
+          <a class="nav-link" href="#history-panel" data-target="history-panel">
             <i data-lucide="history"></i>
             Lịch sử đơn
           </a>
         </li>
         <li class="nav-item">
-          <a class="nav-link" data-target="so-quy-panel" data-reference-icon="account_balance_wallet">
+          <a class="nav-link" href="#so-quy-panel" data-target="so-quy-panel">
             <i data-lucide="wallet"></i>
             Sổ quỹ
           </a>
         </li>
         <li class="nav-item">
-          <a class="nav-link" data-target="customers-panel" data-reference-icon="group">
+          <a class="nav-link" href="#customers-panel" data-target="customers-panel">
             <i data-lucide="users"></i>
             Khách hàng
           </a>
         </li>
         <li class="nav-item">
-          <a class="nav-link" data-target="products-panel" data-reference-icon="inventory_2">
+          <a class="nav-link" href="#products-panel" data-target="products-panel">
             <i data-lucide="package"></i>
             Sản phẩm
           </a>
         </li>
         <li class="nav-item">
-          <a class="nav-link" data-target="pricelists-panel" data-reference-icon="sell">
+          <a class="nav-link" href="#pricelists-panel" data-target="pricelists-panel">
             <i data-lucide="tags"></i>
             Bảng giá
           </a>
         </li>
         <li class="nav-item purchase-nav-item">
-          <button type="button" class="nav-link purchase-menu-trigger" data-reference-icon="shopping_cart" aria-haspopup="menu" aria-expanded="false" aria-controls="purchase-navigation-menu">
+          <button type="button" class="nav-link purchase-menu-trigger" aria-haspopup="menu" aria-expanded="false" aria-controls="purchase-navigation-menu">
             <i data-lucide="shopping-cart"></i>
             Mua hàng
             <i data-lucide="chevron-down" class="purchase-menu-chevron"></i>
@@ -711,35 +702,35 @@
           <div class="purchase-menu" id="purchase-navigation-menu" role="menu" aria-hidden="true">
             <div class="purchase-menu-section">
               <div class="purchase-menu-heading">Nhà cung cấp</div>
-              <a class="purchase-menu-link nav-link" data-target="suppliers-panel" role="menuitem">Nhà cung cấp</a>
+              <a class="purchase-menu-link nav-link" href="#suppliers-panel" data-target="suppliers-panel" role="menuitem">Nhà cung cấp</a>
             </div>
             <div class="purchase-menu-section">
               <div class="purchase-menu-heading">Mua hàng</div>
-              <a class="purchase-menu-link nav-link" data-target="goods-panel" role="menuitem">Phiếu mua hàng</a>
+              <a class="purchase-menu-link nav-link" href="#goods-panel" data-target="goods-panel" role="menuitem">Phiếu mua hàng</a>
             </div>
           </div>
         </li>
         <li class="nav-item staff-nav-item">
-          <button type="button" class="nav-link staff-menu-trigger" data-reference-icon="badge" aria-haspopup="menu" aria-expanded="false" aria-controls="staff-navigation-menu">
+          <button type="button" class="nav-link staff-menu-trigger" aria-haspopup="menu" aria-expanded="false" aria-controls="staff-navigation-menu">
             <i data-lucide="briefcase-business"></i>
             Quản lý nhân viên
             <i data-lucide="chevron-down" class="staff-menu-chevron"></i>
           </button>
           <div class="staff-menu" id="staff-navigation-menu" role="menu" aria-hidden="true">
             <div class="staff-menu-item">
-              <a class="staff-menu-link nav-link" data-target="users-panel" role="menuitem">
+              <a class="staff-menu-link nav-link" href="#users-panel" data-target="users-panel" role="menuitem">
                 <i data-lucide="user-cog"></i>
                 Quản lý tài khoản
               </a>
             </div>
             <div class="staff-menu-item">
-              <a class="staff-menu-link nav-link" data-target="reports-panel" role="menuitem">
+              <a class="staff-menu-link nav-link" href="#reports-panel" data-target="reports-panel" role="menuitem">
                 <i data-lucide="bar-chart-3"></i>
                 Báo cáo nghiệp vụ
               </a>
             </div>
             <div class="staff-menu-item" style="display: none;" aria-hidden="true" data-feature-status="deferred">
-              <a class="staff-menu-link nav-link" data-target="payroll-panel">
+              <a class="staff-menu-link nav-link" href="#payroll-panel" data-target="payroll-panel">
                 <i data-lucide="calculator"></i>
                 Tính lương
               </a>
@@ -776,20 +767,6 @@
               <div class="workspace-switcher-heading">
                 <i data-lucide="building-2"></i>
                 <div><strong id="workspace-current-name">Doanh nghiệp</strong><small id="workspace-current-domain"></small><small id="workspace-plan-usage"></small></div>
-              </div>
-            </div>
-            <div class="nav-layout-settings" id="nav-layout-settings" style="display: none !important;">
-              <div class="nav-color-settings-title">
-                <i data-lucide="panel-left"></i>
-                <span>Vị trí thanh điều hướng</span>
-              </div>
-              <div class="nav-layout-options" role="group" aria-label="Vị trí thanh điều hướng">
-                <button type="button" class="nav-layout-option" data-nav-layout="vertical" aria-pressed="true">
-                  <i data-lucide="panel-left"></i><span>Dọc bên trái</span>
-                </button>
-                <button type="button" class="nav-layout-option" data-nav-layout="horizontal" aria-pressed="false">
-                  <i data-lucide="panel-top"></i><span>Ngang phía trên</span>
-                </button>
               </div>
             </div>
             <!-- Dropdown Nav Links -->
@@ -840,6 +817,17 @@
               <span class="db-status-badge status-local" id="db-status-badge"><span class="status-ping-dot"></span> Cục bộ (LocalStorage)</span>
             </div>
           </div>
+        </div>
+        <div class="top-header-actions dashboard-header-actions" id="dashboard-header-actions">
+          <button class="btn btn-secondary btn-sm" id="btn-open-dashboard-filter" type="button" aria-haspopup="dialog" aria-expanded="false" title="Mở bộ lọc tổng quan">
+            <i data-lucide="sliders-horizontal"></i>
+            <span>Bộ lọc</span>
+            <span class="dashboard-filter-badge" id="dashboard-filter-count" style="display: none;">0</span>
+          </button>
+          <button class="btn btn-secondary btn-sm" id="btn-refresh-dashboard-data" type="button" title="Làm mới dữ liệu">
+            <i data-lucide="refresh-cw"></i>
+            <span>Làm mới</span>
+          </button>
         </div>
       </header>
       <div id="subscription-access-notice" class="subscription-access-notice" role="alert" style="display: none;"></div>
@@ -1016,25 +1004,7 @@
           <div class="saas-onboarding-steps" id="saas-onboarding-steps"></div>
         </section>
 
-        <!-- Dashboard Compact Action Bar -->
-        <div class="dashboard-compact-bar glass-panel">
-          <div class="dashboard-filter-summary" id="dashboard-filter-summary" aria-label="Bộ lọc đang áp dụng">
-            <span class="dashboard-summary-chip"><i data-lucide="calendar"></i> <span id="dashboard-summary-time">Tháng này</span></span>
-            <span class="dashboard-summary-chip"><i data-lucide="calculator"></i> <span id="dashboard-summary-mode">Doanh số ròng</span></span>
-            <span class="dashboard-summary-chip" id="dashboard-summary-extra" hidden></span>
-          </div>
-          <div class="dashboard-compact-actions">
-            <button class="btn btn-secondary btn-sm" id="btn-open-dashboard-filter" type="button" aria-haspopup="dialog" aria-expanded="false" title="Mở bộ lọc tổng quan">
-              <i data-lucide="sliders-horizontal"></i>
-              <span>Bộ lọc</span>
-              <span class="dashboard-filter-badge" id="dashboard-filter-count" style="display: none;">0</span>
-            </button>
-            <button class="btn btn-secondary btn-sm" id="btn-refresh-dashboard-data" type="button" title="Làm mới dữ liệu">
-              <i data-lucide="refresh-cw"></i>
-              <span>Làm mới</span>
-            </button>
-          </div>
-        </div>
+        <!-- Dashboard Compact Action Bar / Filter Summary (Hidden - replaced by header actions) -->
 
         <!-- Dashboard Filter Modal Popup -->
         <div class="modal-overlay" id="dashboard-filter-modal" aria-hidden="true">
@@ -1122,85 +1092,158 @@
         </div>
 
 
-        <!-- Widgets Grid -->
-        <div class="widgets-grid" style="position: relative; z-index: 1;">
-          <div class="widget-card">
-            <div class="widget-info">
-              <span class="widget-label" id="stat-revenue-label">Doanh thu tích lũy</span>
-              <span class="widget-value" id="stat-total-revenue">0 ₫</span>
-              <span class="widget-trend trend-neutral" id="stat-revenue-context">Đang tải dữ liệu kỳ này</span>
+        <!-- Widgets Grid (Modern 4-card metric layout) -->
+        <div class="widgets-grid dashboard-metric-grid" style="position: relative; z-index: 1;">
+          <div class="widget-card dashboard-metric-card">
+            <div class="dashboard-metric-icon-box icon-box-blue">
+              <i data-lucide="trending-up"></i>
             </div>
-            <div class="widget-icon-wrapper widget-icon-blue-indigo">
-              <i data-lucide="banknote"></i>
-            </div>
-          </div>
-
-          <div class="widget-card">
-            <div class="widget-info">
-              <span class="widget-label">Tổng số đơn hàng</span>
-              <span class="widget-value" id="stat-total-orders">0</span>
-              <span class="widget-trend trend-neutral" id="stat-orders-context">Đang tải số lượng đơn hàng</span>
-            </div>
-            <div class="widget-icon-wrapper widget-icon-emerald-teal">
-              <i data-lucide="shopping-cart"></i>
+            <div class="dashboard-metric-content">
+              <span class="widget-label dashboard-metric-title" id="stat-revenue-label">DOANH SỐ RÒNG (THÁNG NÀY)</span>
+              <div class="dashboard-metric-body">
+                <span class="widget-value dashboard-metric-value" id="stat-total-revenue">0 ₫</span>
+                <span class="dashboard-pill-badge dashboard-pill-success" id="stat-revenue-pill"><i data-lucide="trending-up"></i> +18.6%</span>
+              </div>
+              <div class="dashboard-metric-footer">
+                <span class="widget-trend trend-neutral dashboard-metric-subtext" id="stat-revenue-context">Doanh số theo tháng này</span>
+              </div>
             </div>
           </div>
 
-          <div class="widget-card">
-            <div class="widget-info">
-              <span class="widget-label">Tổng công nợ</span>
-              <span class="widget-value" id="stat-total-debt">0 ₫</span>
-              <span class="widget-trend trend-neutral" id="stat-debt-context">Đang tải công nợ hiện tại</span>
+          <div class="widget-card dashboard-metric-card">
+            <div class="dashboard-metric-icon-box icon-box-blue">
+              <i data-lucide="users"></i>
             </div>
-            <div class="widget-icon-wrapper widget-icon-purple-indigo">
-              <i data-lucide="credit-card"></i>
+            <div class="dashboard-metric-content">
+              <span class="widget-label dashboard-metric-title">KHÁCH HÀNG DOANH SỐ</span>
+              <div class="dashboard-metric-body">
+                <span class="widget-value dashboard-metric-value" id="stat-total-orders">0</span>
+                <span class="dashboard-pill-badge dashboard-pill-info" id="stat-orders-pill"><i data-lucide="package"></i> <span id="stat-orders-pill-text">Sản phẩm 100</span></span>
+              </div>
+              <div class="dashboard-metric-footer">
+                <span class="widget-trend trend-neutral dashboard-metric-subtext" id="stat-orders-context">1 đơn hợp lệ trong kỳ</span>
+              </div>
             </div>
           </div>
 
-          <div class="widget-card">
-            <div class="widget-info">
-              <span class="widget-label" id="stat-sold-products-label">Sản phẩm đã bán</span>
-              <span class="widget-value" id="stat-total-sold-products">0</span>
-              <span class="widget-trend trend-neutral" id="stat-products-context">Đang tải sản lượng bán</span>
+          <div class="widget-card dashboard-metric-card">
+            <div class="dashboard-metric-icon-box icon-box-green">
+              <i data-lucide="wallet"></i>
             </div>
-            <div class="widget-icon-wrapper widget-icon-amber-orange">
+            <div class="dashboard-metric-content">
+              <span class="widget-label dashboard-metric-title">ĐƠN HÀNG HOÀN TẤT</span>
+              <div class="dashboard-metric-body">
+                <span class="widget-value dashboard-metric-value" id="stat-total-debt">0 ₫</span>
+                <span class="dashboard-pill-badge dashboard-pill-watch" id="stat-debt-pill"><i data-lucide="eye"></i> <span id="stat-debt-pill-text">Cần theo dõi</span></span>
+              </div>
+              <div class="dashboard-metric-footer">
+                <span class="widget-trend trend-warning dashboard-metric-subtext" id="stat-debt-context"><i data-lucide="alert-circle"></i> Cần theo dõi công nợ hiện tại</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="widget-card dashboard-metric-card">
+            <div class="dashboard-metric-icon-box icon-box-blue">
               <i data-lucide="package"></i>
+            </div>
+            <div class="dashboard-metric-content">
+              <span class="widget-label dashboard-metric-title" id="stat-sold-products-label">SẢN PHẨM ĐÃ BÁN (THÁNG NÀY)</span>
+              <div class="dashboard-metric-body">
+                <span class="widget-value dashboard-metric-value" id="stat-total-sold-products">0</span>
+                <span class="dashboard-pill-badge dashboard-pill-info" id="stat-products-pill"><i data-lucide="users"></i> +32 đại lý mới</span>
+              </div>
+              <div class="dashboard-metric-footer">
+                <span class="widget-trend trend-neutral dashboard-metric-subtext" id="stat-products-context">100 sản phẩm đã bán trong kỳ</span>
+              </div>
             </div>
           </div>
         </div>
 
-        <!-- Charts and Top Products Section -->
-        <div class="dashboard-charts-row">
-          <div class="glass-panel chart-panel">
-            <div class="panel-header" style="margin-bottom: 1.25rem;">
-              <div class="stitch-panel-heading">
-                <h2 class="panel-title"><i data-lucide="trending-up"></i> Biểu đồ doanh thu</h2>
-                <p>Thống kê xu hướng doanh thu luỹ kế thực tế theo thời gian</p>
+        <!-- Main Dashboard Showcase: Revenue Chart & Recent Orders side by side -->
+        <div class="dashboard-main-showcase">
+          <!-- Left: Revenue Chart Card -->
+          <div class="glass-panel chart-panel dashboard-card dashboard-chart-card">
+            <div class="dashboard-card-header">
+              <div class="dashboard-card-heading">
+                <h2 class="dashboard-card-title"><i data-lucide="bar-chart-3"></i> Biểu đồ doanh thu 7 ngày gần nhất</h2>
+                <p class="dashboard-card-subtitle">Tăng trưởng vững chắc theo mạng lưới đại lý</p>
               </div>
-              <div class="chart-controls" style="display: flex; gap: 0.35rem; background: rgba(0,0,0,0.2); padding: 0.2rem; border-radius: 8px; ">
-                <button class="btn btn-secondary btn-xs chart-view-btn" data-view="day" style="padding: 0.25rem 0.5rem; font-size: 0.75rem; border-radius: 6px;">Ngày</button>
-                <button class="btn btn-secondary btn-xs chart-view-btn" data-view="week" style="padding: 0.25rem 0.5rem; font-size: 0.75rem; border-radius: 6px;">Tuần</button>
-                <button class="btn btn-primary btn-xs chart-view-btn" data-view="month" style="padding: 0.25rem 0.5rem; font-size: 0.75rem; border-radius: 6px;">Tháng</button>
-                <button class="btn btn-secondary btn-xs chart-view-btn" data-view="year" style="padding: 0.25rem 0.5rem; font-size: 0.75rem; border-radius: 6px;">Năm</button>
+              <div class="chart-view-switcher" role="tablist" aria-label="Khung thời gian biểu đồ">
+                <button type="button" class="btn btn-secondary chart-view-btn" data-view="day" role="tab" aria-selected="false">Theo Ngày</button>
+                <button type="button" class="btn btn-secondary chart-view-btn" data-view="week" role="tab" aria-selected="false">Tuần</button>
+                <button type="button" class="btn btn-primary chart-view-btn active" data-view="month" role="tab" aria-selected="true">Tháng</button>
+                <button type="button" class="btn btn-secondary chart-view-btn" data-view="year" role="tab" aria-selected="false">Năm</button>
               </div>
             </div>
-            <div class="chart-wrapper">
-              <canvas id="revenue-chart"></canvas>
+            <div class="dashboard-chart-canvas-wrapper">
+              <canvas id="revenue-chart" role="img" aria-label="Biểu đồ doanh thu lũy kế"></canvas>
             </div>
           </div>
 
-          <div class="glass-panel top-products-panel">
-            <div class="panel-header" style="margin-bottom: 1.25rem;">
-              <div class="stitch-panel-heading">
-                <h2 class="panel-title"><i data-lucide="award"></i> Sản phẩm bán chạy</h2>
-                <p>Top sản phẩm theo số lượng bán trong kỳ</p>
+          <!-- Right: Recent Orders Card -->
+          <div class="glass-panel dashboard-card dashboard-recent-orders-card">
+            <div class="dashboard-card-header">
+              <div class="dashboard-card-heading">
+                <h2 class="dashboard-card-title"><i data-lucide="shopping-bag"></i> Đơn hàng mới nhất</h2>
+              </div>
+              <button type="button" class="dashboard-link-btn" id="btn-view-all-history">Xem tất cả</button>
+            </div>
+            <div class="dashboard-recent-orders-list" id="dashboard-recent-orders-body">
+              <div class="dashboard-recent-empty">
+                <i data-lucide="package" style="width: 32px; height: 32px; color: #94a3b8; margin-bottom: 8px;"></i>
+                <span>Đang tải danh sách đơn hàng...</span>
+              </div>
+            </div>
+            <div class="dashboard-recent-orders-footer">
+              <button type="button" class="btn btn-primary dash-btn-create-order" id="dash-btn-new-order">
+                <i data-lucide="plus-circle"></i> Tạo đơn ngay
+              </button>
+              <div class="dashboard-sync-status-card" id="dashboard-sync-status-card">
+                <div class="dashboard-sync-icon">
+                  <i data-lucide="shield-check"></i>
+                </div>
+                <div class="dashboard-sync-info">
+                  <span class="dashboard-sync-time" id="dashboard-sync-time-label">Cập nhật lúc 15:44</span>
+                  <span class="dashboard-sync-badge" id="dashboard-sync-time">100% Khớp định mức</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Secondary Row: Top Products & Quick Tools -->
+        <div class="dashboard-secondary-grid">
+          <div class="glass-panel top-products-panel dashboard-secondary-card">
+            <div class="dashboard-card-header">
+              <div class="dashboard-card-heading">
+                <h2 class="dashboard-card-title"><i data-lucide="award"></i> Sản phẩm bán chạy</h2>
+                <p class="dashboard-card-subtitle">Top sản phẩm có sản lượng bán cao nhất trong kỳ</p>
               </div>
             </div>
             <div class="top-products-list" id="top-products-list">
-              <!-- Dynamically populated top products -->
-              <div style="text-align: center; color: var(--text-muted); padding: 3rem; font-size: 0.9rem;">
+              <div style="text-align: center; color: var(--text-muted); padding: 2.5rem; font-size: 0.9rem;">
                 Chưa có dữ liệu bán hàng
               </div>
+            </div>
+          </div>
+
+          <div class="glass-panel dashboard-secondary-card dashboard-quick-tools-card">
+            <div class="dashboard-card-header">
+              <div class="dashboard-card-heading">
+                <h2 class="dashboard-card-title"><i data-lucide="zap"></i> Thao tác nhanh</h2>
+                <p class="dashboard-card-subtitle">Các lối tắt tiện ích vận hành bán hàng và kho vận</p>
+              </div>
+            </div>
+            <div class="dashboard-quick-actions-body" style="display: flex; flex-direction: column; gap: 0.75rem;">
+              <button type="button" class="btn btn-primary" id="dash-btn-add-product" style="justify-content: flex-start; padding: 0.85rem 1.25rem;">
+                <i data-lucide="plus"></i> Thêm sản phẩm mới
+              </button>
+              <button type="button" class="btn btn-secondary" id="dash-btn-quick-customer" onclick="switchTab('customers-panel')" style="justify-content: flex-start; padding: 0.85rem 1.25rem;">
+                <i data-lucide="users"></i> Quản lý danh sách khách hàng
+              </button>
+            </div>
+            <div style="border-top: 1px solid #e2e8f0; padding-top: 1rem; margin-top: 1.5rem; text-align: center; font-size: 0.8rem; color: #64748b;">
+              Sản phẩm đóng gói theo Thùng, Lon, Hộp tiêu chuẩn.
             </div>
           </div>
         </div>
@@ -1264,67 +1307,12 @@
           </article>
         </div>
 
-        <!-- Recent Activities & Mini Form -->
-        <div class="dashboard-grid">
-          <div class="glass-panel" style="display: flex; flex-direction: column; gap: 1rem;">
-            <div class="panel-header" style="margin-bottom: 0;">
-              <div class="stitch-panel-heading">
-                <h2 class="panel-title"><i data-lucide="trending-up"></i> Đơn hàng gần đây</h2>
-                <p>Các giao dịch phát sinh gần nhất được ghi nhận tự động</p>
-              </div>
-              <button class="btn btn-secondary btn-sm" id="btn-view-all-history">Xem tất cả</button>
-            </div>
-            <div class="table-responsive">
-              <table class="table">
-                <thead>
-                  <tr>
-                    <th>Mã đơn</th>
-                    <th>Thời gian</th>
-                    <th>Sản phẩm</th>
-                    <th>Thành tiền</th>
-                    <th>Thao tác</th>
-                  </tr>
-                </thead>
-                <tbody id="dashboard-recent-orders-body">
-                  <!-- JS dynamically fills -->
-                  <tr>
-                    <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 2rem;">
-                      Không có đơn hàng nào gần đây
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          <div class="glass-panel" style="display: flex; flex-direction: column; justify-content: space-between;">
-            <div>
-              <h2 class="panel-title" style="margin-bottom: 0.5rem;"><i data-lucide="zap"></i> Thao tác nhanh</h2>
-              <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 1.25rem;">
-                Hệ thống hỗ trợ lưu thông tin tự động trên thiết bị của bạn.
-              </p>
-              <div style="display: flex; flex-direction: column; gap: 0.75rem;">
-                <button class="btn btn-primary" id="dash-btn-add-product" style="justify-content: flex-start; padding: 0.85rem 1.25rem;">
-                  <i data-lucide="plus"></i> Thêm sản phẩm mới
-                </button>
-                <button class="btn btn-indigo" id="dash-btn-new-order" style="justify-content: flex-start; padding: 0.85rem 1.25rem;">
-                  <i data-lucide="file-plus"></i> Tạo hóa đơn bán hàng
-                </button>
-
-              </div>
-            </div>
-            <div style="border-top: 1px solid var(--border-color); padding-top: 1rem; margin-top: 1.5rem; text-align: center; font-size: 0.8rem; color: var(--text-muted);">
-              Sản phẩm đóng gói theo Thùng, Lon, Hộp tiêu chuẩn.
-            </div>
-          </div>
-        </div>
-
         <footer class="stitch-dashboard-footer" aria-label="Thông tin hệ thống SoVie">
           <span><strong>SoVie Enterprise</strong> &nbsp;•&nbsp; Bản quyền © 2026. Giải pháp quản trị kênh phân phối &amp; chuỗi đại lý toàn diện.</span>
           <nav aria-label="Liên kết hỗ trợ">
-            <a href="#">Trung tâm trợ giúp</a>
-            <a href="#">Tài liệu API</a>
-            <a href="#">Trạng thái Cloud (99.99%)</a>
+            <a href="mailto:contact@sovie.vn?subject=H%E1%BB%97%20tr%E1%BB%A3%20SoVie">Trung tâm trợ giúp</a>
+            <a href="mailto:contact@sovie.vn?subject=Y%C3%AAu%20c%E1%BA%A7u%20t%C3%A0i%20li%E1%BB%87u%20API%20SoVie">Yêu cầu tài liệu API</a>
+            <a href="https://status.supabase.com" target="_blank" rel="noopener noreferrer">Trạng thái hạ tầng Cloud</a>
           </nav>
         </footer>
       </section>
@@ -1409,246 +1397,11 @@
         </div>
       </section>
 
-      <!-- Goods / Inventory & Production Panel -->
+      <!-- Purchase panel: populated after its Cloud data is ready. -->
       <section id="goods-panel" class="panel">
-        <!-- Sub-navigation tabs for Goods module -->
-        <div class="goods-sub-tabs-container glass-panel" style="margin-bottom: 1.5rem; display: flex; gap: 0.5rem; padding: 0.75rem;">
-          <button class="btn btn-secondary goods-main-tab-btn active" data-sub-target="goods-inventory-subpanel" style="display: flex; align-items: center; gap: 0.35rem; padding: 0.6rem 1.25rem;">
-            <i data-lucide="clipboard-list" style="width: 16px;"></i> Kiểm kho
-          </button>
-          <button class="btn btn-secondary goods-main-tab-btn" data-sub-target="goods-production-subpanel" style="display: flex; align-items: center; gap: 0.35rem; padding: 0.6rem 1.25rem;">
-            <i data-lucide="factory" style="width: 16px;"></i> Sản xuất
-          </button>
-        </div>
-
-        <!-- SUB PANEL 1: INVENTORY (KIỂM KHO) -->
-        <div id="goods-inventory-subpanel" class="goods-sub-panel active">
-          <!-- Inventory inner tabs (Nguyên liệu / Bán thành phẩm / Thành phẩm) -->
-          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; margin-bottom: 1rem; gap: 1rem;">
-            <div class="inner-tabs" style="display: flex; gap: 0.25rem; background: rgba(0,0,0,0.1); padding: 0.25rem; border-radius: 8px;">
-              <button class="btn btn-xs inner-tab-btn active" data-inner-target="inv-raw-tab" style="padding: 0.45rem 1rem; border-radius: 6px;">Nguyên liệu</button>
-              <button class="btn btn-xs inner-tab-btn" data-inner-target="inv-semi-tab" style="padding: 0.45rem 1rem; border-radius: 6px;">Bán thành phẩm</button>
-              <button class="btn btn-xs inner-tab-btn" data-inner-target="inv-finished-tab" style="padding: 0.45rem 1rem; border-radius: 6px;">Thành phẩm</button>
-            </div>
-            
-            <div id="inventory-actions-container" style="display: flex; gap: 0.5rem;">
-              <button class="btn btn-primary btn-sm" id="btn-add-raw-material-modal">
-                <i data-lucide="plus"></i> Thêm nguyên liệu
-              </button>
-              <button class="btn btn-secondary btn-sm" id="btn-open-raw-excel-modal">
-                <i data-lucide="file-up"></i> Nhập Excel
-              </button>
-              <button class="btn btn-primary btn-sm" id="btn-add-semi-finished-modal" style="display: none;">
-                <i data-lucide="plus"></i> Thêm bán thành phẩm
-              </button>
-              <button class="btn btn-secondary btn-sm" id="btn-open-semi-excel-modal" style="display: none;">
-                <i data-lucide="file-up"></i> Nhập Excel
-              </button>
-            </div>
-          </div>
-
-          <!-- 1.1 RAW MATERIALS TAB -->
-          <div id="inv-raw-tab" class="inventory-tab-content active">
-            <div class="glass-panel">
-              <div class="controls-row" style="display: flex; gap: 1rem; align-items: center; margin-bottom: 1rem;">
-                <div class="search-wrapper" style="flex: 1; min-width: 250px;">
-                  <i data-lucide="search" class="search-icon"></i>
-                  <input type="text" class="form-control-search" id="raw-search-input" placeholder="Tìm kiếm nguyên liệu...">
-                </div>
-              </div>
-              <div class="table-responsive">
-                <table class="table">
-                  <thead>
-                    <tr>
-                      <th style="width: 50px; text-align: center;">STT</th>
-                      <th>Mã NL</th>
-                      <th>Tên nguyên liệu</th>
-                      <th>Đơn vị tính</th>
-                      <th style="text-align: right;">Giá nhập (đ)</th>
-                      <th style="text-align: right;">Số lượng tồn kho</th>
-                      <th>Ghi chú</th>
-                      <th style="text-align: center; width: 100px;">Thao tác</th>
-                    </tr>
-                  </thead>
-                  <tbody id="raw-materials-table-body">
-                    <!-- Dynamic load -->
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-
-          <!-- 1.2 SEMI FINISHED TAB -->
-          <div id="inv-semi-tab" class="inventory-tab-content" style="display: none;">
-            <div class="glass-panel">
-              <div class="controls-row" style="display: flex; gap: 1rem; align-items: center; margin-bottom: 1rem;">
-                <div class="search-wrapper" style="flex: 1; min-width: 250px;">
-                  <i data-lucide="search" class="search-icon"></i>
-                  <input type="text" class="form-control-search" id="semi-search-input" placeholder="Tìm kiếm bán thành phẩm...">
-                </div>
-              </div>
-              <div class="table-responsive">
-                <table class="table">
-                  <thead>
-                    <tr>
-                      <th style="width: 50px; text-align: center;">STT</th>
-                      <th>Mã BTP</th>
-                      <th>Tên bán thành phẩm</th>
-                      <th>Đơn vị tính</th>
-                      <th style="text-align: right;">Số lượng tồn kho</th>
-                      <th>Ghi chú</th>
-                      <th style="text-align: center; width: 100px;">Thao tác</th>
-                    </tr>
-                  </thead>
-                  <tbody id="semi-finished-table-body">
-                    <!-- Dynamic load -->
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-
-          <!-- 1.3 FINISHED GOODS TAB -->
-          <div id="inv-finished-tab" class="inventory-tab-content" style="display: none;">
-            <div class="glass-panel">
-              <div class="controls-row" style="display: flex; gap: 1rem; align-items: center; margin-bottom: 1rem;">
-                <div class="search-wrapper" style="flex: 1; min-width: 250px;">
-                  <i data-lucide="search" class="search-icon"></i>
-                  <input type="text" class="form-control-search" id="finished-stock-search-input" placeholder="Tìm kiếm thành phẩm theo mã, tên...">
-                </div>
-                <div style="width: 200px;">
-                  <select class="form-control" id="finished-stock-brand-filter" style="height: 42px;">
-                    <option value="">-- Tất cả thương hiệu --</option>
-                  </select>
-                </div>
-              </div>
-              <div class="table-responsive">
-                <table class="table" style="min-width: 950px;">
-                  <thead>
-                    <tr>
-                      <th style="width: 50px; text-align: center;">STT</th>
-                      <th>Mã sản phẩm</th>
-                      <th>Tên sản phẩm</th>
-                      <th>Thương hiệu</th>
-                      <th style="text-align: right; width: 100px;">Tồn Thùng</th>
-                      <th style="text-align: right; width: 100px;">Tồn Lon</th>
-                      <th style="text-align: right; width: 100px;">Tồn Hộp</th>
-                      <th style="text-align: right; width: 100px;">Tồn Bao</th>
-                      <th style="text-align: right; width: 100px;">Tồn Túi</th>
-                      <th style="text-align: center; width: 120px;">Hành động</th>
-                    </tr>
-                  </thead>
-                  <tbody id="finished-goods-stock-table-body">
-                    <!-- Dynamic load -->
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- SUB PANEL 2: PRODUCTION (SẢN XUẤT) -->
-        <div id="goods-production-subpanel" class="goods-sub-panel" style="display: none;">
-          <div class="dashboard-grid" style="grid-template-columns: 1fr 1.2fr; gap: 1.5rem;">
-            <!-- Production Left column: Recipes list -->
-            <div class="glass-panel" style="display: flex; flex-direction: column; gap: 1rem;">
-              <div class="panel-header" style="margin-bottom: 0;">
-                <h3 class="panel-title"><i data-lucide="scroll"></i> Công thức sản xuất</h3>
-                <button class="btn btn-primary btn-sm" id="btn-add-recipe-modal">
-                  <i data-lucide="plus"></i> Tạo công thức
-                </button>
-              </div>
-              <div class="search-wrapper" style="width: 100%;">
-                <i data-lucide="search" class="search-icon"></i>
-                <input type="text" class="form-control-search" id="recipe-search-input" placeholder="Tìm kiếm công thức...">
-              </div>
-              <div class="table-responsive" style="max-height: 500px; overflow-y: auto;">
-                <table class="table" style="font-size: 0.85rem;">
-                  <thead>
-                    <tr>
-                      <th style="width: 40px; text-align: center;">STT</th>
-                      <th>Tên công thức</th>
-                      <th>BTP Đầu Ra</th>
-                      <th style="text-align: right; width: 90px;">Lượng chuẩn</th>
-                      <th style="text-align: center; width: 80px;">Thao tác</th>
-                    </tr>
-                  </thead>
-                  <tbody id="recipes-table-body">
-                    <!-- Dynamic load -->
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            <!-- Production Right column: Production run / Logs -->
-            <div style="display: flex; flex-direction: column; gap: 1.5rem;">
-              <!-- 2.1 Production Order Execution Box -->
-              <div class="glass-panel" style="display: flex; flex-direction: column; gap: 1rem;">
-                <h3 class="panel-title" style="margin-bottom: 0.5rem;"><i data-lucide="play"></i> Lập lệnh sản xuất BTP</h3>
-                
-                <div class="form-group">
-                  <label class="form-label" for="prod-select-recipe">Chọn công thức sản xuất <span style="color: red;">*</span></label>
-                  <select class="form-control" id="prod-select-recipe" style="width: 100%;">
-                    <option value="">-- Chọn công thức --</option>
-                  </select>
-                </div>
-
-                <div class="form-group" style="margin-top: 0.5rem;">
-                  <label class="form-label" for="prod-run-quantity">Lượng bán thành phẩm cần sản xuất <span id="prod-run-unit-label"></span> <span style="color: red;">*</span></label>
-                  <input type="number" class="form-control" id="prod-run-quantity" placeholder="Nhập khối lượng/số lượng sản xuất" min="0.1" step="any" style="width: 100%;" disabled>
-                </div>
-
-                <!-- Live calculation of raw materials -->
-                <div id="production-calc-results" style="display: none; border-top: 1px dashed var(--border-color); padding-top: 1rem; margin-top: 0.5rem;">
-                  <h4 style="font-size: 0.9rem; font-weight: 600; margin-bottom: 0.75rem; color: var(--color-primary);">
-                    Định mức nguyên liệu tiêu hao dự kiến:
-                  </h4>
-                  <div class="table-responsive">
-                    <table class="table" style="font-size: 0.8rem; min-width: 100%;">
-                      <thead>
-                        <tr>
-                          <th>Nguyên liệu</th>
-                          <th style="text-align: right; width: 90px;">Cần dùng</th>
-                          <th style="text-align: right; width: 90px;">Tồn kho</th>
-                          <th style="text-align: right; width: 100px;">Thiếu/Đủ</th>
-                        </tr>
-                      </thead>
-                      <tbody id="production-calc-table-body">
-                        <!-- JS fills -->
-                      </tbody>
-                    </table>
-                  </div>
-                  
-                  <div style="display: flex; justify-content: flex-end; margin-top: 1rem;">
-                    <button class="btn btn-success" id="btn-execute-production" style="font-weight: 600; padding: 0.65rem 1.5rem;" disabled>
-                      <i data-lucide="package-check"></i> Xác nhận sản xuất
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              <!-- 2.2 Production Logs List -->
-              <div class="glass-panel" style="display: flex; flex-direction: column; gap: 1rem;">
-                <h3 class="panel-title" style="margin-bottom: 0;"><i data-lucide="history"></i> Nhật ký sản xuất gần đây</h3>
-                <div class="table-responsive" style="max-height: 250px; overflow-y: auto;">
-                  <table class="table" style="font-size: 0.8rem;">
-                    <thead>
-                      <tr>
-                        <th>Thời gian</th>
-                        <th>Công thức</th>
-                        <th>Bán thành phẩm</th>
-                        <th style="text-align: right;">Sản xuất</th>
-                        <th>Người tạo</th>
-                      </tr>
-                    </thead>
-                    <tbody id="production-logs-table-body">
-                      <!-- Dynamic load -->
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-          </div>
+        <div class="purchase-loading-state" role="status" aria-live="polite">
+          <span class="loading-spinner" aria-hidden="true"></span>
+          <span>Đang tải phiếu mua hàng…</span>
         </div>
       </section>
 
@@ -1899,8 +1652,8 @@
                   <div class="adjustment-pill-input">
                     <input type="text" id="invoice-discount-value" value="0" placeholder="0">
                     <select id="invoice-discount-type" aria-label="Đơn vị giảm giá">
-                      <option value="amount" selected>VNĐ</option>
-                      <option value="percent">%</option>
+                      <option value="amount">VNĐ</option>
+                      <option value="percent" selected>%</option>
                     </select>
                   </div>
                 </div>
@@ -1934,13 +1687,13 @@
                 <div id="invoice-print-only-notice" style="display: none;">
                   Bảng giá này chỉ dùng để in và chưa được Kế toán cho phép lưu. Đơn này không thể lưu hoặc phát sinh công nợ.
                 </div>
-                <button class="btn btn-invoice-pay" id="btn-save-order">
+                <button class="btn btn-primary" id="btn-save-order">
                   <i data-lucide="check"></i> Thanh toán &amp; Xuất kho
                 </button>
-                <button class="btn btn-invoice-draft" id="btn-draft-order">
+                <button class="btn btn-secondary" id="btn-draft-order">
                   <i data-lucide="bookmark"></i> Lưu đơn nháp (F8)
                 </button>
-                <button class="btn btn-invoice-print" id="btn-print-order">
+                <button class="btn btn-secondary" id="btn-print-order">
                   <i data-lucide="printer"></i> In đơn hàng (Ctrl + P)
                 </button>
               </div>
@@ -2056,19 +1809,19 @@
             <h2 class="panel-title"><i data-lucide="clock"></i> Lịch sử hóa đơn đã lập</h2>
             <div style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
               <!-- View Switcher Toggle -->
-              <div class="history-view-toggle-group" style="display: flex; background: rgba(0,0,0,0.06); padding: 3px; border-radius: 8px; border: 1px solid var(--border-color);">
+              <div class="history-view-toggle-group">
                 <button class="history-view-mode-btn active" id="btn-history-view-card" type="button" title="Hiển thị dạng thẻ">
-                  <i data-lucide="layout-grid" style="width: 15px; height: 15px;"></i> Dạng thẻ
+                  <i data-lucide="layout-grid"></i> Dạng thẻ
                 </button>
                 <button class="history-view-mode-btn" id="btn-history-view-details" type="button" title="Hiển thị dạng chi tiết">
-                  <i data-lucide="list" style="width: 15px; height: 15px;"></i> Dạng chi tiết
+                  <i data-lucide="list"></i> Dạng chi tiết
                 </button>
               </div>
 
-                            <button class="btn btn-primary btn-sm" id="btn-open-history-export-modal" style="display: flex; align-items: center; gap: 0.5rem; height: 36px;">
+                            <button class="btn btn-primary btn-sm" id="btn-open-history-export-modal">
                 <i data-lucide="download"></i> Xu&#7845;t Excel
               </button>
-<button class="btn btn-secondary btn-sm" id="btn-refresh-history" style="background-color: var(--color-secondary-light); color: var(--color-secondary); border: 1px solid rgba(99, 102, 241, 0.3); display: flex; align-items: center; gap: 0.5rem; height: 36px;">
+<button class="btn btn-secondary btn-sm history-refresh-btn" id="btn-refresh-history">
                 <i data-lucide="refresh-cw"></i> Làm mới dữ liệu
               </button>
             </div>
@@ -2084,8 +1837,8 @@
             <!-- Bộ lọc thời gian -->
             <div style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; flex: 2; min-width: 320px;">
               <select class="form-control" id="history-date-mode" style="width: 140px; height: 42px; border-radius: 8px; cursor: pointer;">
-                <option value="week" selected>Tuần này</option>
-                <option value="all">Tất cả thời gian</option>
+                <option value="week">Tuần này</option>
+                <option value="all" selected>Tất cả thời gian</option>
                 <option value="date">Theo ngày</option>
                 <option value="month">Theo tháng</option>
                 <option value="year">Theo năm</option>
@@ -2447,7 +2200,7 @@
               <i data-lucide="search" class="search-icon"></i>
               <input type="text" class="form-control-search" id="customer-search-input" placeholder="Tìm theo mã, tên hoặc số điện thoại đại lý...">
             </div>
-            <div class="filter-wrapper customer-legacy-manager-filter" id="cust-managed-filter-wrapper">
+            <div class="filter-wrapper customer-manager-filter" id="customer-manager-filter-wrapper">
               <select class="form-control" id="customer-managed-filter" aria-label="Lọc theo nhân viên">
                 <option value="">-- Tất cả nhân viên --</option>
               </select>
@@ -2760,6 +2513,15 @@
             </div>
           </div>
 
+          <div class="module-list-toolbar brands-list-toolbar">
+            <div class="module-list-toolbar-search">
+              <div class="search-wrapper module-list-search">
+                <i data-lucide="search" class="search-icon" aria-hidden="true"></i>
+                <input type="search" class="form-control-search" id="brand-search-input" aria-label="Tìm kiếm thương hiệu" placeholder="Tìm theo thương hiệu, công ty, email hoặc số điện thoại...">
+              </div>
+            </div>
+          </div>
+
           <div class="table-container" style="margin-top: 1rem;">
             <table class="table">
               <thead>
@@ -2962,11 +2724,11 @@
               <i data-lucide="refresh-cw"></i> Làm mới dữ liệu từ Cloud
             </h3>
             <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 1.25rem;">
-              Supabase là nguồn dữ liệu chính. Nút này chỉ tải lại dữ liệu mới nhất; cache trình duyệt không được ghi ngược lên Cloud.
+              Nút này tải lại sản phẩm, khách hàng, bảng giá, người dùng và thương hiệu. Lịch sử đơn tải theo khoảng thời gian đã chọn ngay tại trang Lịch sử. Cache trình duyệt không được ghi ngược lên Cloud.
             </p>
             <div style="display: flex; gap: 0.75rem;">
               <button type="button" class="btn btn-indigo" id="btn-sync-to-cloud">
-                <i data-lucide="cloud-download"></i> Tải lại dữ liệu từ Cloud
+                <i data-lucide="cloud-download"></i> Tải lại dữ liệu cơ bản
               </button>
             </div>
           </div>
@@ -3059,6 +2821,10 @@
           <!-- Subtab 2: Báo cáo Trả hàng -->
           <div id="report-subtab-returns" class="report-subtab-content" style="display: none;">
             <div class="report-return-filter-row" style="display: flex; gap: 0.75rem; margin-bottom: 1rem; align-items: center;">
+              <div class="search-wrapper module-list-search">
+                <i data-lucide="search" class="search-icon" aria-hidden="true"></i>
+                <input type="search" class="form-control-search" id="report-return-search" placeholder="Tìm sản phẩm, khách hàng hoặc nhân viên...">
+              </div>
               <label style="font-weight: 500; font-size: 0.85rem;">Xem trả hàng theo:</label>
               <select class="form-control" id="report-return-filter" style="width: auto; height: 38px; min-width: 180px;">
                 <option value="product" selected>Theo Sản phẩm</option>
@@ -4455,131 +4221,8 @@
   </div>
 
   <!-- Modal Nhập Nguyên Liệu từ Excel -->
-  <div class="modal-overlay" id="raw-excel-modal">
-    <div class="modal-content" style="max-width: 850px;">
-      <div class="modal-header">
-        <h3 class="modal-title">Nhập nguyên liệu từ file Excel</h3>
-        <button class="modal-close" id="btn-close-raw-excel-modal">
-          <i data-lucide="x"></i>
-        </button>
-      </div>
-      <div class="modal-body">
-        <div id="raw-excel-dropzone" class="upload-dropzone">
-          <i data-lucide="file-spreadsheet" class="upload-icon" style="width: 48px; height: 48px; color: var(--color-primary); margin-bottom: 0.75rem;"></i>
-          <p class="upload-text" style="font-weight: 600; margin-bottom: 0.25rem;">Kéo thả tệp Excel (.xlsx, .xls) hoặc CSV vào đây</p>
-          <p class="upload-subtext" style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 1rem;">Hoặc nhấp chuột để chọn tệp từ máy tính</p>
-          <input type="file" id="raw-excel-file-input" accept=".xlsx, .xls, .csv" style="display: none;">
-          <button type="button" class="btn btn-secondary btn-sm" id="btn-browse-raw-excel">Chọn tệp</button>
-        </div>
-        
-        <div class="import-options" style="display: flex; gap: 1.5rem; margin: 1.25rem 0; font-size: 0.875rem; align-items: center; justify-content: center; flex-wrap: wrap; border-bottom: 1px dashed var(--border-color); padding-bottom: 1rem;">
-          <span style="font-weight: 600; color: var(--text-secondary);">Chế độ nhập:</span>
-          <label style="display: flex; align-items: center; gap: 0.35rem; cursor: pointer; ">
-            <input type="radio" name="raw-import-mode" value="merge" checked style="accent-color: var(--color-primary);"> 
-            Gộp thêm (Giữ lại nguyên liệu cũ, trùng mã sẽ cập nhật)
-          </label>
-          <label style="display: flex; align-items: center; gap: 0.35rem; cursor: pointer; ">
-            <input type="radio" name="raw-import-mode" value="overwrite" style="accent-color: var(--color-primary);"> 
-            Ghi đè toàn bộ (Xóa danh sách cũ trước khi nhập)
-          </label>
-        </div>
-
-        <div id="raw-excel-preview-container" style="display: none; border-top: 1px dashed var(--border-color); padding-top: 1rem; margin-top: 1rem;">
-          <h4 style="font-size: 0.9rem; font-weight: 600; margin-bottom: 0.75rem; color: var(--color-primary); display: flex; align-items: center; gap: 0.35rem;">
-            <i data-lucide="eye" style="width:16px;"></i> Xem trước dữ liệu nguyên liệu (Hiển thị tối đa 5 dòng):
-          </h4>
-          <div class="table-responsive" style="max-height: 220px;">
-            <table class="table" style="font-size: 0.8rem;">
-              <thead>
-                <tr>
-                  <th style="width: 50px; text-align: center;">STT</th>
-                  <th>Mã NL</th>
-                  <th>Tên nguyên liệu</th>
-                  <th>ĐVT</th>
-                  <th style="text-align: right;">Giá nhập (đ)</th>
-                  <th style="text-align: right;">Số lượng tồn</th>
-                  <th>Ghi chú</th>
-                </tr>
-              </thead>
-              <tbody id="raw-excel-preview-table-body">
-                <!-- JS dynamically fills -->
-              </tbody>
-            </table>
-          </div>
-          <p id="raw-excel-preview-summary" style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.5rem; font-style: italic;"></p>
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" id="btn-cancel-raw-excel">Hủy bỏ</button>
-        <button type="button" class="btn btn-primary" id="btn-save-raw-excel-submit" disabled>
-          <i data-lucide="check"></i> Lưu nguyên liệu vào hệ thống
-        </button>
-      </div>
-    </div>
-  </div>
 
   <!-- Modal Nhập Bán Thành Phẩm từ Excel -->
-  <div class="modal-overlay" id="semi-excel-modal">
-    <div class="modal-content" style="max-width: 850px;">
-      <div class="modal-header">
-        <h3 class="modal-title">Nhập bán thành phẩm từ file Excel</h3>
-        <button class="modal-close" id="btn-close-semi-excel-modal">
-          <i data-lucide="x"></i>
-        </button>
-      </div>
-      <div class="modal-body">
-        <div id="semi-excel-dropzone" class="upload-dropzone">
-          <i data-lucide="file-spreadsheet" class="upload-icon" style="width: 48px; height: 48px; color: var(--color-primary); margin-bottom: 0.75rem;"></i>
-          <p class="upload-text" style="font-weight: 600; margin-bottom: 0.25rem;">Kéo thả tệp Excel (.xlsx, .xls) hoặc CSV vào đây</p>
-          <p class="upload-subtext" style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 1rem;">Hoặc nhấp chuột để chọn tệp từ máy tính</p>
-          <input type="file" id="semi-excel-file-input" accept=".xlsx, .xls, .csv" style="display: none;">
-          <button type="button" class="btn btn-secondary btn-sm" id="btn-browse-semi-excel">Chọn tệp</button>
-        </div>
-        
-        <div class="import-options" style="display: flex; gap: 1.5rem; margin: 1.25rem 0; font-size: 0.875rem; align-items: center; justify-content: center; flex-wrap: wrap; border-bottom: 1px dashed var(--border-color); padding-bottom: 1rem;">
-          <span style="font-weight: 600; color: var(--text-secondary);">Chế độ nhập:</span>
-          <label style="display: flex; align-items: center; gap: 0.35rem; cursor: pointer; ">
-            <input type="radio" name="semi-import-mode" value="merge" checked style="accent-color: var(--color-primary);"> 
-            Gộp thêm (Giữ lại cũ, trùng mã sẽ cập nhật)
-          </label>
-          <label style="display: flex; align-items: center; gap: 0.35rem; cursor: pointer; ">
-            <input type="radio" name="semi-import-mode" value="overwrite" style="accent-color: var(--color-primary);"> 
-            Ghi đè toàn bộ (Xóa danh sách cũ trước khi nhập)
-          </label>
-        </div>
-
-        <div id="semi-excel-preview-container" style="display: none; border-top: 1px dashed var(--border-color); padding-top: 1rem; margin-top: 1rem;">
-          <h4 style="font-size: 0.9rem; font-weight: 600; margin-bottom: 0.75rem; color: var(--color-primary); display: flex; align-items: center; gap: 0.35rem;">
-            <i data-lucide="eye" style="width:16px;"></i> Xem trước dữ liệu bán thành phẩm (Hiển thị tối đa 5 dòng):
-          </h4>
-          <div class="table-responsive" style="max-height: 220px;">
-            <table class="table" style="font-size: 0.8rem;">
-              <thead>
-                <tr>
-                  <th style="width: 50px; text-align: center;">STT</th>
-                  <th>Mã BTP</th>
-                  <th>Tên bán thành phẩm</th>
-                  <th>ĐVT</th>
-                  <th style="text-align: right;">Số lượng tồn</th>
-                  <th>Ghi chú</th>
-                </tr>
-              </thead>
-              <tbody id="semi-excel-preview-table-body">
-                <!-- JS dynamically fills -->
-              </tbody>
-            </table>
-          </div>
-          <p id="semi-excel-preview-summary" style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.5rem; font-style: italic;"></p>
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" id="btn-cancel-semi-excel">Hủy bỏ</button>
-        <button type="button" class="btn btn-primary" id="btn-save-semi-excel-submit" disabled>
-          <i data-lucide="check"></i> Lưu bán thành phẩm vào hệ thống
-        </button>
-      </div>
-    </div>
-  </div>
 
   <!-- Thêm/Sửa Nhà Cung Cấp Modal -->
   <div class="modal-overlay" id="supplier-modal">
@@ -4671,6 +4314,7 @@
           <button type="submit" id="btn-login-submit" class="btn btn-primary login-submit-button">
             <span>Đăng nhập</span><i data-lucide="arrow-right"></i>
           </button>
+          <a class="auth-switch-button" href="mailto:contact@sovie.vn?subject=%C4%90%C4%83ng%20k%C3%BD%20d%C3%B9ng%20th%E1%BB%AD%20SoVie">Chưa có tài khoản? Liên hệ dùng thử Starter 14 ngày</a>
           <p class="login-security-note"><i data-lucide="shield-check"></i> Phiên đăng nhập được xác thực trực tiếp với Supabase.</p>
         </form>
       </section>
@@ -5136,206 +4780,15 @@
 
 
   <!-- Modal Thêm/Sửa Nguyên Liệu -->
-  <div class="modal-overlay" id="raw-material-modal">
-    <div class="modal-content" style="max-width: 450px;">
-      <div class="modal-header">
-        <h3 class="modal-title" id="raw-material-modal-title"><i data-lucide="box"></i> Thêm nguyên liệu mới</h3>
-        <button class="modal-close" id="btn-close-raw-material-modal" aria-label="Đóng"><i data-lucide="x"></i></button>
-      </div>
-      <form id="raw-material-form">
-        <div class="modal-body" style="display: flex; flex-direction: column; gap: 1rem;">
-          <input type="hidden" id="raw-id">
-          <div class="form-group">
-            <label class="form-label" for="raw-code">Mã nguyên liệu <span style="color: red;">*</span></label>
-            <input type="text" class="form-control" id="raw-code" placeholder="Ví dụ: NL01" required style="width: 100%;">
-          </div>
-          <div class="form-group">
-            <label class="form-label" for="raw-name">Tên nguyên liệu <span style="color: red;">*</span></label>
-            <input type="text" class="form-control" id="raw-name" placeholder="Tên chất hóa học / bột màu / dung môi" required style="width: 100%;">
-          </div>
-          <div class="form-group">
-            <label class="form-label" for="raw-unit">Đơn vị tính <span style="color: red;">*</span></label>
-            <input type="text" class="form-control" id="raw-unit" placeholder="Ví dụ: kg, g, lít" value="kg" required style="width: 100%;">
-          </div>
-          <div class="form-group">
-            <label class="form-label" for="raw-import-price">Giá nhập (đ)</label>
-            <input type="number" class="form-control" id="raw-import-price" placeholder="0" value="0" min="0" step="any" style="width: 100%;">
-          </div>
-          <div class="form-group">
-            <label class="form-label" for="raw-quantity">Số lượng tồn ban đầu</label>
-            <input type="number" class="form-control" id="raw-quantity" placeholder="0" value="0" min="0" step="any" style="width: 100%;">
-          </div>
-          <div class="form-group">
-            <label class="form-label" for="raw-notes">Ghi chú</label>
-            <textarea class="form-control" id="raw-notes" rows="2" placeholder="Ghi chú thêm..." style="width: 100%; font-family: inherit; font-size: 0.85rem; padding: 0.5rem;"></textarea>
-          </div>
-        </div>
-        <div class="modal-footer" style="padding-top: 1rem; border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1rem;">
-          <button type="button" class="btn btn-secondary btn-sm" id="btn-cancel-raw-material-modal">Hủy bỏ</button>
-          <button type="submit" class="btn btn-primary btn-sm"><i data-lucide="save"></i> Lưu</button>
-        </div>
-      </form>
-    </div>
-  </div>
 
   <!-- Modal Thêm/Sửa Bán Thành Phẩm -->
-  <div class="modal-overlay" id="semi-finished-modal">
-    <div class="modal-content" style="max-width: 450px;">
-      <div class="modal-header">
-        <h3 class="modal-title" id="semi-finished-modal-title"><i data-lucide="layers"></i> Thêm bán thành phẩm mới</h3>
-        <button class="modal-close" id="btn-close-semi-finished-modal" aria-label="Đóng"><i data-lucide="x"></i></button>
-      </div>
-      <form id="semi-finished-form">
-        <div class="modal-body" style="display: flex; flex-direction: column; gap: 1rem;">
-          <input type="hidden" id="semi-id">
-          <div class="form-group">
-            <label class="form-label" for="semi-code">Mã bán thành phẩm <span style="color: red;">*</span></label>
-            <input type="text" class="form-control" id="semi-code" placeholder="Ví dụ: BTP01" required style="width: 100%;">
-          </div>
-          <div class="form-group">
-            <label class="form-label" for="semi-name">Tên bán thành phẩm <span style="color: red;">*</span></label>
-            <input type="text" class="form-control" id="semi-name" placeholder="Tên loại base sơn / hỗn hợp trung gian" required style="width: 100%;">
-          </div>
-          <div class="form-group">
-            <label class="form-label" for="semi-unit">Đơn vị tính <span style="color: red;">*</span></label>
-            <input type="text" class="form-control" id="semi-unit" placeholder="Ví dụ: kg, lít" value="kg" required style="width: 100%;">
-          </div>
-          <div class="form-group">
-            <label class="form-label" for="semi-quantity">Số lượng tồn ban đầu</label>
-            <input type="number" class="form-control" id="semi-quantity" placeholder="0" value="0" min="0" step="any" style="width: 100%;">
-          </div>
-          <div class="form-group">
-            <label class="form-label" for="semi-notes">Ghi chú</label>
-            <textarea class="form-control" id="semi-notes" rows="2" placeholder="Ghi chú thêm..." style="width: 100%; font-family: inherit; font-size: 0.85rem; padding: 0.5rem;"></textarea>
-          </div>
-        </div>
-        <div class="modal-footer" style="padding-top: 1rem; border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1rem;">
-          <button type="button" class="btn btn-secondary btn-sm" id="btn-cancel-semi-finished-modal">Hủy bỏ</button>
-          <button type="submit" class="btn btn-primary btn-sm"><i data-lucide="save"></i> Lưu</button>
-        </div>
-      </form>
-    </div>
-  </div>
 
   <!-- Modal Thêm/Sửa Công Thức Sản Xuất -->
-  <div class="modal-overlay" id="recipe-modal">
-    <div class="modal-content" style="max-width: 650px;">
-      <div class="modal-header">
-        <h3 class="modal-title" id="recipe-modal-title"><i data-lucide="factory"></i> Tạo công thức sản xuất</h3>
-        <button class="modal-close" id="btn-close-recipe-modal" aria-label="Đóng"><i data-lucide="x"></i></button>
-      </div>
-      <form id="recipe-form">
-        <div class="modal-body" style="display: flex; flex-direction: column; gap: 1rem; max-height: 60vh; overflow-y: auto;">
-          <input type="hidden" id="recipe-id">
-          
-          <div class="form-group">
-            <label class="form-label" for="recipe-name">Tên công thức <span style="color: red;">*</span></label>
-            <input type="text" class="form-control" id="recipe-name" placeholder="Ví dụ: Công thức Sơn Lót Kháng Kiềm Nano10*" required style="width: 100%;">
-          </div>
-
-          <div style="display: grid; grid-template-columns: 1.5fr 1fr; gap: 1rem;">
-            <div class="form-group">
-              <label class="form-label" for="recipe-semi-finished-id">Bán thành phẩm đầu ra <span style="color: red;">*</span></label>
-              <select class="form-control" id="recipe-semi-finished-id" required style="width: 100%;">
-                <option value="">-- Chọn bán thành phẩm --</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label class="form-label" for="recipe-output-quantity">Sản lượng chuẩn định mức <span style="color: red;">*</span></label>
-              <div style="display: flex; gap: 0.35rem; align-items: center;">
-                <input type="number" class="form-control" id="recipe-output-quantity" value="100" min="0.1" step="any" required style="flex: 1;">
-                <span id="recipe-output-unit-lbl" style="font-size: 0.9rem; font-weight: 600; color: var(--text-secondary);">kg</span>
-              </div>
-            </div>
-          </div>
-
-          <div class="form-group">
-            <label class="form-label" for="recipe-notes">Ghi chú</label>
-            <input type="text" class="form-control" id="recipe-notes" placeholder="Ghi chú thêm..." style="width: 100%;">
-          </div>
-
-          <!-- Ingredients section -->
-          <div style="border-top: 1px dashed var(--border-color); padding-top: 1rem; margin-top: 0.5rem;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
-              <h4 style="font-size: 0.9rem; font-weight: 600; color: var(--color-primary);">Thành phần nguyên vật liệu định mức:</h4>
-              <div style="display: flex; gap: 0.35rem;">
-                <button type="button" class="btn btn-indigo btn-xs" id="btn-recipe-import-excel" style="padding: 0.25rem 0.5rem; display: flex; align-items: center; gap: 0.25rem;">
-                  <i data-lucide="file-up" style="width: 12px; height: 12px;"></i> Nhập Excel
-                </button>
-                <input type="file" id="recipe-excel-file-input" accept=".xlsx, .xls, .csv" style="display: none;">
-                <button type="button" class="btn btn-secondary btn-xs" id="btn-recipe-add-ingredient-row" style="padding: 0.25rem 0.5rem; display: flex; align-items: center; gap: 0.25rem;">
-                  <i data-lucide="plus" style="width: 12px; height: 12px;"></i> Thêm dòng
-                </button>
-              </div>
-            </div>
-            
-            <div id="recipe-ingredients-rows-container" style="display: flex; flex-direction: column; gap: 0.5rem;">
-              <!-- Ingredient rows will be dynamically added here -->
-            </div>
-          </div>
-        </div>
-        <div class="modal-footer" style="padding-top: 1rem; border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1rem;">
-          <button type="button" class="btn btn-secondary btn-sm" id="btn-cancel-recipe-modal">Hủy bỏ</button>
-          <button type="submit" class="btn btn-primary btn-sm"><i data-lucide="save"></i> Lưu công thức</button>
-        </div>
-      </form>
-    </div>
-  </div>
 
   <!-- Modal Điều chỉnh Tồn kho Thành phẩm nhanh -->
-  <div class="modal-overlay" id="finished-stock-adjust-modal">
-    <div class="modal-content" style="max-width: 480px;">
-      <div class="modal-header">
-        <h3 class="modal-title"><i data-lucide="package-check"></i> Điều chỉnh tồn kho thành phẩm</h3>
-        <button class="modal-close" id="btn-close-finished-stock-modal" aria-label="Đóng"><i data-lucide="x"></i></button>
-      </div>
-      <form id="finished-stock-adjust-form">
-        <div class="modal-body" style="display: flex; flex-direction: column; gap: 1rem;">
-          <div style="background: rgba(34, 197, 94, 0.1); padding: 0.75rem; border-radius: 8px; border-left: 4px solid var(--color-primary);">
-            <p style="font-weight: 700; color: #fff; font-size: 0.9rem;" id="adjust-prod-name-lbl">-</p>
-            <p style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.15rem;">Mã SP: <span id="adjust-prod-code-lbl" style="font-weight: 600;"></span> | Hãng: <span id="adjust-prod-brand-lbl" style="font-weight: 600;"></span></p>
-          </div>
-
-          <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.5rem;">Vui lòng nhập số lượng tồn kho thực tế hiện tại cho từng loại bao bì:</p>
-
-          <div style="display: flex; flex-direction: column; gap: 0.75rem;" id="adjust-packages-container">
-            <!-- Row for Th thùng -->
-            <div style="display: grid; grid-template-columns: 1fr 1.2fr; align-items: center; gap: 1rem;">
-              <span style="font-weight: 600; font-size: 0.85rem;" id="lbl-adjust-thung">Tồn kho Thùng:</span>
-              <input type="number" class="form-control adjust-qty-input" data-pack="thung" min="0" placeholder="Chưa có tồn kho" style="width: 100%;">
-            </div>
-            <!-- Row for Lon -->
-            <div style="display: grid; grid-template-columns: 1fr 1.2fr; align-items: center; gap: 1rem;">
-              <span style="font-weight: 600; font-size: 0.85rem;" id="lbl-adjust-lon">Tồn kho Lon:</span>
-              <input type="number" class="form-control adjust-qty-input" data-pack="lon" min="0" placeholder="Chưa có tồn kho" style="width: 100%;">
-            </div>
-            <!-- Row for Hop -->
-            <div style="display: grid; grid-template-columns: 1fr 1.2fr; align-items: center; gap: 1rem;">
-              <span style="font-weight: 600; font-size: 0.85rem;" id="lbl-adjust-hop">Tồn kho Hộp:</span>
-              <input type="number" class="form-control adjust-qty-input" data-pack="hop" min="0" placeholder="Chưa có tồn kho" style="width: 100%;">
-            </div>
-            <!-- Row for Bao -->
-            <div style="display: grid; grid-template-columns: 1fr 1.2fr; align-items: center; gap: 1rem;">
-              <span style="font-weight: 600; font-size: 0.85rem;" id="lbl-adjust-bao">Tồn kho Bao:</span>
-              <input type="number" class="form-control adjust-qty-input" data-pack="bao" min="0" placeholder="Chưa có tồn kho" style="width: 100%;">
-            </div>
-            <!-- Row for Tui -->
-            <div style="display: grid; grid-template-columns: 1fr 1.2fr; align-items: center; gap: 1rem;">
-              <span style="font-weight: 600; font-size: 0.85rem;" id="lbl-adjust-tui">Tồn kho Túi:</span>
-              <input type="number" class="form-control adjust-qty-input" data-pack="tui" min="0" placeholder="Chưa có tồn kho" style="width: 100%;">
-            </div>
-          </div>
-        </div>
-        <div class="modal-footer" style="padding-top: 1rem; border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 1rem;">
-          <button type="button" class="btn btn-secondary btn-sm" id="btn-cancel-finished-stock-modal">Hủy bỏ</button>
-          <button type="submit" class="btn btn-primary btn-sm">Xác nhận điều chỉnh</button>
-        </div>
-      </form>
-    </div>
-  </div>
 
   <!-- App logic -->
-  <script type="module" src="js/landing-motion.js?v=20260911-3d-tilt-v6"></script>
-  <script type="module" src="js/main.js?v=20260909-inline-filter-v4"></script>
+  <script type="module" src="js/landing-motion.js"></script>
+  <script type="module" src="js/main.js"></script>
 </body>
 </html>

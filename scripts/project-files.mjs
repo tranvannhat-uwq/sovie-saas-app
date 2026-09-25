@@ -9,17 +9,26 @@
 export const publicFiles = Object.freeze([
   'CNAME',
   'index.html',
-  'style.css',
-  'landing.css',
-  'landing-premium.css',
-  'landing-reference.css',
-  'ui-system.css',
-  'navigation-reference.css',
-  'luminous-engine.css',
+  'styles/base.css',
+  'styles/app.css',
+  'styles/landing.css',
+  'styles/print.css',
   'sovie-favicon.png',
   'sovie-logo.png',
   'absjapan.png',
   'festiva.png',
   'hatacco.png',
+  'warehouse-operations.jpg'
+]);
+
+// These assets are referenced with explicit ?v= cache-busting keys in the
+// HTML, so the deployed edge may safely cache each exact URL for one year.
+export const immutablePublicFiles = Object.freeze([
+  'styles/base.css',
+  'styles/app.css',
+  'styles/landing.css',
+  'styles/print.css',
+  'sovie-favicon.png',
+  'sovie-logo.png',
   'warehouse-operations.jpg'
 ]);

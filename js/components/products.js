@@ -1,7 +1,7 @@
 import { state } from '../state.js';
 import { showToast, safeCreateIcons, getBrandName } from '../utils.js';
-import { dbSaveProductsBulk, dbDeleteProduct } from '../services/supabase.js?v=20260909-inline-filter-v4';
-import { renderAll } from '../main.js?v=20260909-inline-filter-v4';
+import { dbSaveProductsBulk, dbDeleteProduct } from '../services/supabase.js';
+import { renderAll } from '../main.js';
 import { tenantStorage } from '../services/tenant-storage.js';
 import {
   buildProductFamilies,

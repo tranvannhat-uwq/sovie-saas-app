@@ -5,7 +5,7 @@ import {
   dbCancelSupplierPayment,
   dbCreatePurchase,
   dbRecordSupplierPayment
-} from '../services/supabase.js?v=20260909-inline-filter-v4';
+} from '../services/supabase.js';
 
 let pendingPurchaseKey = '';
 const pendingSupplierPaymentKeys = new Map();
@@ -48,7 +48,7 @@ function itemRow(item = {}) {
       <td><input type="text" class="purchase-entry-unit" value="${escapeHtml(item.unit || '')}" placeholder="ĐVT"></td>
       <td><input type="number" class="purchase-entry-qty" min="0.0001" step="any" value="${item.quantity || 1}" required></td>
       <td><input type="number" class="purchase-entry-price" min="0" step="1" value="${item.unitPrice || 0}" required></td>
-      <td class="purchase-entry-line-total" style="text-align:right">0 ₫</td>
+      <td class="purchase-entry-line-total">0 ₫</td>
       <td><button type="button" class="purchase-entry-remove-row" title="Xóa dòng">×</button></td>
     </tr>`;
 }
@@ -88,8 +88,8 @@ function purchaseModal() {
                 <option value="cash">Tiền mặt</option><option value="bank">Ngân hàng</option><option value="wallet">Ví điện tử</option>
               </select>
             </div>
-            <div class="form-group" style="grid-column:1/-1">
-              <div style="display:flex;justify-content:space-between;align-items:center">
+            <div class="form-group purchase-form-wide">
+              <div class="purchase-entry-heading">
                 <label class="form-label">Hàng hóa/dịch vụ *</label>
                 <button type="button" class="btn btn-secondary btn-sm" id="btn-add-purchase-item-row">Thêm dòng</button>
               </div>
@@ -103,7 +103,7 @@ function purchaseModal() {
               <div class="purchase-entry-total"><span>Còn phải trả dự kiến</span><strong id="purchase-entry-debt-total">0 ₫</strong></div>
               <small>Database sẽ tự tính lại toàn bộ thành tiền và công nợ.</small>
             </div>
-            <div class="form-group" style="grid-column:1/-1"><label class="form-label">Ghi chú</label><textarea class="form-control" id="purchase-note-input" rows="2"></textarea></div>
+            <div class="form-group purchase-form-wide"><label class="form-label">Ghi chú</label><textarea class="form-control" id="purchase-note-input" rows="2"></textarea></div>
           </div>
           <div class="modal-footer"><button type="button" class="btn btn-secondary" id="btn-cancel-purchase-entry">Đóng</button><button type="submit" class="btn btn-primary">Hoàn thành phiếu mua</button></div>
         </form>
@@ -115,35 +115,35 @@ function purchaseDetail(purchase) {
   const activePayments = (purchase.payments || []).filter(payment => payment.status === 'completed');
   return `
     <tr class="purchase-detail-row"><td colspan="10">
-      <div class="purchase-detail" style="border: 1px solid #e2e8f0; border-radius: 12px; background: #f8fafc; padding: 1.25rem; margin: 0.5rem 0;">
-        <div class="purchase-detail-head" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e2e8f0; padding-bottom: 0.75rem; margin-bottom: 1rem;">
-          <div style="display: flex; align-items: center; gap: 0.75rem;">
-            <strong style="font-size: 1.05rem; color: #0f172a;">${escapeHtml(purchase.code)}</strong>
+      <div class="purchase-detail purchase-template-detail">
+        <div class="purchase-detail-head">
+          <div class="purchase-template-heading">
+            <strong class="purchase-template-code">${escapeHtml(purchase.code)}</strong>
             <span class="purchase-status ${escapeHtml(purchase.status)}">${statusLabel(purchase.status)}</span>
           </div>
-          <div class="purchase-detail-actions" style="display: flex; gap: 0.5rem;">
+          <div class="purchase-detail-actions purchase-template-actions">
             <button class="btn btn-secondary btn-sm purchase-print-btn" data-id="${escapeHtml(purchase.id)}"><i data-lucide="printer"></i> In phiếu mua</button>
             ${purchase.status === 'completed' ? `<button class="btn btn-danger btn-sm purchase-cancel-btn" data-id="${escapeHtml(purchase.id)}"><i data-lucide="trash-2"></i> Hủy phiếu mua</button>` : ''}
           </div>
         </div>
-        <div class="purchase-detail-meta" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.75rem; margin-bottom: 1rem; background: #ffffff; padding: 0.85rem 1rem; border-radius: 8px; border: 1px solid #e2e8f0;">
-          <div><span style="color: #64748b; font-size: 0.8rem; display: block;">Hóa đơn đầu vào:</span><strong style="color: #1e293b;">${escapeHtml(purchase.invoiceNumber || '-')}</strong></div>
-          <div><span style="color: #64748b; font-size: 0.8rem; display: block;">Ngày mua:</span><strong style="color: #1e293b;">${escapeHtml(purchaseDate(purchase))}</strong></div>
-          <div><span style="color: #64748b; font-size: 0.8rem; display: block;">Người thực hiện:</span><strong style="color: #1e293b;">${escapeHtml(purchase.createdBy || '-')}</strong></div>
-          <div><span style="color: #64748b; font-size: 0.8rem; display: block;">Nhà cung cấp:</span><strong style="color: #006ffd;">${escapeHtml(purchase.supplierName || purchase.supplierCode || '-')}</strong></div>
+        <div class="purchase-detail-meta purchase-template-meta">
+          <div><span class="purchase-template-meta-label">Hóa đơn đầu vào:</span><strong>${escapeHtml(purchase.invoiceNumber || '-')}</strong></div>
+          <div><span class="purchase-template-meta-label">Ngày mua:</span><strong>${escapeHtml(purchaseDate(purchase))}</strong></div>
+          <div><span class="purchase-template-meta-label">Người thực hiện:</span><strong>${escapeHtml(purchase.createdBy || '-')}</strong></div>
+          <div><span class="purchase-template-meta-label">Nhà cung cấp:</span><strong class="purchase-template-supplier">${escapeHtml(purchase.supplierName || purchase.supplierCode || '-')}</strong></div>
         </div>
-        <div class="table-responsive" style="border: 1px solid #e2e8f0; border-radius: 8px; background: #ffffff; margin-bottom: 1rem; overflow: hidden;">
-          <table class="table purchase-items-table" style="margin: 0;"><thead><tr><th>Mã</th><th>Tên</th><th>ĐVT</th><th style="text-align:right;">SL</th><th style="text-align:right;">Đơn giá</th><th style="text-align:right;">Thành tiền</th></tr></thead><tbody>
-            ${(purchase.items || []).map(item => `<tr><td><span style="font-family: monospace; font-weight: 600;">${escapeHtml(item.code)}</span></td><td>${escapeHtml(item.name)}</td><td>${escapeHtml(item.unit || '-')}</td><td style="text-align:right;">${Number(item.quantity).toLocaleString('vi-VN')}</td><td style="text-align:right;">${formatCurrency(item.unitPrice)}</td><td style="text-align:right; font-weight: 600;">${formatCurrency(item.lineTotal)}</td></tr>`).join('')}
+        <div class="table-responsive purchase-template-items-wrap">
+          <table class="table purchase-items-table purchase-template-items-table"><thead><tr><th>Mã</th><th>Tên</th><th>ĐVT</th><th class="purchase-template-numeric">SL</th><th class="purchase-template-numeric">Đơn giá</th><th class="purchase-template-numeric">Thành tiền</th></tr></thead><tbody>
+            ${(purchase.items || []).map(item => `<tr><td><span class="purchase-template-item-code">${escapeHtml(item.code)}</span></td><td>${escapeHtml(item.name)}</td><td>${escapeHtml(item.unit || '-')}</td><td class="purchase-template-numeric">${Number(item.quantity).toLocaleString('vi-VN')}</td><td class="purchase-template-numeric">${formatCurrency(item.unitPrice)}</td><td class="purchase-template-numeric purchase-template-item-total">${formatCurrency(item.lineTotal)}</td></tr>`).join('')}
           </tbody></table>
         </div>
-        <div class="purchase-summary" style="display: flex; gap: 1.5rem; justify-content: flex-end; background: #ffffff; padding: 0.85rem 1.25rem; border-radius: 8px; border: 1px solid #e2e8f0; margin-bottom: 1rem;">
-          <div><span style="color: #64748b; font-size: 0.8rem; display: block;">Tổng mua</span><strong style="font-size: 1.05rem; color: #0f172a;">${formatCurrency(purchaseTotal(purchase))}</strong></div>
-          <div><span style="color: #64748b; font-size: 0.8rem; display: block;">Đã thanh toán</span><strong style="font-size: 1.05rem; color: #16a34a;">${formatCurrency(purchase.paidAmount)}</strong></div>
-          <div><span style="color: #64748b; font-size: 0.8rem; display: block;">Còn phải trả</span><strong style="font-size: 1.05rem; color: ${Number(purchase.balanceDue) > 0 ? '#ef4444' : '#16a34a'};">${formatCurrency(purchase.balanceDue)}</strong></div>
+        <div class="purchase-summary purchase-template-summary">
+          <div><span class="purchase-template-summary-label">Tổng mua</span><strong class="purchase-template-total">${formatCurrency(purchaseTotal(purchase))}</strong></div>
+          <div><span class="purchase-template-summary-label">Đã thanh toán</span><strong class="purchase-template-paid">${formatCurrency(purchase.paidAmount)}</strong></div>
+          <div><span class="purchase-template-summary-label">Còn phải trả</span><strong class="purchase-template-balance ${Number(purchase.balanceDue) > 0 ? 'is-due' : 'is-settled'}">${formatCurrency(purchase.balanceDue)}</strong></div>
         </div>
-        ${purchase.status === 'completed' && Number(purchase.balanceDue || 0) > 0 ? `<div class="purchase-payment-box" style="display: flex; align-items: center; gap: 0.75rem; background: #ffffff; padding: 0.85rem 1rem; border-radius: 8px; border: 1px dashed #cbd5e1; margin-bottom: 0.75rem; flex-wrap: wrap;"><span style="font-weight: 600; font-size: 0.85rem; color: #334155;"><i data-lucide="credit-card" style="width: 15px; height: 15px; vertical-align: middle;"></i> Thanh toán nợ:</span><input type="number" class="form-control purchase-pay-amount" min="1" max="${Number(purchase.balanceDue)}" value="${Number(purchase.balanceDue)}" style="width: 160px; height: 36px;"><select class="form-control purchase-pay-method" style="width: 140px; height: 36px;"><option value="cash">Tiền mặt</option><option value="bank">Ngân hàng</option><option value="wallet">Ví điện tử</option></select><button class="btn btn-primary btn-sm purchase-pay-btn" data-id="${escapeHtml(purchase.id)}"><i data-lucide="plus"></i> Tạo phiếu chi</button></div>` : ''}
-        ${activePayments.length ? `<div class="purchase-payment-history" style="background: #ffffff; padding: 0.75rem 1rem; border-radius: 8px; border: 1px solid #e2e8f0; font-size: 0.85rem;"><strong style="display: block; margin-bottom: 0.4rem; color: #334155;"><i data-lucide="history" style="width: 14px; height: 14px; vertical-align: middle;"></i> Phiếu chi:</strong><div style="display: flex; flex-direction: column; gap: 0.4rem;">${activePayments.map(payment => `<div style="display: flex; justify-content: space-between; align-items: center; padding: 0.35rem 0.6rem; background: #f8fafc; border-radius: 6px;"><span>${formatCurrency(payment.amount)} · ${escapeHtml(payment.paymentMethod)}</span> <button class="btn btn-danger btn-sm purchase-cancel-payment-btn" data-id="${escapeHtml(payment.id)}" style="padding: 2px 8px; font-size: 0.75rem;"><i data-lucide="rotate-ccw"></i> Hủy phiếu chi</button></div>`).join('')}</div></div>` : ''}
+        ${purchase.status === 'completed' && Number(purchase.balanceDue || 0) > 0 ? `<div class="purchase-payment-box purchase-template-payment-box"><span class="purchase-template-payment-label"><i class="purchase-template-icon" data-lucide="credit-card"></i> Thanh toán nợ:</span><input type="number" class="form-control purchase-pay-amount" min="1" max="${Number(purchase.balanceDue)}" value="${Number(purchase.balanceDue)}"><select class="form-control purchase-pay-method"><option value="cash">Tiền mặt</option><option value="bank">Ngân hàng</option><option value="wallet">Ví điện tử</option></select><button class="btn btn-primary btn-sm purchase-pay-btn" data-id="${escapeHtml(purchase.id)}"><i data-lucide="plus"></i> Tạo phiếu chi</button></div>` : ''}
+        ${activePayments.length ? `<div class="purchase-payment-history purchase-template-payment-history"><strong class="purchase-template-payment-history-title"><i class="purchase-template-icon" data-lucide="history"></i> Phiếu chi:</strong><div class="purchase-template-payment-list">${activePayments.map(payment => `<div class="purchase-template-payment-row"><span>${formatCurrency(payment.amount)} · ${escapeHtml(payment.paymentMethod)}</span> <button class="btn btn-danger btn-sm purchase-cancel-payment-btn" data-id="${escapeHtml(payment.id)}"><i data-lucide="rotate-ccw"></i> Hủy phiếu chi</button></div>`).join('')}</div></div>` : ''}
       </div>
     </td></tr>`;
 }
@@ -187,15 +187,15 @@ function renderPurchaseRows(purchases, activeId) {
   }
   return purchases.map(purchase => `
     <tr class="purchase-row ${String(activeId) === String(purchase.id) ? 'active' : ''}" data-id="${escapeHtml(purchase.id)}">
-      <td><strong style="color: #006ffd;">${escapeHtml(purchase.code)}</strong></td>
+      <td><strong class="purchase-row-code">${escapeHtml(purchase.code)}</strong></td>
       <td>${escapeHtml(purchaseDate(purchase))}</td>
       <td>${escapeHtml(purchase.invoiceNumber || '-')}</td>
-      <td><span style="font-weight: 600;">${escapeHtml(purchase.supplierName || purchase.supplierCode || '-')}</span></td>
-      <td style="text-align:right; font-weight: 700; color: #0f172a;">${formatCurrency(purchaseTotal(purchase))}</td>
-      <td style="text-align:right; font-weight: 600; color: #16a34a;">${formatCurrency(purchase.paidAmount)}</td>
-      <td style="text-align:right; font-weight: 700; color: ${Number(purchase.balanceDue) > 0 ? '#ef4444' : '#64748b'};">${formatCurrency(purchase.balanceDue)}</td>
+      <td><span class="purchase-row-supplier">${escapeHtml(purchase.supplierName || purchase.supplierCode || '-')}</span></td>
+      <td class="purchase-template-numeric purchase-row-total">${formatCurrency(purchaseTotal(purchase))}</td>
+      <td class="purchase-template-numeric purchase-row-paid">${formatCurrency(purchase.paidAmount)}</td>
+      <td class="purchase-template-numeric purchase-row-balance ${Number(purchase.balanceDue) > 0 ? 'is-due' : 'is-settled'}">${formatCurrency(purchase.balanceDue)}</td>
       <td><span class="purchase-status ${escapeHtml(purchase.status)}">${statusLabel(purchase.status)}</span></td>
-      <td><span style="color: #64748b;">${escapeHtml(purchase.createdBy || '-')}</span></td>
+      <td><span class="purchase-row-creator">${escapeHtml(purchase.createdBy || '-')}</span></td>
       <td><button type="button" class="purchase-row-toggle" aria-label="Xem phiếu ${escapeHtml(purchase.code)}">Xem</button></td>
     </tr>
     ${String(activeId) === String(purchase.id) ? purchaseDetail(purchase) : ''}
@@ -415,9 +415,9 @@ export function renderPurchasesPanel(panel) {
                 <th>Ngày mua</th>
                 <th>Số hóa đơn</th>
                 <th>Nhà cung cấp</th>
-                <th style="text-align:right">Tổng tiền</th>
-                <th style="text-align:right">Đã thanh toán</th>
-                <th style="text-align:right">Còn nợ</th>
+                <th class="purchase-template-numeric">Tổng tiền</th>
+                <th class="purchase-template-numeric">Đã thanh toán</th>
+                <th class="purchase-template-numeric">Còn nợ</th>
                 <th>Trạng thái</th>
                 <th>Người tạo</th>
                 <th>Thao tác</th>

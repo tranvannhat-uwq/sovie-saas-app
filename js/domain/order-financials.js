@@ -48,26 +48,34 @@ function itemFinancials(item) {
   };
 }
 
+export function isSalesReturnActive(ret) {
+  if (!ret || ret.deletedAt || ret.deleted_at || ret.isDeleted) return false;
+  const status = String(ret.status || 'completed').toLowerCase().trim();
+  if (status === 'cancelled' || status === 'canceled' || status === 'voided' || status === 'void' || status === 'draft') return false;
+  if (status.includes('hủy') || status.includes('huy') || status.includes('cancel')) return false;
+  return true;
+}
+
+export function getSalesReturnRefundAmount(ret) {
+  if (!ret) return 0;
+  const stored = numberOrNull(ret.totalRefund) ??
+    numberOrNull(ret.totalReturnAmount) ??
+    numberOrNull(ret.total_refund) ??
+    numberOrNull(ret.total_return_amount);
+  if (stored !== null) return nonNegative(stored);
+  return (ret.items || []).reduce((sum, item) => {
+    const subtotal = numberOrNull(item.subtotal);
+    if (subtotal !== null) return sum + nonNegative(subtotal);
+    return sum + Math.round(nonNegative(item.quantity) * nonNegative(item.refundPrice ?? item.refund_price));
+  }, 0);
+}
+
 function activeReturnAmount(order, salesReturns) {
   const orderId = String(order.id || '');
   const fromReturns = (salesReturns || [])
     .filter(ret => String(ret.saleId || ret.orderId || ret.sale_id || ret.order_id || '') === orderId)
-    .filter(ret => {
-      const status = String(ret.status || 'completed').toLowerCase();
-      return status !== 'cancelled' && status !== 'canceled' && status !== 'draft';
-    })
-    .reduce((sum, ret) => {
-      const stored = numberOrNull(ret.totalRefund) ??
-        numberOrNull(ret.totalReturnAmount) ??
-        numberOrNull(ret.total_refund) ??
-        numberOrNull(ret.total_return_amount);
-      if (stored !== null) return sum + nonNegative(stored);
-      return sum + (ret.items || []).reduce((itemSum, item) => {
-        const subtotal = numberOrNull(item.subtotal);
-        if (subtotal !== null) return itemSum + nonNegative(subtotal);
-        return itemSum + Math.round(nonNegative(item.quantity) * nonNegative(item.refundPrice ?? item.refund_price));
-      }, 0);
-    }, 0);
+    .filter(isSalesReturnActive)
+    .reduce((sum, ret) => sum + getSalesReturnRefundAmount(ret), 0);
 
   if (fromReturns > 0) return fromReturns;
   return nonNegative(order.returnedAmount ?? order.returned_amount);
@@ -197,5 +205,45 @@ export function getOrderFinancialBreakdown(order, salesReturns = []) {
     totalPayment,
     returnedAmount,
     isRevenueEligible: isOrderIncludedInFinancialSummary(order)
+  };
+}
+
+export function calculateHistoryFinancialSummary(orders = [], salesReturns = []) {
+  const settledOrders = (orders || []).filter(isOrderIncludedInFinancialSummary);
+  const validReturns = (salesReturns || []).filter(isSalesReturnActive);
+
+  const returnsByOrderId = new Map();
+  validReturns.forEach(ret => {
+    const orderId = String(ret.saleId || ret.orderId || ret.sale_id || ret.order_id || '');
+    if (!orderId) return;
+    if (!returnsByOrderId.has(orderId)) returnsByOrderId.set(orderId, []);
+    returnsByOrderId.get(orderId).push(ret);
+  });
+
+  let totalReturnAmount = 0;
+  const totals = settledOrders.reduce((summary, order) => {
+    const orderId = String(order.id || '');
+    const orderReturns = returnsByOrderId.get(orderId) || [];
+    const breakdown = getOrderFinancialBreakdown(order, orderReturns);
+    summary.totalBeforeDiscount += breakdown.totalBeforeDiscount;
+    summary.totalDiscountAmount += breakdown.totalDiscountAmount;
+    summary.shippingFeeAmount += breakdown.shippingFeeAmount;
+    summary.totalPayment += breakdown.totalPayment;
+    totalReturnAmount += (breakdown.returnedAmount || 0);
+    return summary;
+  }, { totalBeforeDiscount: 0, totalDiscountAmount: 0, shippingFeeAmount: 0, totalPayment: 0 });
+
+  return {
+    settledOrders,
+    validReturns,
+    returnsByOrderId,
+    totals,
+    totalBeforeDiscount: totals.totalBeforeDiscount,
+    totalDiscountAmount: totals.totalDiscountAmount,
+    shippingFeeAmount: totals.shippingFeeAmount,
+    totalPayable: totals.totalPayment,
+    netPayable: totals.totalPayment,
+    totalReturnAmount,
+    netRevenue: totals.totalPayment
   };
 }

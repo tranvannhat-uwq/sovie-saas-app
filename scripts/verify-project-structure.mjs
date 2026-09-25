@@ -3,7 +3,7 @@ import { access, readFile } from 'node:fs/promises';
 import { dirname, extname, isAbsolute, join, normalize, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { assertValidMigrationChain } from './migration-inventory.mjs';
-import { publicFiles } from './project-files.mjs';
+import { immutablePublicFiles, publicFiles } from './project-files.mjs';
 
 const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const sourceRoot = join(projectRoot, 'js');
@@ -39,16 +39,21 @@ async function assertExists(target, description) {
 async function verifyIndexAssets() {
   const html = await readFile(indexPath, 'utf8');
   const references = [...html.matchAll(/\b(?:src|href)=["']([^"']+)["']/gi)]
-    .map(match => stripQueryAndHash(match[1].trim()))
+    .map(match => match[1].trim())
     .filter(isLocalReference);
 
-  for (const reference of references) {
+  for (const versionedReference of references) {
+    const reference = stripQueryAndHash(versionedReference);
     const target = resolve(projectRoot, reference);
     assertInsideProject(target, `index.html reference ${reference}`);
     await assertExists(target, `index.html reference ${reference}`);
 
     if (!reference.startsWith('js/') && !publicFiles.includes(reference)) {
       throw new Error(`Local asset ${reference} is referenced by index.html but is not included in scripts/project-files.mjs.`);
+    }
+
+    if (immutablePublicFiles.includes(reference) && !/[?&]v=[^&#]+/i.test(versionedReference)) {
+      throw new Error(`Immutable local asset ${reference} must include a non-empty version query (?v=...).`);
     }
   }
 }

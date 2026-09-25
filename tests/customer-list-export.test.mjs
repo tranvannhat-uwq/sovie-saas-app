@@ -38,7 +38,7 @@ test('customer screen and Excel export share one filtered and sorted row pipelin
   assert.match(customers, /type="checkbox" data-option-index/);
   assert.match(customers, /select\.dispatchEvent\(new Event\('change'/);
   assert.doesNotMatch(html, /giữ Ctrl để chọn nhiều/);
-  assert.match(read('style.css'), /\.customer-filter-modal-body[^}]*overflow-y:\s*auto/);
+  assert.match(read('styles/base.css'), /\.customer-filter-modal-body[^}]*overflow-y:\s*auto/);
   const headerStart = html.indexOf('<section id="customers-panel"');
   const searchRow = html.indexOf('<div class="customer-query-toolbar">', headerStart);
   const sortRow = html.indexOf('<div class="customer-sort-toolbar"', searchRow);

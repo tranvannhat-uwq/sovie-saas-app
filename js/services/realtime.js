@@ -28,7 +28,7 @@ import {
   tableSalesReturnItemsName,
   tableSalesReturnsName,
   tableStartingBalancesName
-} from './supabase.js?v=20260909-inline-filter-v4';
+} from './supabase.js';
 
 const REALTIME_DEBOUNCE_MS = 250;
 let realtimeChannel = null;

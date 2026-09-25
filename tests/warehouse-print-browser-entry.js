@@ -2,7 +2,7 @@ window.print = () => {
   document.body.dataset.printCalled = 'true';
 };
 
-const { renderAndPrintOrder } = await import('../js/components/invoice.js?v=20260809-activity8');
+const { renderAndPrintOrder } = await import('../js/components/invoice.js');
 
 await renderAndPrintOrder({
   id: 'order-warehouse-print-test',

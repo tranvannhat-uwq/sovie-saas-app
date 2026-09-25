@@ -4,6 +4,15 @@ Ngày kiểm định mã nguồn: 2026-08-29
 Supabase staging: `mqxqswwssmemkimnolfu`  
 Production: không tác động
 
+## Phạm vi xác nhận
+
+Kết quả bên dưới là bản ghi kiểm định tại ngày nêu trên; khi đó staging được xác
+nhận đến migration `0097`. Mã nguồn hiện có các migration đến `0101`, nhưng tài
+liệu này không xác nhận `0098`–`0101` đã được áp dụng. Trước lần triển khai kế
+tiếp, đối chiếu `public.schema_migrations` trên đúng project staging và cập nhật
+kết quả kiểm định từ database; không suy ra trạng thái staging từ tên file trong
+repository.
+
 ## Kết quả đã đạt
 
 - Chuỗi migration trong mã nguồn và staging đã đồng bộ đến `0097` (42 migration từ `0056` đến `0097`). Migration quản lý `align_workspace_domains_to_sovie_vn` đã áp dụng ngày 2026-08-29; audit sau migration xác nhận cả 3 workspace dùng `*.sovie.vn`, không còn hostname `*.sovie.io.vn` và không có custom-domain xung đột hậu tố nội bộ.

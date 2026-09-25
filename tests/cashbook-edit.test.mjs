@@ -10,7 +10,7 @@ const html = read('index.html');
 const cashbookUi = read('js/components/so_quy.js');
 const service = read('js/services/supabase.js');
 const migration = read('migrations/0030_cashbook_manual_transaction_edit.sql');
-const css = read('style.css');
+const css = read('styles/base.css');
 
 test('cashbook table and export place address immediately after partner', () => {
   assert.match(html, /Người nộp\/nhận<\/th>\s*<th[^>]*>Địa chỉ<\/th>/);

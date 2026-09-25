@@ -1,9 +1,12 @@
 import { state } from '../state.js';
 import { formatCurrency, safeCreateIcons, formatDateTime, getUserDisplayName, getManagerDisplayName, getCustomerName, getProvinceNameByCode } from '../utils.js';
-import { dbFetchPhase5Report } from '../services/supabase.js?v=20260909-inline-filter-v4';
-import { buildCustomerDebtDisplayHistory, getCustomerDebtPostingDate } from '../domain/customer-debt.js?v=20260909-inline-filter-v4';
+import { dbFetchPhase5Report } from '../services/supabase.js';
+import { buildCustomerDebtDisplayHistory, getCustomerDebtPostingDate } from '../domain/customer-debt.js';
 
 const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
+const returnsReportCache = new Map();
+let returnsReportRenderId = 0;
+let returnsReportSearchTimer = null;
 
 export function setupReportsPanel() {
   const tabBtns = document.querySelectorAll('.report-subtab-btn');
@@ -21,7 +24,18 @@ export function setupReportsPanel() {
 
   const returnFilter = document.getElementById('report-return-filter');
   if (returnFilter) {
-    returnFilter.addEventListener('change', () => renderReturnsReport());
+    returnFilter.addEventListener('change', () => {
+      returnsReportCache.delete(returnFilter.value);
+      renderReturnsReport();
+    });
+  }
+
+  const returnSearch = document.getElementById('report-return-search');
+  if (returnSearch) {
+    returnSearch.addEventListener('input', () => {
+      window.clearTimeout(returnsReportSearchTimer);
+      returnsReportSearchTimer = window.setTimeout(() => renderReturnsReport(), 220);
+    });
   }
 }
 
@@ -189,11 +203,30 @@ export function closeDebtHistoryModal() {
 }
 window.closeDebtHistoryModal = closeDebtHistoryModal;
 
+async function fetchAllReturnsReportRows(mode) {
+  const rows = [];
+  let offset = 0;
+  const pageSize = 200;
+
+  while (true) {
+    const report = await dbFetchPhase5Report({ type: 'returns', mode, limit: pageSize, offset });
+    const pageRows = Array.isArray(report.rows) ? report.rows : [];
+    rows.push(...pageRows);
+    const total = Number(report.total);
+    if (pageRows.length === 0 || (Number.isFinite(total) && rows.length >= total) || pageRows.length < pageSize) break;
+    offset += pageRows.length;
+  }
+
+  return rows;
+}
+
 export async function renderReturnsReport() {
   const tbody = document.getElementById('report-return-table-body');
   const thead = document.getElementById('report-return-table-head');
   if (!tbody || !thead) return;
+  const renderId = ++returnsReportRenderId;
   const mode = document.getElementById('report-return-filter')?.value || 'product';
+  const searchValue = (document.getElementById('report-return-search')?.value || '').trim().toLowerCase();
   thead.innerHTML = mode === 'product'
     ? '<tr><th>Mã SKU</th><th>Tên sản phẩm</th><th style="text-align:right">Số lượng trả</th><th style="text-align:right">Giá trị trả</th></tr>'
     : mode === 'customer'
@@ -201,14 +234,32 @@ export async function renderReturnsReport() {
       : '<tr><th>Nhân viên bán hàng</th><th style="text-align:right">Số lượt trả</th><th style="text-align:right">Giá trị trừ doanh số</th></tr>';
   tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:2rem">Đang tải trả hàng từ máy chủ...</td></tr>';
   try {
-    const report = await dbFetchPhase5Report({ type: 'returns', mode, limit: 200, offset: 0 });
-    tbody.innerHTML = report.rows?.length ? report.rows.map(row => mode === 'product'
+    let rows = returnsReportCache.get(mode);
+    if (!rows) {
+      rows = await fetchAllReturnsReportRows(mode);
+      returnsReportCache.set(mode, rows);
+    }
+    if (renderId !== returnsReportRenderId) return;
+
+    const filteredRows = rows.filter(row => {
+      if (!searchValue) return true;
+      const employeeName = mode === 'employee'
+        ? getUserDisplayName(row.key, 'Chưa phân công', state.users)
+        : '';
+      const haystack = mode === 'employee'
+        ? `${row.key || ''} ${employeeName}`
+        : `${row.code || ''} ${row.name || ''}`;
+      return haystack.toLowerCase().includes(searchValue);
+    });
+
+    tbody.innerHTML = filteredRows.length ? filteredRows.map(row => mode === 'product'
       ? `<tr><td style="font-weight:600">${escapeHtml(row.code)}</td><td>${escapeHtml(row.name)}</td><td style="text-align:right">${Number(row.quantity || 0)}</td><td style="text-align:right;font-weight:700;color:var(--color-danger)">${formatCurrency(row.amount)}</td></tr>`
       : mode === 'customer'
         ? `<tr><td style="font-weight:600">${escapeHtml(row.code)}</td><td>${escapeHtml(row.name)}</td><td style="text-align:right">${Number(row.count || 0)}</td><td style="text-align:right;font-weight:700;color:var(--color-danger)">${formatCurrency(row.amount)}</td></tr>`
         : `<tr><td style="font-weight:600">${escapeHtml(getUserDisplayName(row.key, 'Chưa phân công', state.users))}</td><td style="text-align:right">${Number(row.count || 0)}</td><td style="text-align:right;font-weight:700;color:var(--color-danger)">${formatCurrency(row.amount)}</td></tr>`).join('')
-      : '<tr><td colspan="4" style="text-align:center;padding:2rem;color:var(--text-muted)">Không có dữ liệu trả hàng</td></tr>';
+      : `<tr><td colspan="4" style="text-align:center;padding:2rem;color:var(--text-muted)">${searchValue ? 'Không tìm thấy dữ liệu phù hợp' : 'Không có dữ liệu trả hàng'}</td></tr>`;
   } catch (error) {
+    if (renderId !== returnsReportRenderId) return;
     console.error('Returns report RPC error:', error);
     tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:2rem;color:var(--color-danger)">Không tải được báo cáo trả hàng. Kiểm tra migration 0012.</td></tr>';
   }

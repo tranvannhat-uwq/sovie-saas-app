@@ -81,7 +81,7 @@ test('frontend exposes return actions only to finance roles and uses canonical r
   assert.match(history, /history-return-print-btn/);
   assert.match(history, /history-return-print-btn[^>]*aria-label="In phiếu trả[^>]*>[\s\S]*In phiếu/);
   assert.doesNotMatch(history, /history-return-print-btn[^>]*>[\s\S]{0,120}\$\{item\.id\}/);
-  assert.match(read('style.css'), /\.order-actions \.history-return-print-btn[\s\S]*overflow: hidden/);
+  assert.match(read('styles/base.css'), /\.order-actions \.history-return-print-btn[\s\S]*overflow: hidden/);
   assert.match(markup, /Database sẽ tính lại từ snapshot giá của đơn gốc/);
   assert.doesNotMatch(markup, /class="form-control return-disc-type"/);
 });

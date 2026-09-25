@@ -85,8 +85,8 @@ test('activity detail hides technical fields and scrolls inside a viewport-sized
   assert.match(component, /function visibleChanges/);
   assert.match(component, /total_market: 'Tổng tiền hàng'/);
   assert.match(component, /discount_type: 'Hình thức giảm giá'/);
-  assert.match(read('style.css'), /modal-content\.activity-detail-modal[\s\S]*max-height: calc\(100vh - 3rem\)[\s\S]*overflow: hidden/);
-  assert.match(read('style.css'), /activity-detail-modal \.modal-body[\s\S]*overflow-y: auto/);
+  assert.match(read('styles/base.css'), /modal-content\.activity-detail-modal[\s\S]*max-height: calc\(100vh - 3rem\)[\s\S]*overflow: hidden/);
+  assert.match(read('styles/base.css'), /activity-detail-modal \.modal-body[\s\S]*overflow-y: auto/);
 });
 
 test('customer financial activity fields use Vietnamese labels', () => {

@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = relative => fs.readFileSync(path.join(root, relative), 'utf8');
 const html = read('index.html');
-const css = read('style.css');
+const css = read('styles/base.css');
 const cashbook = read('js/components/so_quy.js');
 
 test('receipt and payment creation use the same wide grouped layout', () => {

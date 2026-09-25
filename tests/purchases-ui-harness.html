@@ -1,11 +1,12 @@
 <!doctype html>
 <html lang="vi">
-<head><meta charset="utf-8"><title>Purchases UI Harness</title><link rel="stylesheet" href="../style.css"></head>
-<body><main id="goods-panel" class="panel active"></main>
+<head><meta charset="utf-8"><title>Purchases UI Harness</title><link rel="stylesheet" href="../styles/base.css">
+  <link rel="stylesheet" href="../styles/app.css"></head>
+<body><div class="app-container" id="app-layout" data-nav-layout="horizontal" data-ui-role="accounting"><main class="main-content"><section id="goods-panel" class="panel active"></section></main></div>
 <script>window.__app_initialized = true;</script>
 <script type="module">
   import { state } from '../js/state.js';
-  import { renderPurchasesPanel } from '../js/components/purchases.js?v=20260802-backup-cell-fix1';
+  import { renderPurchasesPanel } from '../js/components/purchases.js';
   const role = new URLSearchParams(location.search).get('role') || 'admin';
   state.currentUser = { id: 'finance-test', username: 'finance-test', role };
   state.suppliers = [{ id: 'sup-1', code: 'NCC-01', name: 'Nhà cung cấp A' }];

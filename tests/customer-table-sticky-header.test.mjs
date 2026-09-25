@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
-const css = fs.readFileSync(path.join(root, 'style.css'), 'utf8');
+const css = fs.readFileSync(path.join(root, 'styles/base.css'), 'utf8');
 
 test('customer list owns the scroll area and keeps every column heading sticky', () => {
   assert.match(html, /<div class="table-responsive customers-table-scroll">\s*<table class="table customers-table"/);

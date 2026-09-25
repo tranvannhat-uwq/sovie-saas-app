@@ -3,10 +3,10 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="stylesheet" href="../style.css">
-  <link rel="stylesheet" href="../ui-system.css">
-  <link rel="stylesheet" href="../navigation-reference.css">
-  <link rel="stylesheet" href="../luminous-engine.css">
+  <link rel="stylesheet" href="../styles/base.css">
+  <link rel="stylesheet" href="../styles/app.css">
+  <link rel="stylesheet" href="../styles/landing.css">
+  <link rel="stylesheet" href="../styles/print.css">
   <title>Navigation theme harness</title>
 </head>
 <body>
@@ -34,22 +34,7 @@
     <div class="sidebar-actions">
       <div class="global-settings-dropdown" style="position:relative;">
         <button type="button" class="btn-settings-toggle" id="btn-settings-toggle">⚙</button>
-        <div class="global-settings-menu" id="global-settings-menu" style="display:none;">
-          <div class="nav-layout-settings" id="nav-layout-settings">
-            <div class="nav-layout-options">
-              <button type="button" class="nav-layout-option" data-nav-layout="vertical">Dọc bên trái</button>
-              <button type="button" class="nav-layout-option" data-nav-layout="horizontal">Ngang phía trên</button>
-            </div>
-          </div>
-          <div class="nav-color-settings" id="nav-color-settings">
-            <div class="nav-color-settings-title"><span>Màu thanh điều hướng</span></div>
-            <div class="nav-color-swatches">
-              <button type="button" class="nav-color-swatch" data-nav-color="#0b365f" style="--swatch-color:#0b365f"></button>
-              <button type="button" class="nav-color-swatch" data-nav-color="#0e59f2" style="--swatch-color:#0e59f2"></button>
-            </div>
-            <div class="nav-color-custom-row"><label for="nav-color-picker">Màu tùy chọn</label><input type="color" id="nav-color-picker" value="#0b365f"><button type="button" id="btn-reset-nav-color">Mặc định</button></div>
-          </div>
-        </div>
+        <div class="global-settings-menu" id="global-settings-menu" style="display:none;"></div>
       </div>
     </div>
   </aside>
@@ -81,8 +66,7 @@
   </main>
   </div>
   <script type="module">
-    import { setupNavigationColorSettings, setupNavigationDropdowns } from '../js/components/navigation-theme.js';
-    setupNavigationColorSettings();
+    import { setupNavigationDropdowns } from '../js/components/navigation-theme.js';
     setupNavigationDropdowns();
     document.body.dataset.ready = 'true';
   </script>

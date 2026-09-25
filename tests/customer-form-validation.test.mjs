@@ -7,7 +7,7 @@ const read = path => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8'
 test('customer form reports hidden searchable-select validation instead of silently blocking submit', () => {
   const html = read('index.html');
   const customers = read('js/components/customers.js');
-  const css = read('style.css');
+  const css = read('styles/base.css');
   assert.match(html, /<form id="customer-form" novalidate>/);
   assert.match(customers, /function validateCustomerForm\(\)/);
   assert.match(customers, /\['cust-province', 'Vui lòng chọn Tỉnh\/Thành phố\.'\]/);

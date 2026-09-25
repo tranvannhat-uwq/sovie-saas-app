@@ -106,6 +106,7 @@ Run these files in order on a staging clone first:
 98. `0098_platform_customer_provisioning_hardening.sql`
 99. `0099_dashboard_customer_filter.sql`
 100. `0100_manual_trial_activation.sql`
+101. `0101_rpc_executor_dependency_permissions.sql`
 
 Every file is additive and records its version in `public.schema_migrations`.
 Apply each version once; the migration table is the source of truth for the
@@ -610,3 +611,13 @@ membership and subscription completeness before returning success.
 Migration `0099` makes the dashboard customer and salesperson filters apply
 consistently to order payments, debt collections and current customer debt.
 The reporting RPC remains owned by the tenant-scoped, non-BYPASSRLS executor.
+
+Migration `0100` allows a platform owner to activate a trial subscription with
+an audited service period and selected plan.
+
+Migration `0101` repairs the private dependency permissions of tenant-scoped
+business RPCs. It grants the complete reachable function graph only to the
+`NOLOGIN/NOBYPASSRLS` executor, keeps internal helpers unavailable to browser
+roles, and restores authoritative order confirmation through the price-list
+effectiveness check. Run
+`migrations/tests/saas_rpc_dependency_permissions_integration.sql` on staging.

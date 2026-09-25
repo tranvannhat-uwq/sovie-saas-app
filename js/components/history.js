@@ -1,19 +1,21 @@
 import { state } from '../state.js';
 import { showToast, formatCurrency, formatNumber, safeCreateIcons, formatDateTime, isSameUser, getManagerDisplayName, getCustomerName, getUserById, getUserDisplayName, getCompanyName, normalizeCompanyId, getCompanyIdByBrand, getCanonicalBrandName } from '../utils.js';
-import { dbDeleteOrder, dbDeleteAllOrders, dbRecordSalesReturn, dbCancelSalesReturn, dbCancelOrder, dbRefreshCustomerFinancialState, dbUpdateOrderNotes, dbLoadOrdersForHistoryRange, cacheOrdersLocally } from '../services/supabase.js?v=20260909-inline-filter-v4';
-import { ensurePanelCloudData, renderAll } from '../main.js?v=20260909-inline-filter-v4';
+import { dbDeleteOrder, dbDeleteAllOrders, dbRecordSalesReturn, dbCancelSalesReturn, dbCancelOrder, dbRefreshCustomerFinancialState, dbUpdateOrderNotes, dbLoadOrdersForHistoryRange, cacheOrdersLocally, isCloudActive } from '../services/supabase.js';
+import { ensurePanelCloudData, renderAll } from '../main.js';
 import { tenantStorage } from '../services/tenant-storage.js';
-import { openPrintTypeModal, resetInvoiceBuilder, syncInvoiceBusinessDateControl } from './invoice.js?v=20260909-inline-filter-v4';
-import { openHistoryOrderExportModal } from './customers.js?v=20260909-inline-filter-v4';
+import { openPrintTypeModal, resetInvoiceBuilder, syncInvoiceBusinessDateControl } from './invoice.js';
+import { openHistoryOrderExportModal } from './customers.js';
 import {
   getOrderFinancialBreakdown,
-  isOrderIncludedInFinancialSummary
-} from '../domain/order-financials.js?v=20260909-inline-filter-v4';
+  isOrderIncludedInFinancialSummary,
+  calculateHistoryFinancialSummary,
+  isSalesReturnActive
+} from '../domain/order-financials.js';
 import { getOrderDisplayCode } from '../domain/order-display.js';
 import { matchesHistoryOrderStatuses } from '../domain/order-status.js';
 import { currentBusinessDateInputValue, orderDateToInputValue } from '../domain/order-business-date.js';
 import { normalizeOrderItemsForEditing, resolveOrderCustomerForEditing } from '../domain/order-edit.js';
-import { getApplicablePriceList, normalizePriceListType, PRICE_LIST_TYPES } from '../domain/pricing.js?v=20260909-inline-filter-v4';
+import { getApplicablePriceList, normalizePriceListType, PRICE_LIST_TYPES } from '../domain/pricing.js';
 
 const selectedHistoryOrderIdsForExport = new Set();
 let pendingSalesReturnKey = '';
@@ -22,6 +24,54 @@ let historyRenderCache = null;
 let historyFinancialCache = null;
 let expandedHistoryOrderId = null;
 let historyWindowRequestId = 0;
+let failedHistoryWindowKey = '';
+let loadedHistoryWindow = null;
+let pendingHistoryWindowKey = '';
+
+function historyViewerKey() {
+  const user = state.currentUser;
+  return user ? `${user.organizationId || ''}::${user.authUserId || user.id || user.username || ''}` : '';
+}
+
+function activeHistoryWindow() {
+  if (!loadedHistoryWindow?.viewerKey || loadedHistoryWindow.viewerKey !== historyViewerKey()) return null;
+  return loadedHistoryWindow.key === historyWindowKey(getHistoryDateWindow())
+    ? loadedHistoryWindow : null;
+}
+
+function historyOrdersForRender() {
+  const loadedWindow = activeHistoryWindow();
+  const currentOrders = state.savedOrders || [];
+  if (!loadedWindow) return currentOrders;
+
+  const byId = new Map(loadedWindow.orders.map(order => [String(order.id), order]));
+  currentOrders.forEach(order => {
+    const id = String(order.id);
+    if (byId.has(id) || order.status === 'draft') byId.set(id, order);
+  });
+  const orders = [...byId.values()];
+  // Keep actions such as print, notes, and returns working even if a parallel
+  // refresh replaced the shared list with an empty or bounded cache.
+  if (currentOrders.length < orders.length) state.savedOrders = orders;
+  return orders;
+}
+
+function clearHistorySecondaryFilters() {
+  const search = document.getElementById('history-search-input');
+  const company = document.getElementById('history-company-filter');
+  const brand = document.getElementById('history-brand-filter');
+  const creator = document.getElementById('history-creator-filter');
+  if (search) search.value = '';
+  if (company) company.value = 'all';
+  if (brand) brand.value = 'all';
+  if (creator) creator.value = '';
+  const statusControls = [...document.querySelectorAll('.history-status-filter-check')];
+  statusControls.forEach(control => { control.checked = true; });
+  state.historyPage = 1;
+  historyRenderCache = null;
+  if (statusControls[0]) statusControls[0].dispatchEvent(new Event('change', { bubbles: true }));
+  else renderHistoryOrders();
+}
 
 function localDateStart(value) {
   if (!value) return null;
@@ -39,7 +89,7 @@ function getCurrentWeekWindow() {
 }
 
 function getHistoryDateWindow() {
-  const mode = document.getElementById('history-date-mode')?.value || 'week';
+  const mode = document.getElementById('history-date-mode')?.value || 'all';
   let start = null;
   let endExclusive = null;
   if (mode === 'week') {
@@ -80,17 +130,57 @@ function getHistoryDateWindow() {
   };
 }
 
-async function reloadHistoryDateWindow() {
+function historyWindowKey(window) {
+  return `${window.mode}|${window.startIso || ''}|${window.endExclusiveIso || ''}`;
+}
+
+function renderHistoryReadError(container) {
+  state.historyFilteredOrderIds = [];
+  for (const id of ['history-total-before-discount', 'history-total-discount', 'history-total-other-fee', 'history-total-payable']) {
+    const value = document.getElementById(id);
+    if (value) value.textContent = '—';
+  }
+  const count = document.getElementById('history-total-settled-count');
+  if (count) count.textContent = 'Chưa tải được dữ liệu';
+  container.innerHTML = `
+    <div class="empty-state" style="grid-column: 1 / -1;">
+      <div class="empty-state-title">Không tải được đơn hàng từ Cloud</div>
+      <div class="empty-state-desc">Dữ liệu của khoảng thời gian đã chọn chưa được tải. Hãy thử lại.</div>
+      <button class="btn btn-secondary btn-sm" id="btn-retry-history-window" type="button">Thử tải lại</button>
+    </div>
+  `;
+  container.querySelector('#btn-retry-history-window')?.addEventListener('click', () => {
+    void reloadHistoryDateWindow();
+  });
+}
+
+export async function reloadHistoryDateWindow() {
   const requestId = ++historyWindowRequestId;
   const window = getHistoryDateWindow();
+  const viewerKey = historyViewerKey();
+  pendingHistoryWindowKey = `${viewerKey}|${historyWindowKey(window)}`;
+  failedHistoryWindowKey = '';
+  loadedHistoryWindow = null;
   const container = document.getElementById('history-orders-container');
   if (container) {
     container.innerHTML = '<div class="empty-state"><div class="empty-state-title">Đang tải đúng khoảng thời gian…</div></div>';
   }
-  await dbLoadOrdersForHistoryRange(window.startIso, window.endExclusiveIso);
+  const loaded = await dbLoadOrdersForHistoryRange(window.startIso, window.endExclusiveIso);
   if (requestId !== historyWindowRequestId) return;
+  pendingHistoryWindowKey = '';
+  if (viewerKey !== historyViewerKey()) return;
   historyRenderCache = null;
   historyFinancialCache = null;
+  if (loaded === false) {
+    failedHistoryWindowKey = historyWindowKey(window);
+    if (container) renderHistoryReadError(container);
+    showToast('Không tải được đơn hàng cho khoảng thời gian đã chọn.', 'danger');
+    return;
+  }
+  loadedHistoryWindow = {
+    key: historyWindowKey(window), count: loaded.length,
+    orders: loaded, viewerKey
+  };
   renderHistoryOrders();
 }
 
@@ -108,7 +198,7 @@ function scheduleHistoryFilter(onFilterChange) {
   }, 180);
 }
 
-function createHistoryLookups() {
+function createHistoryLookups(activeWindow = null) {
   const customerById = new Map();
   const customerByName = new Map();
   (state.customers || []).forEach(customer => {
@@ -122,12 +212,23 @@ function createHistoryLookups() {
   const pricelistById = new Map((state.pricelists || []).map(item => [String(item.id), item]));
   const returnsByOrderId = new Map();
   const activeReturnsByOrderId = new Map();
+  const fromDate = activeWindow?.start || null;
+  const endExclusiveDate = activeWindow?.endExclusive || null;
+  const dateMode = activeWindow?.mode || 'all';
+
   (state.salesReturns || []).forEach(item => {
     const orderId = String(item.saleId || item.orderId || item.sale_id || item.order_id || '');
     if (!orderId) return;
     if (!returnsByOrderId.has(orderId)) returnsByOrderId.set(orderId, []);
     returnsByOrderId.get(orderId).push(item);
-    if (!['cancelled', 'canceled', 'draft'].includes(String(item.status || 'completed').toLowerCase())) {
+    if (isSalesReturnActive(item)) {
+      if (dateMode !== 'all' && (fromDate || endExclusiveDate)) {
+        const retDate = new Date(item.returnDate || item.createdAt || item.date);
+        if (Number.isFinite(retDate.getTime())) {
+          if (fromDate && retDate < fromDate) return;
+          if (endExclusiveDate && retDate >= endExclusiveDate) return;
+        }
+      }
       if (!activeReturnsByOrderId.has(orderId)) activeReturnsByOrderId.set(orderId, []);
       activeReturnsByOrderId.get(orderId).push(item);
     }
@@ -174,15 +275,8 @@ function updateHistorySummary(orders, lookups) {
   const countEl = document.getElementById('history-total-settled-count');
   if (!beforeDiscountEl || !discountEl || !otherFeeEl || !payableEl || !countEl) return;
 
-  const settledOrders = (orders || []).filter(isOrderIncludedInFinancialSummary);
-  const totals = settledOrders.reduce((summary, order) => {
-    const breakdown = getHistoryOrderAmountBreakdown(order, lookups);
-    summary.totalBeforeDiscount += breakdown.totalBeforeDiscount;
-    summary.totalDiscountAmount += breakdown.totalDiscountAmount;
-    summary.shippingFeeAmount += breakdown.shippingFeeAmount;
-    summary.totalPayment += breakdown.totalPayment;
-    return summary;
-  }, { totalBeforeDiscount: 0, totalDiscountAmount: 0, shippingFeeAmount: 0, totalPayment: 0 });
+  const allActiveReturns = Array.from(lookups.activeReturnsByOrderId.values()).flat();
+  const { settledOrders, totals } = calculateHistoryFinancialSummary(orders, allActiveReturns);
 
   beforeDiscountEl.innerText = formatNumber(totals.totalBeforeDiscount);
   discountEl.innerText = formatNumber(totals.totalDiscountAmount);
@@ -485,10 +579,29 @@ export function setupHistoryPanel() {
       showToast('Đang làm mới dữ liệu từ Cloud...', 'info');
       try {
         const window = getHistoryDateWindow();
-        await Promise.all([
+        const viewerKey = historyViewerKey();
+        const [loadedOrders, loadedReturns] = await Promise.all([
           dbLoadOrdersForHistoryRange(window.startIso, window.endExclusiveIso),
           ensurePanelCloudData('history-panel', { force: true, domains: ['salesReturns'] })
         ]);
+        if (viewerKey !== historyViewerKey()) return;
+        if (loadedOrders === false) {
+          failedHistoryWindowKey = historyWindowKey(window);
+          loadedHistoryWindow = null;
+          renderHistoryOrders();
+          throw new Error('Không đọc được đơn hàng trong khoảng thời gian đã chọn.');
+        }
+        failedHistoryWindowKey = '';
+        loadedHistoryWindow = {
+          key: historyWindowKey(window), count: loadedOrders.length,
+          orders: loadedOrders, viewerKey
+        };
+        if (loadedReturns === false || loadedReturns?.failedDomains?.includes('salesReturns')) {
+          renderHistoryOrders();
+          throw new Error('Không đọc được phiếu trả hàng.');
+        }
+        historyRenderCache = null;
+        historyFinancialCache = null;
         renderAll();
         showToast('Đã làm mới dữ liệu từ Cloud thành công!', 'success');
       } catch (err) {
@@ -556,6 +669,10 @@ export async function deleteOrder(id) {
     const deleted = await dbDeleteOrder(id, order.status);
     if (deleted) {
       state.savedOrders = state.savedOrders.filter(o => o.id !== id);
+      if (loadedHistoryWindow?.viewerKey === historyViewerKey()) {
+        loadedHistoryWindow.orders = loadedHistoryWindow.orders.filter(o => String(o.id) !== String(id));
+        loadedHistoryWindow.count = loadedHistoryWindow.orders.length;
+      }
       renderAll();
       showToast(`Đã xóa đơn hàng ${id} thành công!`, 'warning');
     }
@@ -653,6 +770,21 @@ function renderHistoryCreatorSuggestions() {
 export function renderHistoryOrders({ reuseFiltered = false } = {}) {
   const container = document.getElementById('history-orders-container');
   if (!container) return;
+  const windowKey = historyWindowKey(getHistoryDateWindow());
+  if (failedHistoryWindowKey === windowKey) {
+    renderHistoryReadError(container);
+    return;
+  }
+  if (!isCloudActive && state.currentUser && !(state.savedOrders || []).length) {
+    container.innerHTML = '<div class="empty-state"><div class="empty-state-title">Cloud chưa kết nối</div><div class="empty-state-desc">Chưa thể tải lịch sử đơn hàng. Hãy kiểm tra trạng thái kết nối ở đầu trang.</div></div>';
+    return;
+  }
+  if (isCloudActive && state.currentUser && !activeHistoryWindow()) {
+    if (pendingHistoryWindowKey !== `${historyViewerKey()}|${windowKey}`) void reloadHistoryDateWindow();
+    else container.innerHTML = '<div class="empty-state"><div class="empty-state-title">Đang tải lịch sử giao dịch…</div></div>';
+    return;
+  }
+  const sourceOrders = historyOrdersForRender();
   
   populateHistoryFilters();
 
@@ -670,7 +802,7 @@ export function renderHistoryOrders({ reuseFiltered = false } = {}) {
       container.classList.remove('details-mode');
     }
   }
-  
+
   const searchVal = (document.getElementById('history-search-input')?.value || '').toLowerCase().trim();
   
   const dateModeSelect = document.getElementById('history-date-mode');
@@ -691,8 +823,8 @@ export function renderHistoryOrders({ reuseFiltered = false } = {}) {
   const filterTo = filterToInput ? filterToInput.value : '';
   const selectedCompany = companyFilterSelect ? companyFilterSelect.value : 'all';
   const selectedBrand = brandFilterSelect ? brandFilterSelect.value : 'all';
-  const selectedStatuses = [...document.querySelectorAll('.history-status-filter-check:checked')]
-    .map(checkbox => checkbox.value);
+  const statusControls = [...document.querySelectorAll('.history-status-filter-check')];
+  const selectedStatuses = statusControls.filter(checkbox => checkbox.checked).map(checkbox => checkbox.value);
   const selectedCreator = creatorFilterSelect ? creatorFilterSelect.value : '';
   const filterKey = JSON.stringify({
     searchVal, dateMode, filterDate, filterMonth, filterYear, filterFrom, filterTo,
@@ -702,8 +834,8 @@ export function renderHistoryOrders({ reuseFiltered = false } = {}) {
   });
   const canReuseFiltered = reuseFiltered
     && historyRenderCache
-    && historyRenderCache.ordersRef === state.savedOrders
-    && historyRenderCache.orderCount === (state.savedOrders || []).length
+    && historyRenderCache.ordersRef === sourceOrders
+    && historyRenderCache.orderCount === sourceOrders.length
     && historyRenderCache.returnsRef === state.salesReturns
     && historyRenderCache.returnCount === (state.salesReturns || []).length
     && historyRenderCache.customersRef === state.customers
@@ -712,38 +844,59 @@ export function renderHistoryOrders({ reuseFiltered = false } = {}) {
 
   let sorted;
   let lookups;
+  let filterCounts;
   if (canReuseFiltered) {
-    ({ sorted, lookups } = historyRenderCache);
+    ({ sorted, lookups, filterCounts } = historyRenderCache);
   } else {
     // A normal render may follow an in-place order edit. Rebuild financial
     // values for correctness; page/view changes explicitly reuse this cache.
     historyFinancialCache = null;
-    lookups = createHistoryLookups();
+    const activeWindow = getHistoryDateWindow();
+    const fromDate = activeWindow.start;
+    const endExclusiveDate = activeWindow.endExclusive;
+    lookups = createHistoryLookups(activeWindow);
     const filterLower = selectedCreator.toLowerCase().trim();
     const matchingUsers = filterLower
       ? (state.users || []).filter(u =>
         (u.displayName || '').toLowerCase().includes(filterLower)
         || (u.username || '').toLowerCase().includes(filterLower))
       : [];
-    const activeWindow = getHistoryDateWindow();
-    const fromDate = activeWindow.start;
-    const endExclusiveDate = activeWindow.endExclusive;
 
-    const filtered = (state.savedOrders || []).filter(o => {
+    filterCounts = { time: 0, permission: 0, search: 0, company: 0, brand: 0, status: 0, creator: 0 };
+
+    const filtered = sourceOrders.filter(o => {
+    // Check the chosen period first, so an empty result can identify which
+    // remaining condition hides the orders returned for this period.
+    if (o.date && dateMode !== 'all') {
+      const orderDate = new Date(o.date);
+      if (Number.isFinite(orderDate.getTime())) {
+        if (fromDate && orderDate < fromDate) return false;
+        if (endExclusiveDate && orderDate >= endExclusiveDate) return false;
+      }
+    }
+    filterCounts.time++;
+
     // 1. Phân quyền hiển thị đơn của Sale
     if (state.currentUser && state.currentUser.role === 'sale') {
       if (!orderIsVisibleToSale(o, state.currentUser, lookups)) return false;
     }
+    filterCounts.permission++;
     
     // 2. Lọc theo tìm kiếm từ khóa
     const matchesSearch = String(o.id || '').toLowerCase().includes(searchVal)
       || getOrderDisplayCode(o).toLowerCase().includes(searchVal)
       || String(o.customerName || '').toLowerCase().includes(searchVal);
     if (!matchesSearch) return false;
+    filterCounts.search++;
 
     if (!orderMatchesHistoryCompany(o, selectedCompany)) return false;
+    filterCounts.company++;
     if (!orderMatchesHistoryBrand(o, selectedBrand)) return false;
-    if (!matchesHistoryOrderStatuses(o.status, selectedStatuses)) return false;
+    filterCounts.brand++;
+    // No boxes or all boxes selected means no status restriction.
+    if (selectedStatuses.length > 0 && selectedStatuses.length < statusControls.length
+      && !matchesHistoryOrderStatuses(o.status, selectedStatuses)) return false;
+    filterCounts.status++;
     
     // 3. Lọc theo nhân viên quản lý đại lý (Tìm kiếm tương đối)
     if (selectedCreator) {
@@ -774,31 +927,22 @@ export function renderHistoryOrders({ reuseFiltered = false } = {}) {
       
       if (!matched) return false;
     }
-    
-    // 4. Lọc theo thời gian
-    if (o.date) {
-      const oDate = new Date(o.date);
-      if (isNaN(oDate.getTime())) return true;
-      
-      if (dateMode !== 'all') {
-        if (fromDate && oDate < fromDate) return false;
-        if (endExclusiveDate && oDate >= endExclusiveDate) return false;
-      }
-    }
+    filterCounts.creator++;
     
     return true;
     });
     sorted = filtered.sort((a, b) => new Date(b.date) - new Date(a.date));
     historyRenderCache = {
-      ordersRef: state.savedOrders,
-      orderCount: (state.savedOrders || []).length,
+      ordersRef: sourceOrders,
+      orderCount: sourceOrders.length,
       returnsRef: state.salesReturns,
       returnCount: (state.salesReturns || []).length,
       customersRef: state.customers,
       usersRef: state.users,
       filterKey,
       sorted,
-      lookups
+      lookups,
+      filterCounts
     };
     updateHistorySummary(sorted, lookups);
   }
@@ -806,13 +950,47 @@ export function renderHistoryOrders({ reuseFiltered = false } = {}) {
   if (sorted.length === 0) {
     expandedHistoryOrderId = null;
     state.historyFilteredOrderIds = [];
+    const periodLabel = dateMode === 'week' ? 'tuần này'
+      : dateMode === 'year' ? `năm ${filterYear || 'đã chọn'}`
+        : dateMode === 'all' ? 'tất cả thời gian' : 'khoảng thời gian đã chọn';
+    const cloudWindow = activeHistoryWindow();
+    const emptyTitle = cloudWindow?.count === 0
+      ? 'Cloud chưa có đơn trong khoảng này'
+      : cloudWindow?.count > 0 ? 'Đơn đang bị bộ lọc ẩn' : 'Không có đơn phù hợp';
+    const blockedAt = [
+      ['time', 'thời gian'],
+      ['permission', 'quyền xem đơn'],
+      ['search', 'ô tìm kiếm'],
+      ['company', 'công ty'],
+      ['brand', 'thương hiệu'],
+      ['status', 'trạng thái'],
+      ['creator', 'nhân viên']
+    ].find(([key]) => filterCounts?.[key] === 0)?.[1] || 'bộ lọc hiện tại';
+    const emptyDescription = cloudWindow?.count === 0
+      ? `Cloud không trả về đơn đã lập nào trong ${periodLabel} của workspace hiện tại.`
+      : cloudWindow?.count > 0
+        ? `Cloud đã tải ${formatNumber(cloudWindow.count)} đơn trong ${periodLabel}. Không đơn nào qua điều kiện ${blockedAt}.`
+        : `Đang xem ${periodLabel}. Hãy đổi thời gian trong Bộ lọc để xem các đơn khác.`;
     container.innerHTML = `
       <div class="empty-state" style="grid-column: 1 / -1;">
         <i data-lucide="clipboard-list"></i>
-        <div class="empty-state-title">Không tìm thấy hóa đơn nào</div>
-        <div class="empty-state-desc">Thử tìm bằng từ khóa khác hoặc tạo đơn hàng mới trên hệ thống.</div>
+        <div class="empty-state-title">${emptyTitle}</div>
+        <div class="empty-state-desc">${emptyDescription}</div>
+        ${cloudWindow?.count > 0 && !['thời gian', 'quyền xem đơn'].includes(blockedAt)
+          ? '<button class="btn btn-secondary btn-sm" id="btn-history-clear-extra-filters" type="button">Xóa bộ lọc khác, giữ thời gian</button>' : ''}
+        ${cloudWindow?.count > 0 && blockedAt === 'thời gian'
+          ? '<button class="btn btn-secondary btn-sm" id="btn-history-retry-view" type="button">Tải lại danh sách</button>' : ''}
+        ${dateMode === 'week' ? '<button class="btn btn-secondary btn-sm" id="btn-history-show-year" type="button">Xem theo năm</button>' : ''}
       </div>
     `;
+    container.querySelector('#btn-history-show-year')?.addEventListener('click', () => {
+      if (dateModeSelect) {
+        dateModeSelect.value = 'year';
+        dateModeSelect.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+    });
+    container.querySelector('#btn-history-clear-extra-filters')?.addEventListener('click', clearHistorySecondaryFilters);
+    container.querySelector('#btn-history-retry-view')?.addEventListener('click', () => { void reloadHistoryDateWindow(); });
     safeCreateIcons();
     return;
   }
@@ -1024,7 +1202,7 @@ export function renderHistoryOrders({ reuseFiltered = false } = {}) {
 
   } else {
     // ---------------------- DẠNG THẺ (CARD VIEW) ----------------------
-    ordersContentHtml = paginatedItems.map(order => {
+    ordersContentHtml = paginatedItems.map((order, cardIndex) => {
       const totalItemsCount = order.items.reduce((sum, item) => sum + Number(item.quantity), 0);
       const amountBreakdown = getHistoryOrderAmountBreakdown(order, lookups);
       const displayOrderCode = getOrderDisplayCode(order);
@@ -1080,47 +1258,53 @@ export function renderHistoryOrders({ reuseFiltered = false } = {}) {
       }
 
       return `
-        <div class="glass-panel order-card flex flex-col justify-between" style="padding: 1.25rem; gap: 1rem; position: relative;">
-          <label style="position: absolute; top: 0.9rem; left: 0.9rem; z-index: 2;" title="Chọn đơn để xuất Excel">
+        <div class="glass-panel order-card history-order-card">
+          <label class="history-card-export-select" title="Chọn đơn để xuất Excel">
             <input type="checkbox" class="history-export-checkbox" data-id="${order.id}" ${selectedHistoryOrderIdsForExport.has(String(order.id)) ? 'checked' : ''}>
           </label>
           ${showDeleteBtn ? `
-            <button class="history-delete-btn" data-id="${order.id}" title="Xóa đơn hàng" style="position: absolute; top: 0.85rem; right: 0.85rem; width: 26px; height: 26px; border-radius: 50%; background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.35); color: #ef4444; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; padding: 0;">
-              <i data-lucide="x" style="width: 15px; height: 15px; stroke-width: 2.5;"></i>
+            <button class="history-delete-btn" data-id="${order.id}" title="Xóa đơn hàng" aria-label="Xóa đơn hàng">
+              <i data-lucide="x"></i>
             </button>
           ` : ''}
           <div>
-            <div class="flex justify-between items-center" style="margin-bottom: 0.75rem; padding-right: ${showDeleteBtn ? '2rem' : '0'}; padding-left: 1.4rem;">
-              <span class="table-code-chip code-chip-order" title="${order.id}" style="font-size: 0.95rem; font-weight: 750;">${displayOrderCode}</span>
-              <div style="display: flex; gap: 0.35rem; align-items: center;">
+            <div class="history-card-heading${showDeleteBtn ? ' has-delete-action' : ''}">
+              <span class="table-code-chip code-chip-order" title="${order.id}">${displayOrderCode}</span>
+              <div class="history-card-status">
                 ${statusBadge}
               </div>
             </div>
             
-            <div class="order-meta" style="font-size: 0.85rem; color: var(--text-secondary); display: flex; flex-direction: column; gap: 0.35rem; margin-bottom: 1rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.75rem;">
-              <div class="flex items-center gap-1"><i data-lucide="user" style="width:13px;height:13px;color: var(--color-primary);"></i> <span>Khách hàng: <strong>${order.customerName}</strong></span></div>
-              <div class="flex items-center gap-1"><i data-lucide="calendar" style="width:13px;height:13px;"></i> <span>Ngày lập: ${formatDateTime(order.date)}</span></div>
-              <div class="flex items-center gap-1"><i data-lucide="user-check" style="width:13px;height:13px;"></i> <span>Người tạo: ${creatorName}</span></div>
-              <div class="flex items-center gap-1"><i data-lucide="users" style="width:13px;height:13px;"></i> <span>Kinh doanh quản lý: ${managerName}</span></div>
-              <div class="flex items-center gap-1"><i data-lucide="tags" style="width:13px;height:13px;"></i> <span>Bảng giá: <strong style="color: var(--color-warning);">${plName}</strong></span></div>
-              <div class="flex items-center gap-1"><i data-lucide="credit-card" style="width:13px;height:13px;"></i> <span>Công nợ hiện tại: <strong style="color: var(--color-danger);">${debtText}</strong></span></div>
-              <div class="flex items-start gap-1"><i data-lucide="notebook-pen" style="width:13px;height:13px;margin-top:2px;"></i> <span>Ghi chú đơn: <strong>${escapeHistoryHtml(order.notes || 'Không có')}</strong></span></div>
+            <div class="order-meta history-card-meta">
+              <div class="history-card-customer"><i data-lucide="user"></i> <span>${escapeHistoryHtml(order.customerName)}</span></div>
+              <div><i data-lucide="calendar"></i> <span>${formatDateTime(order.date)}</span></div>
+              <div><i data-lucide="users"></i> <span>Kinh doanh quản lý: ${escapeHistoryHtml(managerName)}</span></div>
+            </div>
+
+            <details class="history-card-extra-disclosure">
+              <summary>Thông tin khác</summary>
+              <div class="history-card-extra-meta">
+                <div><i data-lucide="user-check"></i> <span>Người tạo: ${escapeHistoryHtml(creatorName)}</span></div>
+              <div><i data-lucide="tags"></i> <span>Bảng giá: <strong>${escapeHistoryHtml(plName)}</strong></span></div>
+              <div><i data-lucide="credit-card"></i> <span>Công nợ hiện tại: <strong>${escapeHistoryHtml(debtText)}</strong></span></div>
+              <div><i data-lucide="notebook-pen"></i> <span>Ghi chú đơn: <strong>${escapeHistoryHtml(order.notes || 'Không có')}</strong></span></div>
+              </div>
+            </details>
             </div>
             
-            <div class="order-details-summary" style="font-size: 0.85rem; background: rgba(255,255,255,0.02); border-radius: 6px; padding: 0.5rem 0.75rem; border: 1px solid var(--border-color); margin-bottom: 1rem; max-height: 120px; overflow-y: auto;">
-              <div style="font-weight: 600; color: var(--text-primary); margin-bottom: 0.25rem; font-size: 0.75rem; text-transform: uppercase;">Chi tiết mặt hàng (${totalItemsCount}):</div>
-              <ul style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.25rem;">
+            <details class="order-details-summary history-card-items-disclosure">
+              <summary>Chi tiết mặt hàng (${totalItemsCount})</summary>
+              <ul>
                 ${order.items.map(item => `
-                  <li style="display: flex; justify-content: space-between; color: var(--text-secondary); font-size: 0.8rem;">
-                    <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 170px;" title="${item.productName || item.product.name} (${item.package})">${item.productName || item.product.name} (${item.package})</span>
+                  <li>
+                    <span title="${escapeHistoryHtml(item.productName || item.product?.name || '')} (${escapeHistoryHtml(item.package || '')})">${escapeHistoryHtml(item.productName || item.product?.name || '')} (${escapeHistoryHtml(item.package || '')})</span>
                     <span>${item.quantity} x ${formatCurrency(item.price)}</span>
                   </li>
                 `).join('')}
               </ul>
-            </div>
-          </div>
-          
-          <div>
+            </details>
+
+            <div>
             <div class="history-card-financials">
               <div><span>Tổng tiền hàng</span><strong>${formatNumber(amountBreakdown.totalBeforeDiscount)}</strong></div>
               <div><span>Giảm giá</span><strong class="history-money-discount">${formatNumber(amountBreakdown.totalDiscountAmount)}</strong></div>
@@ -1128,10 +1312,17 @@ export function renderHistoryOrders({ reuseFiltered = false } = {}) {
               <div><span>Tổng thanh toán</span><strong class="history-money-total">${formatNumber(amountBreakdown.totalPayment)}</strong></div>
             </div>
             
-            <div class="order-actions" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(75px, 1fr)); gap: 0.35rem;">
-              <button class="btn btn-indigo btn-sm flex items-center justify-center gap-1 history-print-btn" data-id="${order.id}">
-                <i data-lucide="printer" style="width: 13px; height: 13px;"></i> In
+            <div class="history-card-bottom-actions">
+              <div class="history-card-primary-actions">
+                <button class="btn btn-secondary btn-sm history-print-btn" data-id="${order.id}">
+                  <i data-lucide="printer"></i> In đơn
+                </button>
+              </div>
+              <button class="history-card-actions-toggle" type="button" aria-expanded="false" aria-controls="history-card-actions-${state.historyPage}-${cardIndex}">
+                <i data-lucide="ellipsis"></i> Thao tác khác
               </button>
+              <div class="history-card-actions-panel" id="history-card-actions-${state.historyPage}-${cardIndex}" hidden>
+                <div class="order-actions">
               <button class="btn btn-secondary btn-sm flex items-center justify-center gap-1 history-copy-btn" data-id="${order.id}" title="Sao chép thành đơn mới">
                 <i data-lucide="copy" style="width: 13px; height: 13px;"></i> Sao chép
               </button>
@@ -1155,7 +1346,7 @@ export function renderHistoryOrders({ reuseFiltered = false } = {}) {
                   </button>
                 ` : ''}
                 ${showReturnBtn ? `
-                  <button class="btn btn-warning btn-sm flex items-center justify-center gap-1 history-return-btn" data-id="${order.id}" style="background: #f59e0b; border-color: #f59e0b; color: #fff;">
+                  <button class="btn btn-warning btn-sm flex items-center justify-center gap-1 history-return-btn" data-id="${order.id}">
                     <i data-lucide="rotate-ccw" style="width: 13px; height: 13px;"></i> Trả
                   </button>
                 ` : ''}
@@ -1173,6 +1364,8 @@ export function renderHistoryOrders({ reuseFiltered = false } = {}) {
                   </button>
                 `).join('') : ''}
               `}
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -1195,6 +1388,21 @@ export function renderHistoryOrders({ reuseFiltered = false } = {}) {
   `;
 
   container.innerHTML = ordersContentHtml + paginationHtml;
+
+  container.querySelectorAll('.history-card-actions-toggle').forEach(toggle => {
+    toggle.addEventListener('click', () => {
+      const panel = toggle.nextElementSibling;
+      if (!panel?.classList.contains('history-card-actions-panel')) return;
+      const shouldOpen = panel.hidden;
+      container.querySelectorAll('.history-card-actions-toggle[aria-expanded="true"]').forEach(openToggle => {
+        openToggle.setAttribute('aria-expanded', 'false');
+        const openPanel = openToggle.nextElementSibling;
+        if (openPanel?.classList.contains('history-card-actions-panel')) openPanel.hidden = true;
+      });
+      panel.hidden = !shouldOpen;
+      toggle.setAttribute('aria-expanded', String(shouldOpen));
+    });
+  });
 
   const prevPageBtn = document.getElementById('history-prev-page');
   if (prevPageBtn) {

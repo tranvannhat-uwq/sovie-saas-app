@@ -1,25 +1,29 @@
 import { state } from '../state.js';
 import { showToast, safeCreateIcons, getBrandById } from '../utils.js';
-import { dbSaveBrand, dbDeleteBrand, dbRenameBrandProducts } from '../services/supabase.js?v=20260909-inline-filter-v4';
-import { renderAll } from '../main.js?v=20260909-inline-filter-v4';
+import { dbSaveBrand, dbDeleteBrand, dbRenameBrandProducts } from '../services/supabase.js';
+import { renderAll } from '../main.js';
 import { tenantStorage } from '../services/tenant-storage.js';
 
 export function renderBrandsTable() {
   const tableBody = document.getElementById('brands-table-body');
   if (!tableBody) return;
-  
-  if (!state.brands || state.brands.length === 0) {
+
+  const query = (document.getElementById('brand-search-input')?.value || '').toLowerCase().trim();
+  const brands = (state.brands || []).filter(brand => !query
+    || Object.values(brand).some(value => String(value ?? '').toLowerCase().includes(query)));
+
+  if (brands.length === 0) {
     tableBody.innerHTML = `
       <tr>
         <td colspan="12" style="text-align: center; color: var(--text-muted); padding: 2rem;">
-          Không tìm thấy thương hiệu nào.
+          ${query ? 'Không tìm thấy thương hiệu phù hợp.' : 'Chưa có thương hiệu nào.'}
         </td>
       </tr>
     `;
     return;
   }
   
-  tableBody.innerHTML = state.brands.map((b) => {
+  tableBody.innerHTML = brands.map((b) => {
     const brandId = b.id || ('brand_' + String(b.name).toLowerCase().replace(/[^a-z0-9]/g, ''));
     return `
       <tr>
@@ -277,11 +281,13 @@ async function deleteBrand(name) {
 
 export function setupBrandsPanel() {
   const addBtn = document.getElementById('btn-open-add-brand-modal');
+  const searchInput = document.getElementById('brand-search-input');
   const closeBtn = document.getElementById('btn-close-brand-modal');
   const cancelBtn = document.getElementById('btn-cancel-brand-modal');
   const form = document.getElementById('brand-form');
   
   if (addBtn) addBtn.addEventListener('click', () => openBrandModal());
+  if (searchInput) searchInput.addEventListener('input', renderBrandsTable);
   if (closeBtn) closeBtn.addEventListener('click', closeBrandModal);
   if (cancelBtn) cancelBtn.addEventListener('click', closeBrandModal);
   

@@ -46,6 +46,13 @@ export function buildVariantSnapshot(variant) {
   };
 }
 
+export function isCatalogVariant(variant) {
+  return Boolean(variant?.id && !variant.isLegacy && (
+    variant.sellUnitCode || variant.unitName || variant.packageWeightUnit ||
+    variant.packagingName || variant.packageType
+  ));
+}
+
 export function shouldAutoSelectVariant(family) {
   return Array.isArray(family?.variants) &&
     family.variants.filter(variant => variant.isActive !== false).length === 1;
@@ -95,12 +102,8 @@ function compareVariants(a, b) {
 
 export function buildProductFamilies(products, { includeInactive = false } = {}) {
   const source = Array.isArray(products) ? products : [];
-  const variants = source.filter(product =>
-    product?.id &&
-    (product.packageType || product.packagingName) &&
-    product.isLegacy !== true &&
-    (includeInactive || product.isActive !== false)
-  );
+  const variants = source.filter(product => isCatalogVariant(product) &&
+    (includeInactive || product.isActive !== false));
   const families = new Map();
 
   variants.forEach(variant => {

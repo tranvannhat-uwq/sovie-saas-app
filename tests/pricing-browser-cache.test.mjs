@@ -43,7 +43,7 @@ test('lean login hydrates cached items and Cloud refresh replaces the complete s
 
 test('price-list panels render a cached snapshot while background refresh continues', () => {
   assert.match(main, /function panelHasPricingSnapshot\(panelId\)/);
-  assert.match(main, /waitForCloud && !panelHasPricingSnapshot\(panelId\)/);
+  assert.match(main, /\(waitForCloud \|\| \(panelId === 'history-panel' && isCloudActive\)\) && !panelHasPricingSnapshot\(panelId\)/);
   assert.match(main, /void ensurePanelCloudData\(panelId\)/);
   assert.match(main, /state\.pricingSnapshotRole === String\(state\.currentUser\?\.role \|\| ''\)/);
 });

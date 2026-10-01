@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SoVie UI interaction audit</title>
+  <link rel="stylesheet" href="../styles/base.css">
+  <link rel="stylesheet" href="../styles/app.css">
+  <link rel="stylesheet" href="../styles/landing.css">
+  <style>
+    body { display: block; min-height: 100vh; padding: 20px; }
+    .audit-shell { display: grid; gap: 16px; max-width: 1080px; margin: auto; }
+    .audit-group { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 16px; border: 1px solid #dfe8ef; border-radius: 12px; background: #fff; }
+    .audit-group h2 { flex-basis: 100%; margin: 0; font-size: 1rem; }
+    .audit-table { width: 100%; border-collapse: collapse; }
+    .audit-table td { padding: 8px; border-bottom: 1px solid #e2e8f0; }
+    #landing-page.audit-landing { position: relative; display: block; min-height: 0; padding: 12px; }
+  </style>
+</head>
+<body>
+  <main class="audit-shell">
+    <section id="app-layout" data-nav-layout="horizontal" class="app-container">
+      <section class="audit-group" aria-label="Kiểu nút dùng chung">
+        <h2>Nút dùng chung</h2>
+        <button class="btn btn-primary" type="button">Lưu thay đổi</button>
+        <button class="btn btn-secondary" type="button">Hủy</button>
+        <button class="btn btn-danger" type="button">Xóa dữ liệu</button>
+        <button class="btn btn-success" type="button">Hoàn tất</button>
+        <button class="btn btn-warning" type="button">Chờ xác nhận</button>
+        <button class="btn btn-indigo" type="button">Mở báo cáo</button>
+        <button class="btn btn-teal" type="button">Thanh toán</button>
+        <button class="btn btn-secondary" type="button" disabled>Đang tải</button>
+        <button class="btn btn-danger" type="button" aria-disabled="true">Bị khóa</button>
+      </section>
+
+      <section class="audit-group" aria-label="Nút icon và phân trang">
+        <h2>Nút icon, nút tròn, phân trang</h2>
+        <div class="picker-actions"><button class="icon-btn edit-price-list" type="button" aria-label="Sửa"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4l11-11-4-4L4 16z" fill="none" stroke="currentColor" stroke-width="2"/></svg></button><button class="icon-btn delete-price-list" type="button" aria-label="Xóa"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 11v6m4-6v6M6 7l1 14h10l1-14M9 7V4h6v3" fill="none" stroke="currentColor" stroke-width="2"/></svg></button></div>
+        <button class="btn btn-secondary btn-sm btn-circle" type="button" aria-label="Đóng"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" fill="none" stroke="currentColor" stroke-width="2"/></svg></button>
+        <button class="btn btn-secondary btn-circle" type="button" aria-label="Đổi chiều sắp xếp"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h12M4 12h8M4 17h4m8-7 4 4 4-4m-4 4V3" fill="none" stroke="currentColor" stroke-width="2"/></svg></button>
+        <div class="pagination-controls"><button class="btn btn-secondary" type="button">Trước</button><button class="btn btn-primary" type="button">Sau</button></div>
+      </section>
+
+      <section class="audit-group" aria-label="Thao tác trong bảng">
+        <h2>Thao tác trong bảng</h2>
+        <div class="table-responsive"><table class="table audit-table"><tbody><tr><td>SKU-01</td><td class="actions-cell"><button class="btn btn-secondary btn-sm btn-circle edit-prod-btn" type="button" aria-label="Sửa sản phẩm"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4l11-11-4-4L4 16z" fill="none" stroke="currentColor" stroke-width="2"/></svg></button><button class="btn btn-danger btn-sm btn-circle archive-prod-btn" type="button" aria-label="Ngừng sản phẩm"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 11v6m4-6v6M6 7l1 14h10l1-14M9 7V4h6v3" fill="none" stroke="currentColor" stroke-width="2"/></svg></button><button class="btn btn-success btn-sm btn-circle" type="button" aria-label="Xuất"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-5-5 5 5 5-5M5 21h14" fill="none" stroke="currentColor" stroke-width="2"/></svg></button></td></tr></tbody></table></div>
+      </section>
+
+      <section class="audit-group history-expanded-actions" aria-label="Thao tác lịch sử">
+        <h2>Thao tác lịch sử</h2>
+        <button class="history-detail-action history-action-edit" type="button">Sửa đơn</button>
+        <button class="history-detail-action history-action-return" type="button">Trả hàng</button>
+        <button class="history-detail-action history-action-delete" type="button">Xóa</button>
+        <button class="history-detail-action history-action-print" type="button">In</button>
+        <button class="history-detail-action history-action-view" type="button">Xem</button>
+        <button class="history-detail-action history-action-copy" type="button">Sao chép</button>
+      </section>
+
+      <section class="audit-group" aria-label="Thêm nhanh đơn hàng">
+        <h2>Thêm nhanh đơn hàng</h2>
+        <div id="invoice-panel" class="panel active"><div class="invoice-info-card"><div class="info-card-header"><div class="info-card-title">Thông tin khách hàng</div><div class="info-card-actions"><button class="btn-info-card-add" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14m-7-7h14" fill="none" stroke="currentColor" stroke-width="2"/></svg>Thêm mới</button></div></div></div></div>
+      </section>
+
+      <section class="audit-group platform-console-hero" aria-label="Nút trên nền xanh đậm">
+        <h2>Nút trên nền tối</h2>
+        <div class="platform-hero-actions"><button class="btn btn-secondary" type="button">Bảng giá</button><button class="btn btn-primary" type="button">Thêm khách hàng</button></div>
+      </section>
+
+      <section class="audit-group">
+        <h2>Nút đóng modal</h2>
+        <button class="modal-close" type="button" aria-label="Đóng"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" fill="none" stroke="currentColor" stroke-width="2"/></svg></button>
+      </section>
+    </section>
+
+    <section id="landing-page" class="landing-page audit-landing" aria-label="Nút landing page">
+      <div class="audit-group"><h2>Nút landing</h2><a class="ref-btn-primary" href="#landing-page">Bắt đầu dùng thử</a><button class="landing-login-button" type="button">Đăng nhập</button></div>
+    </section>
+  </main>
+</body>
+</html>

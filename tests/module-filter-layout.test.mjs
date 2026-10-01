@@ -74,6 +74,8 @@ test('shared filters have labels, active count, reset and accessible popup contr
   assert.match(layout, /setAttribute\(['"]aria-modal['"], ['"]true['"]\)/);
   assert.match(layout, /event\.key !== ['"]Escape['"]/);
   assert.match(layout, /setupStandaloneSidebar\(['"]#so-quy-panel \.so-quy-sidebar['"]/);
+  assert.match(layout, /body\.prepend\(chipsContainer\)/);
+  assert.match(layout, /sidebar\.append\(heading, body, footer\)/);
   assert.match(layout, /\.module-filter-content, \.so-quy-content, \.so-quy-main/);
   assert.match(layout, /module-filter-mobile-trigger-cashbook/);
   assert.match(layout, /so-quy-search-tools/);
@@ -126,6 +128,8 @@ test('floating filter popup uses a polished responsive two-column layout', () =>
   assert.match(luminous, /grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/);
   assert.match(luminous, /\.module-filter-heading \.module-filter-reset\s*\{[\s\S]*?display:\s*none/);
   assert.match(luminous, /\.module-filter-footer-btn\s*\{[\s\S]*?flex:\s*0 0 auto/);
+  assert.match(luminous, /module-filter-sidebar\[data-filter-owner="so-quy-panel"\]\.is-mobile-open\s*\{[\s\S]*?grid-template-rows:\s*auto minmax\(0, 1fr\) auto[\s\S]*?gap:\s*0/);
+  assert.match(luminous, /module-filter-sidebar\[data-filter-owner="so-quy-panel"\]\.is-mobile-open \.module-filter-active-chips\s*\{[\s\S]*?overflow-y:\s*auto/);
   assert.match(luminous, /@media \(max-width: 640px\)[\s\S]*?grid-template-columns:\s*minmax\(0, 1fr\)/);
 });
 

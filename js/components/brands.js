@@ -10,12 +10,12 @@ export function renderBrandsTable() {
 
   const query = (document.getElementById('brand-search-input')?.value || '').toLowerCase().trim();
   const brands = (state.brands || []).filter(brand => !query
-    || Object.values(brand).some(value => String(value ?? '').toLowerCase().includes(query)));
+    || String(brand.name || '').toLowerCase().includes(query));
 
   if (brands.length === 0) {
     tableBody.innerHTML = `
       <tr>
-        <td colspan="12" style="text-align: center; color: var(--text-muted); padding: 2rem;">
+        <td colspan="3" style="text-align: center; color: var(--text-muted); padding: 2rem;">
           ${query ? 'Không tìm thấy thương hiệu phù hợp.' : 'Chưa có thương hiệu nào.'}
         </td>
       </tr>
@@ -25,28 +25,24 @@ export function renderBrandsTable() {
   
   tableBody.innerHTML = brands.map((b) => {
     const brandId = b.id || ('brand_' + String(b.name).toLowerCase().replace(/[^a-z0-9]/g, ''));
+    const safeName = String(b.name || '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch]);
+    const productCount = (state.products || []).filter(product =>
+      String(product.brandId || product.brand || '').toLowerCase() === String(brandId).toLowerCase()
+      || String(product.brand || '').toLowerCase() === String(b.name || '').toLowerCase()
+    ).length;
     return `
       <tr>
-        <td style="font-weight: 600; color: #fff;">
-          ${b.name}
-          <div style="font-size: 0.72rem; color: var(--text-secondary); font-family: monospace; font-weight: normal; margin-top: 2px;">ID: ${brandId}</div>
+        <td style="font-weight: 600;">
+          ${safeName}
+          <div style="font-size: 0.72rem; color: var(--text-secondary); font-family: monospace; font-weight: normal; margin-top: 2px;">ID: ${String(brandId).replace(/[&<>"']/g, '')}</div>
         </td>
-        <td>${b.companyName}</td>
-        <td><code>${b.logoFilename}</code></td>
-        <td>${b.hotline}</td>
-        <td>${b.cskh}</td>
-        <td>${b.email}</td>
-        <td>${b.addressMain}</td>
-        <td>${b.addressFactory}</td>
-        <td>${b.addressBusiness || '<span style="color: var(--text-muted); font-style: italic;">Không có (Ẩn ĐĐKD)</span>'}</td>
-        <td>${b.invoiceWarehouseText || 'Xuất Tại kho số 03 Chi nhánh Thái Nguyên'}</td>
-        <td>${b.salesPhone || b.hotline || '<span style="color: var(--text-muted);">Chưa cấu hình</span>'}</td>
+        <td>${productCount.toLocaleString('vi-VN')}</td>
         <td class="admin-only" style="text-align: center;">
           <div style="display: inline-flex; gap: 0.5rem; justify-content: center;">
-            <button class="btn btn-secondary btn-sm btn-circle edit-brand-btn" data-name="${b.name}" title="Sửa">
+            <button class="btn btn-secondary btn-sm btn-circle edit-brand-btn" data-name="${safeName}" title="Sửa">
               <i data-lucide="edit-2" style="width: 13px; height: 13px;"></i>
             </button>
-            <button class="btn btn-danger btn-sm btn-circle delete-brand-btn" data-name="${b.name}" title="Xóa">
+            <button class="btn btn-danger btn-sm btn-circle delete-brand-btn" data-name="${safeName}" title="Xóa">
               <i data-lucide="trash-2" style="width: 13px; height: 13px;"></i>
             </button>
           </div>
@@ -57,7 +53,7 @@ export function renderBrandsTable() {
   
   safeCreateIcons();
   
-  // Gán sự kiện cho các nút sửa, xóa hãng sơn
+  // Thương hiệu là metadata danh mục; thông tin phát hành được quản lý riêng.
   document.querySelectorAll('.edit-brand-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       const name = btn.getAttribute('data-name');
@@ -78,28 +74,9 @@ function openBrandModal(brandName = null) {
   const title = document.getElementById('brand-modal-title');
   const form = document.getElementById('brand-form');
   const nameInput = document.getElementById('brand-name');
-  const compSelect = document.getElementById('brand-company-id');
-  const compNameInput = document.getElementById('brand-company-name');
-  
   if (!modal || !title || !form) return;
   
   form.reset();
-
-  // Populate company dropdown
-  if (compSelect) {
-    const compOptions = (state.companies || []).map(c => `<option value="${c.id}">${c.name}</option>`).join('');
-    compSelect.innerHTML = `<option value="">-- Nhãn dùng chung (Không thuộc công ty riêng) --</option>${compOptions}`;
-    
-    compSelect.onchange = () => {
-      const selectedId = compSelect.value;
-      if (selectedId) {
-        const found = (state.companies || []).find(c => c.id === selectedId);
-        if (found && compNameInput) compNameInput.value = found.name;
-      } else if (compNameInput) {
-        compNameInput.value = 'Dùng chung';
-      }
-    };
-  }
   
   const idDisplay = document.getElementById('brand-id-display');
   if (brandName) {
@@ -113,17 +90,6 @@ function openBrandModal(brandName = null) {
     if (brand) {
       const brandId = brand.id || ('brand_' + String(brand.name).toLowerCase().replace(/[^a-z0-9]/g, ''));
       if (idDisplay) idDisplay.value = brandId;
-      if (compSelect) compSelect.value = brand.companyId || '';
-      document.getElementById('brand-company-name').value = brand.companyName || 'Dùng chung';
-      document.getElementById('brand-logo-filename').value = brand.logoFilename;
-      document.getElementById('brand-hotline').value = brand.hotline;
-      document.getElementById('brand-cskh').value = brand.cskh;
-      document.getElementById('brand-email').value = brand.email;
-      document.getElementById('brand-address-main').value = brand.addressMain;
-      document.getElementById('brand-address-factory').value = brand.addressFactory;
-      document.getElementById('brand-address-business').value = brand.addressBusiness || '';
-      document.getElementById('brand-invoice-warehouse-text').value = brand.invoiceWarehouseText || 'Xuất tại kho';
-      document.getElementById('brand-sales-phone').value = brand.salesPhone || '';
     }
   } else {
     title.innerText = 'Thêm thương hiệu mới';
@@ -131,7 +97,6 @@ function openBrandModal(brandName = null) {
     document.getElementById('brand-old-name').value = '';
     nameInput.removeAttribute('disabled');
     if (idDisplay) idDisplay.value = '(Tự động sinh mã ID khi lưu)';
-    document.getElementById('brand-invoice-warehouse-text').value = 'Xuất tại kho';
   }
   
   modal.classList.add('active');
@@ -146,41 +111,21 @@ async function saveBrand() {
   const isNew = document.getElementById('brand-edit-is-new').value === 'true';
   const oldName = document.getElementById('brand-old-name').value.trim();
   const name = document.getElementById('brand-name').value.trim();
-  const compSelect = document.getElementById('brand-company-id');
-  const companyId = compSelect ? (compSelect.value || null) : null;
-  const companyName = document.getElementById('brand-company-name').value.trim() || 'Dùng chung';
-  const logoFilename = document.getElementById('brand-logo-filename').value.trim();
-  const hotline = document.getElementById('brand-hotline').value.trim();
-  const cskh = document.getElementById('brand-cskh').value.trim();
-  const email = document.getElementById('brand-email').value.trim();
-  const addressMain = document.getElementById('brand-address-main').value.trim();
-  const addressFactory = document.getElementById('brand-address-factory').value.trim();
-  const addressBusiness = document.getElementById('brand-address-business').value.trim() || null;
-  const invoiceWarehouseText = document.getElementById('brand-invoice-warehouse-text').value.trim() || 'Xuất Tại kho số 03 Chi nhánh Thái Nguyên';
-  const salesPhone = document.getElementById('brand-sales-phone').value.trim();
   
-  if (!name || !companyName || !logoFilename || !hotline || !cskh || !email || !addressMain || !addressFactory) {
-    showToast('Vui lòng nhập đầy đủ các trường bắt buộc (*)', 'danger');
+  if (!name) {
+    showToast('Vui lòng nhập tên thương hiệu.', 'danger');
     return;
   }
   
   const existingBrand = state.brands.find(b => b.name === oldName || b.name === name);
-  const id = existingBrand && existingBrand.id ? existingBrand.id : ('brand_' + name.toLowerCase().replace(/[^a-z0-9]/g, ''));
+  const normalizedId = name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+  const generatedSuffix = globalThis.crypto?.randomUUID?.() || `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  const id = existingBrand?.id || `brand_${normalizedId || generatedSuffix}`;
 
   const brandObj = {
+    ...(existingBrand || {}),
     id,
-    name,
-    companyId,
-    companyName,
-    logoFilename,
-    hotline,
-    cskh,
-    email,
-    addressMain,
-    addressFactory,
-    addressBusiness,
-    invoiceWarehouseText,
-    salesPhone
+    name
   };
   
   // Nếu thêm mới thương hiệu, kiểm tra trùng tên thương hiệu
@@ -268,7 +213,25 @@ async function saveBrand() {
 }
 
 async function deleteBrand(name) {
-  if (confirm(`Bạn có chắc chắn muốn xóa thương hiệu "${name}" không? Mọi sản phẩm thuộc thương hiệu này có thể không tìm thấy logo/thông tin liên kết.`)) {
+  const linkedCount = (state.products || []).filter(product => {
+    const resolved = getBrandById(product.brandId || product.brand);
+    return resolved?.name?.toLowerCase() === String(name).toLowerCase()
+      || String(product.brand || '').toLowerCase() === String(name).toLowerCase();
+  }).length;
+  const linkedCustomerCount = (state.customers || []).filter(customer => {
+    const resolved = getBrandById(customer.assignedBrandId || customer.assignedBrand);
+    return resolved?.name?.toLowerCase() === String(name).toLowerCase()
+      || String(customer.assignedBrand || '').toLowerCase() === String(name).toLowerCase();
+  }).length;
+  if (linkedCount > 0 || linkedCustomerCount > 0) {
+    const references = [
+      linkedCount ? `${linkedCount} mặt hàng` : '',
+      linkedCustomerCount ? `${linkedCustomerCount} khách hàng` : ''
+    ].filter(Boolean).join(' và ');
+    showToast(`Không thể xóa thương hiệu đang được dùng bởi ${references}. Hãy gỡ các liên kết trước.`, 'warning');
+    return;
+  }
+  if (confirm(`Bạn có chắc chắn muốn xóa giá trị thương hiệu "${name}" khỏi danh mục không?`)) {
     const success = await dbDeleteBrand(name);
     if (success) {
       state.brands = state.brands.filter(b => b.name !== name);

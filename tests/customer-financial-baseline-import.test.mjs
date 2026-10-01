@@ -141,7 +141,7 @@ test('known manager and brand aliases do not block the real customer workbook', 
 test('unmatched optional associations are left blank without blocking the workbook', () => {
   const customers = read('js/components/customers.js');
   assert.match(customers, /const rowWarnings = \[\]/);
-  assert.match(customers, /Không tìm thấy nhãn sơn .*; đã để trống/);
+  assert.match(customers, /Không tìm thấy thương hiệu .*; đã để trống/);
   assert.match(customers, /Không tìm thấy bảng giá .*; đã để trống/);
   assert.match(customers, /Không tìm thấy người quản lý .*; đã để trống/);
   assert.match(customers, /Unmatched optional associations left blank/);

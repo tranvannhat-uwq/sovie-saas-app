@@ -4,6 +4,8 @@ import { safeCreateIcons, showToast } from '../utils.js';
 
 let platformDataLoaded = false;
 let platformPlansLoaded = false;
+let platformHydrationPromise = null;
+let platformStateEpoch = 0;
 let slugEditedManually = false;
 let selectedPlatformOrganizationId = '';
 let platformPlanCatalog = [];
@@ -71,23 +73,42 @@ async function hydratePlatformPlans({ force = false } = {}) {
 }
 
 export async function hydratePlatformAdmin({ force = false } = {}) {
+  if (platformHydrationPromise) return platformHydrationPromise;
   if (platformDataLoaded && !force) return state.platformRole || null;
+  const stateEpoch = platformStateEpoch;
+  const hydration = (async () => {
+    let deniedByServer = false;
+    try {
+      const data = await getPlatformCustomerAccounts();
+      if (stateEpoch !== platformStateEpoch) return null;
+      state.platformRole = String(data?.platformRole || '');
+      state.platformOrganizations = Array.isArray(data?.organizations) ? data.organizations : [];
+      state.platformSummary = data?.summary || null;
+      // A negative staff check is a valid result. Cache it until logout or an
+      // explicit refresh so ordinary tenant views do not repeat it.
+      platformDataLoaded = true;
+    } catch (error) {
+      if (error?.code !== '42501') console.warn('Could not load platform customer accounts:', error);
+      deniedByServer = error?.code === '42501';
+      if (stateEpoch !== platformStateEpoch) return null;
+      state.platformRole = '';
+      state.platformOrganizations = [];
+      state.platformSummary = null;
+      // A denied RPC is authoritative and must never grant a role. A later
+      // explicit refresh can retry if the staff membership has changed.
+      platformDataLoaded = deniedByServer;
+    }
+    if (stateEpoch !== platformStateEpoch) return null;
+    updatePlatformVisibility();
+    renderPlatformAdmin();
+    return state.platformRole || null;
+  })();
+  platformHydrationPromise = hydration;
   try {
-    const data = await getPlatformCustomerAccounts();
-    state.platformRole = String(data?.platformRole || '');
-    state.platformOrganizations = Array.isArray(data?.organizations) ? data.organizations : [];
-    state.platformSummary = data?.summary || null;
-    platformDataLoaded = Boolean(state.platformRole);
-  } catch (error) {
-    if (error?.code !== '42501') console.warn('Could not load platform customer accounts:', error);
-    state.platformRole = '';
-    state.platformOrganizations = [];
-    state.platformSummary = null;
-    platformDataLoaded = false;
+    return await hydration;
+  } finally {
+    if (platformHydrationPromise === hydration) platformHydrationPromise = null;
   }
-  updatePlatformVisibility();
-  renderPlatformAdmin();
-  return state.platformRole || null;
 }
 
 function filteredOrganizations() {
@@ -617,6 +638,8 @@ export function setupPlatformAdmin() {
 }
 
 export function clearPlatformAdminState() {
+  platformStateEpoch += 1;
+  platformHydrationPromise = null;
   platformDataLoaded = false;
   platformPlansLoaded = false;
   state.platformRole = '';

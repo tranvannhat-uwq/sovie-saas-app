@@ -271,7 +271,7 @@ i[data-lucide] {
   color: #244c6a !important;
 }
 
-#dashboard-panel .quick-action-btn:hover {
+#dashboard-panel .quick-action-btn:not(:disabled):not([aria-disabled="true"]):hover {
   border-color: #8bbce8 !important;
   background: #eef7ff !important;
   color: #0f67b8 !important;
@@ -588,7 +588,7 @@ i[data-lucide] {
   color: #475569 !important;
   cursor: pointer !important;
 }
-#invoice-panel .btn-reset-order-custom:hover {
+#invoice-panel .btn-reset-order-custom:not(:disabled):not([aria-disabled="true"]):hover {
   background: #f8fafc !important;
   border-color: #cbd5e1 !important;
 }
@@ -1161,7 +1161,7 @@ i[data-lucide] {
 }
 
 #app-layout .module-filter-sidebar[data-filter-owner="customers-panel"] .customer-filter-compact-summary::-webkit-details-marker { display: none; }
-#app-layout .module-filter-sidebar[data-filter-owner="customers-panel"] .customer-filter-compact-summary:hover { color: #1264d5; }
+#app-layout .module-filter-sidebar[data-filter-owner="customers-panel"] .customer-filter-compact-summary:not(:disabled):not([aria-disabled="true"]):hover { color: #1264d5; }
 #app-layout .module-filter-sidebar[data-filter-owner="customers-panel"] .customer-filter-compact-summary:focus-visible {
   outline: 3px solid rgba(37, 99, 235, .16);
   outline-offset: -3px;
@@ -1552,31 +1552,6 @@ body {
 #app-layout .widget-value { color: var(--app-ink) !important; font-weight: 780 !important; }
 
 /* Controls */
-#app-layout .btn {
-  min-height: 40px !important;
-  padding: 8px 14px !important;
-  border-radius: 10px !important;
-  font-size: .82rem !important;
-  font-weight: 680 !important;
-}
-#app-layout .btn-primary {
-  border-color: var(--sovie-blue-600) !important;
-  background: var(--sovie-blue-600) !important;
-  box-shadow: 0 7px 16px rgba(11, 108, 242, .16) !important;
-}
-#app-layout .btn-primary:hover:not(:disabled) { background: var(--sovie-blue-700) !important; }
-#app-layout .btn-secondary,
-#app-layout .history-load-btn {
-  color: #29475d !important;
-  border: 1px solid var(--sovie-slate-300) !important;
-  background: #fff !important;
-}
-#app-layout .btn-secondary:hover:not(:disabled),
-#app-layout .history-load-btn:hover:not(:disabled) { color: var(--sovie-blue-700) !important; border-color: #9db8cd !important; background: #f6f9fc !important; }
-#app-layout .btn-danger { background: var(--sovie-red-600) !important; }
-#app-layout .btn-success,
-#app-layout .btn-teal { background: var(--sovie-green-600) !important; }
-
 #app-layout .form-label,
 #app-layout label { color: #29475d !important; font-size: .82rem !important; font-weight: 670 !important; }
 
@@ -1807,11 +1782,11 @@ body {
   background: transparent !important;
   color: #64748b !important;
   cursor: pointer !important;
-  transition: all .15s ease !important;
+  transition: color .15s ease, background-color .15s ease, border-color .15s ease, box-shadow .15s ease !important;
 }
 
-#app-layout .module-filter-reset:hover,
-#app-layout .module-filter-toggle:hover {
+#app-layout .module-filter-reset:not(:disabled):not([aria-disabled="true"]):hover,
+#app-layout .module-filter-toggle:not(:disabled):not([aria-disabled="true"]):hover {
   background: #f1f5f9 !important;
   color: #0f172a !important;
   border-color: #e2e8f0 !important;
@@ -1876,7 +1851,7 @@ body {
   border-radius: 50% !important;
 }
 
-#app-layout .module-filter-active-chip-remove:hover {
+#app-layout .module-filter-active-chip-remove:not(:disabled):not([aria-disabled="true"]):hover {
   background: #dbeafe !important;
   color: #1d4ed8 !important;
 }
@@ -2095,7 +2070,7 @@ body {
 }
 
 #app-layout .module-filter-collapsible-summary:hover,
-#app-layout .customer-filter-compact-summary:hover {
+#app-layout .customer-filter-compact-summary:not(:disabled):not([aria-disabled="true"]):hover {
   background: #f1f5f9 !important;
 }
 
@@ -2216,7 +2191,7 @@ body {
   font-size: .76rem !important;
   font-weight: 600 !important;
   cursor: pointer !important;
-  transition: all .15s ease !important;
+  transition: color .15s ease, background-color .15s ease, border-color .15s ease, box-shadow .15s ease !important;
   text-align: center !important;
   white-space: nowrap !important;
 }
@@ -2336,7 +2311,7 @@ body {
   cursor: pointer !important;
 }
 
-#app-layout .module-filter-sidebar .customer-sort-toolbar #btn-customer-sort-direction:hover {
+#app-layout .module-filter-sidebar .customer-sort-toolbar #btn-customer-sort-direction:not(:disabled):not([aria-disabled="true"]):hover {
   background: #f1f5f9 !important;
   color: #0f172a !important;
 }
@@ -2425,7 +2400,7 @@ body {
   justify-content: center !important;
   gap: 6px !important;
   cursor: pointer !important;
-  transition: all .15s ease !important;
+  transition: color .15s ease, background-color .15s ease, border-color .15s ease, box-shadow .15s ease !important;
 }
 
 #app-layout .module-filter-footer-reset {
@@ -2434,7 +2409,7 @@ body {
   color: #475569 !important;
 }
 
-#app-layout .module-filter-footer-reset:hover {
+#app-layout .module-filter-footer-reset:not(:disabled):not([aria-disabled="true"]):hover {
   background: #f1f5f9 !important;
   color: #0f172a !important;
 }
@@ -2445,7 +2420,7 @@ body {
   color: #ffffff !important;
 }
 
-#app-layout .module-filter-footer-apply:hover {
+#app-layout .module-filter-footer-apply:not(:disabled):not([aria-disabled="true"]):hover {
   background: #1d4ed8 !important;
 }
 
@@ -2549,7 +2524,7 @@ body {
     margin-bottom: 12px !important;
   }
 
-  #app-layout .module-filter-mobile-trigger:hover {
+  #app-layout .module-filter-mobile-trigger:not(:disabled):not([aria-disabled="true"]):hover {
     background: #f8fafc !important;
     color: #0f172a !important;
   }
@@ -2915,8 +2890,8 @@ body {
   box-shadow: 0 7px 18px rgba(21, 82, 124, .10) !important;
 }
 
-#app-layout .activity-header-button:hover,
-#app-layout .btn-settings-toggle:hover {
+#app-layout .activity-header-button:not(:disabled):not([aria-disabled="true"]):hover,
+#app-layout .btn-settings-toggle:not(:disabled):not([aria-disabled="true"]):hover {
   color: #fff !important;
   border-color: transparent !important;
   background: linear-gradient(135deg, var(--modern-blue), var(--modern-green)) !important;
@@ -3017,28 +2992,7 @@ body {
 }
 #app-layout .widget-icon-wrapper { color: var(--card-accent) !important; background: var(--card-soft) !important; }
 
-/* Buttons and form controls. */
-#app-layout .btn { letter-spacing: -.005em; }
-#app-layout .btn-primary {
-  border-color: transparent !important;
-  background: linear-gradient(135deg, var(--modern-blue), #0e79db 62%, #13a985) !important;
-  box-shadow: 0 9px 20px rgba(20, 104, 238, .20) !important;
-}
-#app-layout .btn-primary:hover:not(:disabled) {
-  background: linear-gradient(135deg, var(--modern-blue-deep), #0871cb 60%, #0c956f) !important;
-  box-shadow: 0 12px 24px rgba(20, 104, 238, .27) !important;
-}
-#app-layout .btn-secondary,
-#app-layout .history-load-btn {
-  color: #31536d !important;
-  border-color: #cbdce8 !important;
-  background: linear-gradient(145deg, #fff, #f7fbfd) !important;
-  box-shadow: 0 5px 13px rgba(31, 77, 111, .065) !important;
-}
-#app-layout .btn-success,
-#app-layout .btn-teal { border-color: transparent !important; background: linear-gradient(135deg, #14b878, #078b74) !important; }
-#app-layout .btn-danger { border-color: transparent !important; background: linear-gradient(135deg, #f0625b, #d94747) !important; }
-
+/* Form controls. */
 #app-layout .form-control,
 #app-layout .form-control-search,
 #app-layout input:not([type="checkbox"]):not([type="radio"]):not([type="color"]),
@@ -3289,8 +3243,8 @@ body {
   background: var(--pro-surface) !important;
 }
 
-#app-layout .activity-header-button:hover,
-#app-layout .btn-settings-toggle:hover {
+#app-layout .activity-header-button:not(:disabled):not([aria-disabled="true"]):hover,
+#app-layout .btn-settings-toggle:not(:disabled):not([aria-disabled="true"]):hover {
   color: var(--pro-blue) !important;
   border-color: #bfd2f5 !important;
   background: var(--pro-blue-soft) !important;
@@ -3473,53 +3427,6 @@ body {
   accent-color: var(--pro-blue);
 }
 
-#app-layout .btn {
-  min-height: 38px !important;
-  gap: 7px !important;
-  padding: 7px 12px !important;
-  border-radius: var(--pro-radius-sm) !important;
-  font-size: .8rem !important;
-  font-weight: 650 !important;
-  letter-spacing: -.003em;
-  box-shadow: none !important;
-  transition: color .15s ease, border-color .15s ease, background-color .15s ease, box-shadow .15s ease !important;
-}
-
-#app-layout .btn:hover:not(:disabled) { transform: none !important; }
-#app-layout .btn-primary {
-  color: #fff !important;
-  border-color: var(--pro-blue) !important;
-  background: var(--pro-blue) !important;
-  box-shadow: 0 1px 2px rgba(16, 24, 40, .08) !important;
-}
-
-#app-layout .btn-primary:hover:not(:disabled) {
-  border-color: var(--pro-blue-hover) !important;
-  background: var(--pro-blue-hover) !important;
-  box-shadow: 0 2px 6px rgba(37, 99, 235, .18) !important;
-}
-
-#app-layout .btn-secondary,
-#app-layout .history-load-btn {
-  color: #344054 !important;
-  border: 1px solid #d0d5dd !important;
-  background: var(--pro-surface) !important;
-  box-shadow: 0 1px 2px rgba(16, 24, 40, .025) !important;
-}
-
-#app-layout .btn-secondary:hover:not(:disabled),
-#app-layout .history-load-btn:hover:not(:disabled) {
-  color: var(--pro-ink) !important;
-  border-color: #98a2b3 !important;
-  background: var(--pro-surface-subtle) !important;
-}
-
-#app-layout .btn-success,
-#app-layout .btn-teal { border-color: var(--pro-teal) !important; background: var(--pro-teal) !important; }
-#app-layout .btn-danger { border-color: var(--pro-red) !important; background: var(--pro-red) !important; }
-#app-layout .btn-sm,
-#app-layout .btn-xs { min-height: 32px !important; padding: 5px 9px !important; font-size: .75rem !important; }
-
 /* Metrics and charts: flatter cards, clearer hierarchy, less decorative noise. */
 #app-layout .widgets-grid { gap: 12px !important; }
 #app-layout .widget-card,
@@ -3693,6 +3600,11 @@ body {
   border-color: rgba(255, 255, 255, .2) !important;
   background: rgba(255, 255, 255, .08) !important;
   box-shadow: none !important;
+}
+#app-layout .platform-console-hero .btn-secondary:not(:disabled):not([aria-disabled="true"]):hover {
+  color: #ffffff !important;
+  border-color: rgba(255, 255, 255, .42) !important;
+  background: rgba(255, 255, 255, .18) !important;
 }
 #app-layout .platform-console-hero .btn-primary { background: var(--pro-blue) !important; }
 
@@ -3922,8 +3834,8 @@ body {
   background: rgba(255, 255, 255, .12) !important;
 }
 
-#app-layout .activity-header-button:hover,
-#app-layout .btn-settings-toggle:hover {
+#app-layout .activity-header-button:not(:disabled):not([aria-disabled="true"]):hover,
+#app-layout .btn-settings-toggle:not(:disabled):not([aria-disabled="true"]):hover {
   color: #ffffff !important;
   border-color: rgba(255, 255, 255, .4) !important;
   background: rgba(255, 255, 255, .2) !important;
@@ -4066,17 +3978,6 @@ body {
 
 #app-layout .top-header::before {
   background: linear-gradient(180deg, var(--fresh-blue), var(--fresh-green)) !important;
-}
-
-#app-layout .btn-primary {
-  border-color: var(--fresh-blue) !important;
-  background: linear-gradient(135deg, var(--fresh-blue) 0%, #116fd7 72%, var(--fresh-green) 145%) !important;
-  box-shadow: 0 4px 12px rgba(22, 119, 237, .18) !important;
-}
-
-#app-layout .btn-primary:hover:not(:disabled) {
-  border-color: var(--fresh-blue-deep) !important;
-  background: linear-gradient(135deg, var(--fresh-blue-deep), #0864c7 72%, var(--fresh-green-deep) 145%) !important;
 }
 
 #app-layout .panel-title > svg {
@@ -4587,39 +4488,39 @@ body {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: all 0.18s ease;
+  transition: color .15s ease, background-color .15s ease, border-color .15s ease, box-shadow .15s ease;
 }
 
-.btn-tbl-action:hover {
-  transform: translateY(-1px);
+.btn-tbl-action:not(:disabled):not([aria-disabled="true"]):hover {
+  transform: none;
   box-shadow: 0 3px 8px rgba(0, 0, 0, 0.08);
 }
 
-.btn-tbl-action.btn-tbl-view:hover {
+.btn-tbl-action.btn-tbl-view:not(:disabled):not([aria-disabled="true"]):hover {
   background: #eff6ff;
   border-color: #bfdbfe;
   color: #1d4ed8;
 }
 
-.btn-tbl-action.btn-tbl-edit:hover {
+.btn-tbl-action.btn-tbl-edit:not(:disabled):not([aria-disabled="true"]):hover {
   background: #fefce8;
   border-color: #fef08a;
   color: #a16207;
 }
 
-.btn-tbl-action.btn-tbl-delete:hover {
+.btn-tbl-action.btn-tbl-delete:not(:disabled):not([aria-disabled="true"]):hover {
   background: #fef2f2;
   border-color: #fecaca;
   color: #dc2626;
 }
 
-.btn-tbl-action.btn-tbl-print:hover {
+.btn-tbl-action.btn-tbl-print:not(:disabled):not([aria-disabled="true"]):hover {
   background: #f0fdf4;
   border-color: #bbf7d0;
   color: #15803d;
 }
 
-.btn-tbl-action.btn-tbl-pay:hover {
+.btn-tbl-action.btn-tbl-pay:not(:disabled):not([aria-disabled="true"]):hover {
   background: #ecfdf5;
   border-color: #a7f3d0;
   color: #047857;
@@ -4656,110 +4557,6 @@ body {
   margin-bottom: 0.35rem;
 }
 
-/* --- 7. Buttons Polish --- */
-#app-layout .btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.45rem;
-  font-family: inherit;
-  font-weight: 650;
-  font-size: 0.85rem;
-  border-radius: 9px;
-  padding: 0.5rem 1rem;
-  cursor: pointer;
-  transition: all 0.18s ease;
-  line-height: 1.25;
-}
-
-#app-layout .btn:hover:not(:disabled) {
-  transform: translateY(-1px);
-}
-
-#app-layout .btn:active:not(:disabled) {
-  transform: translateY(0);
-}
-
-#app-layout .btn i,
-#app-layout .btn svg {
-  width: 16px;
-  height: 16px;
-  flex-shrink: 0;
-}
-
-#app-layout .btn-xs {
-  padding: 0.28rem 0.6rem;
-  font-size: 0.75rem;
-  border-radius: 6px;
-}
-
-#app-layout .btn-xs i,
-#app-layout .btn-xs svg {
-  width: 13px;
-  height: 13px;
-}
-
-#app-layout .btn-sm {
-  padding: 0.4rem 0.85rem;
-  font-size: 0.8rem;
-  border-radius: 8px;
-}
-
-#app-layout .btn-sm i,
-#app-layout .btn-sm svg {
-  width: 14px;
-  height: 14px;
-}
-
-#app-layout .btn-primary {
-  background: linear-gradient(135deg, #0b6cf2, #0757d3) !important;
-  color: #ffffff !important;
-  border: 1px solid #0757d3 !important;
-  box-shadow: 0 4px 12px rgba(11, 108, 242, 0.2) !important;
-}
-
-#app-layout .btn-primary:hover:not(:disabled) {
-  background: linear-gradient(135deg, #0757d3, #0548b3) !important;
-  box-shadow: 0 6px 16px rgba(11, 108, 242, 0.3) !important;
-}
-
-#app-layout .btn-secondary {
-  background: #ffffff !important;
-  color: #334155 !important;
-  border: 1px solid #cbd5e1 !important;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05) !important;
-}
-
-#app-layout .btn-secondary:hover:not(:disabled) {
-  background: #f8fafc !important;
-  border-color: #94a3b8 !important;
-  color: #0f172a !important;
-}
-
-#app-layout .btn-success {
-  background: linear-gradient(135deg, #0e9f67, #087d50) !important;
-  color: #ffffff !important;
-  border: 1px solid #087d50 !important;
-  box-shadow: 0 4px 12px rgba(14, 159, 103, 0.2) !important;
-}
-
-#app-layout .btn-success:hover:not(:disabled) {
-  background: linear-gradient(135deg, #087d50, #06633f) !important;
-  box-shadow: 0 6px 16px rgba(14, 159, 103, 0.3) !important;
-}
-
-#app-layout .btn-indigo {
-  background: linear-gradient(135deg, #6366f1, #4f46e5) !important;
-  color: #ffffff !important;
-  border: 1px solid #4f46e5 !important;
-  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.2) !important;
-}
-
-#app-layout .btn-indigo:hover:not(:disabled) {
-  background: linear-gradient(135deg, #4f46e5, #4338ca) !important;
-  box-shadow: 0 6px 16px rgba(99, 102, 241, 0.3) !important;
-}
-
 /* Kiot-style outline buttons in Cashbook */
 #app-layout .btn-kiot-outline-blue {
   border: 1px solid #0b6cf2;
@@ -4772,13 +4569,12 @@ body {
   align-items: center;
   gap: 0.4rem;
   cursor: pointer;
-  transition: all 0.18s ease;
+  transition: color .15s ease, background-color .15s ease, border-color .15s ease, box-shadow .15s ease;
 }
 
-#app-layout .btn-kiot-outline-blue:hover {
+#app-layout .btn-kiot-outline-blue:not(:disabled):not([aria-disabled="true"]):hover {
   background: #0b6cf2;
   color: #ffffff;
-  transform: translateY(-1px);
 }
 
 #app-layout .btn-kiot-outline-gray {
@@ -4792,10 +4588,10 @@ body {
   align-items: center;
   gap: 0.4rem;
   cursor: pointer;
-  transition: all 0.18s ease;
+  transition: color .15s ease, background-color .15s ease, border-color .15s ease, box-shadow .15s ease;
 }
 
-#app-layout .btn-kiot-outline-gray:hover {
+#app-layout .btn-kiot-outline-gray:not(:disabled):not([aria-disabled="true"]):hover {
   background: #f1f5f9;
   color: #0f172a;
 }
@@ -4873,7 +4669,7 @@ body {
   align-items: center !important;
   justify-content: center !important;
   cursor: pointer !important;
-  transition: all 0.18s ease !important;
+  transition: color .16s ease, background-color .16s ease, border-color .16s ease, box-shadow .16s ease !important;
   padding: 0 !important;
 }
 
@@ -4924,7 +4720,7 @@ body {
   padding: 0.45rem 1rem !important;
   border-radius: 8px !important;
   cursor: pointer;
-  transition: all 0.18s ease;
+  transition: color .16s ease, background-color .16s ease, border-color .16s ease, box-shadow .16s ease;
 }
 
 .report-subtab-btn.active {
@@ -5080,6 +4876,33 @@ body {
 
 #app-layout #invoice-panel .invoice-customer-card {
   border-top: 3px solid #2b7de9 !important;
+}
+
+#app-layout #invoice-panel .invoice-customer-card:focus-within {
+  position: relative !important;
+  z-index: 20 !important;
+}
+
+#app-layout #invoice-panel .invoice-customer-card {
+  position: relative !important;
+  z-index: 2 !important;
+}
+
+#app-layout #invoice-panel #invoice-customer-search-group {
+  position: relative !important;
+  z-index: 3 !important;
+  overflow: visible !important;
+}
+
+#app-layout #invoice-panel #invoice-customer-suggestions {
+  position: absolute !important;
+  top: calc(100% + 4px) !important;
+  left: 0 !important;
+  right: 0 !important;
+  width: auto !important;
+  z-index: 4 !important;
+  max-height: min(260px, calc(100vh - 180px));
+  overflow-y: auto !important;
 }
 
 /* The input group owns the outline.  The editable control inside must stay
@@ -5949,7 +5772,7 @@ body {
   transition: color 0.15s ease !important;
 }
 
-#dashboard-panel .saas-onboarding-action:hover {
+#dashboard-panel .saas-onboarding-action:not(:disabled):not([aria-disabled="true"]):hover {
   color: #1d4ed8 !important;
 }
 
@@ -5981,7 +5804,7 @@ body {
   background: transparent !important;
   color: #64748b !important;
   cursor: pointer !important;
-  transition: all 0.18s ease !important;
+  transition: color .16s ease, background-color .16s ease, border-color .16s ease, box-shadow .16s ease !important;
 }
 
 #dashboard-panel .chart-view-btn.btn-primary,
@@ -6103,7 +5926,7 @@ body {
   align-items: center !important;
   gap: 6px !important;
   cursor: pointer !important;
-  transition: all 0.18s ease !important;
+  transition: color .15s ease, background-color .15s ease, border-color .15s ease, box-shadow .15s ease !important;
 }
 
 /* Invoice Table */
@@ -6157,7 +5980,7 @@ body {
   gap: 4px !important;
 }
 
-#invoice-panel .btn-invoice-clear-all:hover {
+#invoice-panel .btn-invoice-clear-all:not(:disabled):not([aria-disabled="true"]):hover {
   text-decoration: underline !important;
 }
 
@@ -6588,10 +6411,10 @@ body {
   padding: 2px 8px !important;
   border-radius: 6px !important;
   cursor: pointer !important;
-  transition: all 0.15s ease !important;
+  transition: color .15s ease, background-color .15s ease, border-color .15s ease !important;
 }
 
-#app-layout .stitch-order-entry #btn-quick-add-customer:hover {
+#app-layout .stitch-order-entry #btn-quick-add-customer:not(:disabled):not([aria-disabled="true"]):hover {
   background: #dbeafe !important;
 }
 
@@ -6650,7 +6473,7 @@ body {
   align-items: center !important;
   gap: 6px !important;
   cursor: pointer !important;
-  transition: all 0.15s ease !important;
+  transition: color .15s ease, background-color .15s ease, border-color .15s ease, box-shadow .15s ease !important;
   flex-shrink: 0 !important;
 }
 
@@ -6742,10 +6565,10 @@ body {
   font-weight: 600 !important;
   border-radius: 999px !important;
   cursor: pointer !important;
-  transition: all 0.15s ease !important;
+  transition: color .15s ease, background-color .15s ease, border-color .15s ease !important;
 }
 
-#app-layout .stitch-order-entry #btn-reset-order:hover {
+#app-layout .stitch-order-entry #btn-reset-order:not(:disabled):not([aria-disabled="true"]):hover {
   background: #f1f5f9 !important;
   color: #1e293b !important;
 }
@@ -6956,7 +6779,7 @@ body {
   justify-content: center !important;
   gap: 8px !important;
   cursor: pointer !important;
-  transition: all 0.15s ease !important;
+  transition: color .15s ease, background-color .15s ease, border-color .15s ease, box-shadow .15s ease !important;
 }
 
 #app-layout .stitch-order-entry #btn-draft-order {
@@ -6971,7 +6794,7 @@ body {
   justify-content: center !important;
   gap: 8px !important;
   cursor: pointer !important;
-  transition: all 0.15s ease !important;
+  transition: color .15s ease, background-color .15s ease, border-color .15s ease, box-shadow .15s ease !important;
 }
 
 #app-layout .stitch-order-entry #btn-print-order {
@@ -6986,7 +6809,7 @@ body {
   justify-content: center !important;
   gap: 8px !important;
   cursor: pointer !important;
-  transition: all 0.15s ease !important;
+  transition: color .15s ease, background-color .15s ease, border-color .15s ease, box-shadow .15s ease !important;
 }
 
 #app-layout .stitch-order-entry .invoice-helper-shortcuts {
@@ -7901,12 +7724,12 @@ body {
   position: relative !important;
   cursor: pointer !important;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05) !important;
-  transition: all 0.18s ease !important;
+  transition: color .16s ease, background-color .16s ease, border-color .16s ease, box-shadow .16s ease, transform .16s ease !important;
 }
 
-#app-layout[data-nav-layout="horizontal"] .header-help-button:hover,
-#app-layout[data-nav-layout="horizontal"] .activity-header-button:hover,
-#app-layout[data-nav-layout="horizontal"] .btn-settings-toggle:hover {
+#app-layout[data-nav-layout="horizontal"] .header-help-button:not(:disabled):not([aria-disabled="true"]):hover,
+#app-layout[data-nav-layout="horizontal"] .activity-header-button:not(:disabled):not([aria-disabled="true"]):hover,
+#app-layout[data-nav-layout="horizontal"] .btn-settings-toggle:not(:disabled):not([aria-disabled="true"]):hover {
   background: var(--vi-primary-fixed, #d9e2ff) !important;
   color: #00419d !important;
   border-color: rgba(0, 87, 205, 0.3) !important;
@@ -8004,9 +7827,6 @@ textarea,
   -webkit-tap-highlight-color: transparent;
 }
 
-button:hover,
-a:hover,
-[role="button"]:hover,
 .card-hover-3d:hover,
 .glass-panel:hover,
 .widget-card:hover {
@@ -8126,11 +7946,11 @@ a:hover,
   box-shadow: none !important;
 }
 
-#app-layout .header-help-button:hover,
-#app-layout .activity-header-button:hover,
-#app-layout .btn-settings-toggle:hover,
-#app-layout .header-user-avatar:hover,
-#app-layout .btn-logout:hover {
+#app-layout .header-help-button:not(:disabled):not([aria-disabled="true"]):hover,
+#app-layout .activity-header-button:not(:disabled):not([aria-disabled="true"]):hover,
+#app-layout .btn-settings-toggle:not(:disabled):not([aria-disabled="true"]):hover,
+#app-layout .header-user-avatar:not(:disabled):not([aria-disabled="true"]):hover,
+#app-layout .btn-logout:not(:disabled):not([aria-disabled="true"]):hover {
   color: var(--vi-on-primary-container) !important;
   background: var(--vi-primary-container) !important;
 }
@@ -8163,11 +7983,11 @@ a:hover,
   border-radius: var(--vi-radius-sm) !important;
 }
 
-.purchase-menu-link:hover,
-.staff-menu-link:hover,
-.dropdown-item:hover,
-.workspace-menu button:hover,
-.workspace-menu a:hover {
+.purchase-menu-link:not(:disabled):not([aria-disabled="true"]):hover,
+.staff-menu-link:not(:disabled):not([aria-disabled="true"]):hover,
+.dropdown-item:not(:disabled):not([aria-disabled="true"]):hover,
+.workspace-menu button:not(:disabled):not([aria-disabled="true"]):hover,
+.workspace-menu a:not([aria-disabled="true"]):hover {
   color: var(--vi-on-primary-container) !important;
   background: var(--vi-primary-fixed) !important;
 }
@@ -8287,21 +8107,10 @@ a:hover,
 
 /* Buttons */
 
-.btn-primary,
 .purchase-primary-btn {
   box-shadow: 0 2px 5px rgba(29, 78, 216, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.18) !important;
 }
 
-.btn-indigo:hover,
-.btn-info-card-add:hover {
-  color: #ffffff !important;
-}
-
-.btn-success:hover {
-  color: #ffffff !important;
-}
-
-.btn-danger,
 .purchase-cancel-btn,
 .purchase-cancel-payment-btn {
   color: #ffffff !important;
@@ -8311,34 +8120,19 @@ a:hover,
   font-weight: 700 !important;
 }
 
-.btn-danger:hover,
-.purchase-cancel-btn:hover,
-.purchase-cancel-payment-btn:hover {
+.purchase-cancel-btn:not(:disabled):not([aria-disabled="true"]):hover,
+.purchase-cancel-payment-btn:not(:disabled):not([aria-disabled="true"]):hover {
   color: #ffffff !important;
   background: linear-gradient(180deg, #b91c1c 0%, #991b1b 100%) !important;
   box-shadow: 0 4px 10px rgba(220, 38, 38, 0.35) !important;
 }
 
-.btn-warning {
-  color: #78350f !important;
-  border: 1px solid #fcd34d !important;
-  background: #fef3c7 !important;
-  box-shadow: 0 1px 2px rgba(120, 53, 15, 0.1) !important;
-  font-weight: 700 !important;
-}
-
-.btn-sm,
-.btn-xs,
-.icon-btn,
-.btn-circle {
-  min-height: 36px;
-}
-
-.icon-btn,
-.btn-circle,
-.modal-close {
-  border-radius: var(--vi-radius-full) !important;
-  box-shadow: none !important;
+#app-layout .btn-circle {
+  height: auto !important;
+  min-height: 0 !important;
+  aspect-ratio: 1 / 1;
+  padding: 0 !important;
+  border-radius: 50% !important;
 }
 
 button:disabled,
@@ -8505,10 +8299,10 @@ table,
   font-weight: 600 !important;
 }
 
-.report-subtab-btn:hover,
-.history-view-mode-btn:hover,
-.chart-view-btn:hover,
-.kiot-pill-btn:hover {
+.report-subtab-btn:not(:disabled):not([aria-disabled="true"]):not(.active):hover,
+.history-view-mode-btn:not(:disabled):not([aria-disabled="true"]):not(.active):hover,
+.chart-view-btn:not(:disabled):not([aria-disabled="true"]):not(.active):hover,
+.kiot-pill-btn:not(:disabled):not([aria-disabled="true"]):not(.active):hover {
   background: #f8fafc !important;
   color: #0f172a !important;
   border-color: #94a3b8 !important;
@@ -8556,11 +8350,11 @@ table,
   border: 1px solid var(--vi-outline-variant) !important;
   background: var(--vi-surface-low) !important;
   border-radius: 10px !important;
-  transition: all 0.15s ease !important;
+  transition: color .15s ease, background-color .15s ease, border-color .15s ease !important;
 }
 
-.modal-close:hover,
-.quick-modal-close-btn:hover {
+.modal-close:not(:disabled):not([aria-disabled="true"]):hover,
+.quick-modal-close-btn:not(:disabled):not([aria-disabled="true"]):hover {
   color: var(--vi-on-error-container) !important;
   background: var(--vi-error-container) !important;
 }
@@ -9212,7 +9006,7 @@ table,
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
-  transition: all 0.18s ease !important;
+  transition: color .16s ease, background-color .16s ease, border-color .16s ease, box-shadow .16s ease, transform .16s ease !important;
 }
 
 #app-layout .sidebar .header-help-button svg,
@@ -9227,11 +9021,11 @@ table,
   height: 17px !important;
 }
 
-#app-layout[data-nav-layout="horizontal"] .sidebar .header-help-button:hover,
-#app-layout[data-nav-layout="horizontal"] .sidebar .activity-header-button:hover,
-#app-layout[data-nav-layout="horizontal"] .sidebar .btn-settings-toggle:hover,
-#app-layout[data-nav-layout="horizontal"] .sidebar .header-user-avatar:hover,
-#app-layout[data-nav-layout="horizontal"] .sidebar .btn-logout:hover {
+#app-layout[data-nav-layout="horizontal"] .sidebar .header-help-button:not(:disabled):not([aria-disabled="true"]):hover,
+#app-layout[data-nav-layout="horizontal"] .sidebar .activity-header-button:not(:disabled):not([aria-disabled="true"]):hover,
+#app-layout[data-nav-layout="horizontal"] .sidebar .btn-settings-toggle:not(:disabled):not([aria-disabled="true"]):hover,
+#app-layout[data-nav-layout="horizontal"] .sidebar .header-user-avatar:not(:disabled):not([aria-disabled="true"]):hover,
+#app-layout[data-nav-layout="horizontal"] .sidebar .btn-logout:not(:disabled):not([aria-disabled="true"]):hover {
   color: #00419d !important;
   background: var(--vi-primary-fixed) !important;
   border-color: rgba(0, 87, 205, 0.3) !important;
@@ -9288,7 +9082,6 @@ table,
 }
 
 /* Primary actions carry the only strong gradient in the product shell. */
-.btn-primary,
 .purchase-primary-btn {
   color: #ffffff !important;
   border: 1px solid #1e40af !important;
@@ -9297,14 +9090,12 @@ table,
   font-weight: 700 !important;
 }
 
-.btn-primary:hover,
-.purchase-primary-btn:hover {
+.purchase-primary-btn:not(:disabled):not([aria-disabled="true"]):hover {
   color: #ffffff !important;
   background: linear-gradient(180deg, #1e40af 0%, #172554 100%) !important;
   box-shadow: 0 4px 12px rgba(29, 78, 216, 0.38) !important;
 }
 
-.btn-secondary,
 .purchase-row-toggle {
   color: #1e293b !important;
   border: 1.5px solid #cbd5e1 !important;
@@ -9313,40 +9104,11 @@ table,
   font-weight: 600 !important;
 }
 
-.btn-secondary:hover,
-.purchase-row-toggle:hover {
+.purchase-row-toggle:not(:disabled):not([aria-disabled="true"]):hover {
   color: #0f172a !important;
   background: #f8fafc !important;
   border-color: #94a3b8 !important;
   box-shadow: 0 2px 4px rgba(15, 23, 42, 0.1) !important;
-}
-
-.btn-indigo,
-.btn-info-card-add {
-  color: #ffffff !important;
-  border: 1px solid #4338ca !important;
-  background: linear-gradient(180deg, #4f46e5 0%, #4338ca 100%) !important;
-  box-shadow: 0 2px 5px rgba(79, 70, 229, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.18) !important;
-  font-weight: 700 !important;
-}
-
-.btn-indigo:hover,
-.btn-info-card-add:hover {
-  background: linear-gradient(180deg, #4338ca 0%, #3730a3 100%) !important;
-  box-shadow: 0 4px 10px rgba(79, 70, 229, 0.35) !important;
-}
-
-.btn-success {
-  color: #ffffff !important;
-  border: 1px solid #047857 !important;
-  background: linear-gradient(180deg, #059669 0%, #047857 100%) !important;
-  box-shadow: 0 2px 5px rgba(5, 150, 105, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.18) !important;
-  font-weight: 700 !important;
-}
-
-.btn-success:hover {
-  background: linear-gradient(180deg, #047857 0%, #064e3b 100%) !important;
-  box-shadow: 0 4px 10px rgba(5, 150, 105, 0.35) !important;
 }
 
 /* Inputs sit on low tonal surfaces; focus becomes white with a clear blue halo. */
@@ -9839,11 +9601,11 @@ textarea:focus {
   box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05), inset 0 1px 0 #ffffff !important;
   color: #64748b !important;
   cursor: pointer !important;
-  transition: all 0.2s ease !important;
+  transition: color .16s ease, background-color .16s ease, border-color .16s ease, box-shadow .16s ease, transform .16s ease !important;
   z-index: 30 !important;
 }
 
-.login-shell .login-close-button:hover {
+.login-shell .login-close-button:not(:disabled):not([aria-disabled="true"]):hover {
   color: #0056cd !important;
   background: #ffffff !important;
   border-color: #cbd5e1 !important;
@@ -9878,8 +9640,8 @@ textarea:focus {
   transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.18s cubic-bezier(0.16, 1, 0.3, 1), background 0.18s ease !important;
 }
 
-.login-card .login-submit-button:hover,
-#btn-login-submit:hover {
+.login-card .login-submit-button:not(:disabled):not([aria-disabled="true"]):hover,
+#btn-login-submit:not(:disabled):not([aria-disabled="true"]):hover {
   transform: translateY(-1.5px) !important;
   background: linear-gradient(180deg, #2b82ff 0%, #0d69f2 60%, #0053cc 100%) !important;
   box-shadow: 
@@ -9982,14 +9744,16 @@ textarea:focus {
   border: 1px solid #c7dcff !important;
   border-radius: 8px !important;
   background: #edf5ff !important;
+  box-shadow: 0 1px 2px rgba(7, 93, 204, 0.12) !important;
   font-size: 0.8rem !important;
   font-weight: 700 !important;
 }
 
-#app-layout #invoice-panel .btn-info-card-add:hover {
+#app-layout #invoice-panel .btn-info-card-add:not(:disabled):not([aria-disabled="true"]):hover {
   color: #00419d !important;
   border-color: #9fc2ff !important;
   background: #deebff !important;
+  box-shadow: 0 2px 6px rgba(7, 93, 204, 0.16) !important;
 }
 
 #app-layout #invoice-panel .btn-info-card-add > svg {
@@ -10228,7 +9992,7 @@ html.module-filter-drawer-open {
   font-weight: 650 !important;
 }
 
-#app-layout .module-filter-mobile-trigger:hover {
+#app-layout .module-filter-mobile-trigger:not(:disabled):not([aria-disabled="true"]):hover {
   color: #0f172a !important;
   background: #f8fafc !important;
   border-color: #94a3b8 !important;
@@ -10417,7 +10181,7 @@ html.module-filter-drawer-open {
   background: rgba(255, 255, 255, 0.86) !important;
 }
 
-#app-layout .module-filter-sidebar.is-mobile-open .module-filter-toggle:hover {
+#app-layout .module-filter-sidebar.is-mobile-open .module-filter-toggle:not(:disabled):not([aria-disabled="true"]):hover {
   color: #0057cd !important;
   border-color: rgba(0, 87, 205, 0.22) !important;
   background: #edf5ff !important;
@@ -10868,11 +10632,11 @@ button.btn,
   border: 1px solid #006ffd !important;
   box-shadow: 0 1px 2px 0 rgba(0, 111, 253, 0.2) !important;
   cursor: pointer !important;
-  transition: all 0.15s ease-in-out !important;
+  transition: color .15s ease-in-out, background-color .15s ease-in-out, border-color .15s ease-in-out, box-shadow .15s ease-in-out, transform .15s ease-in-out !important;
 }
 
-#app-layout .purchase-primary-btn:hover,
-#app-layout .purchase-actions .btn-primary:hover {
+#app-layout .purchase-primary-btn:not(:disabled):not([aria-disabled="true"]):hover,
+#app-layout .purchase-actions .btn-primary:not(:disabled):not([aria-disabled="true"]):hover {
   background: #005ce6 !important;
   border-color: #005ce6 !important;
   transform: translateY(-1px) !important;
@@ -11094,10 +10858,10 @@ button.btn,
   font-weight: 600 !important;
   padding: 4px 10px !important;
   cursor: pointer !important;
-  transition: all 0.15s ease !important;
+  transition: color .15s ease, background-color .15s ease, border-color .15s ease !important;
 }
 
-#app-layout .purchase-row-toggle:hover {
+#app-layout .purchase-row-toggle:not(:disabled):not([aria-disabled="true"]):hover {
   background: #eff6ff !important;
   border-color: #93c5fd !important;
 }
@@ -11117,6 +10881,48 @@ button.btn,
   justify-content: center !important;
   max-width: 440px !important;
   margin: 0 auto !important;
+}
+
+#app-layout .purchase-cloud-read-error {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  margin: 0 0 1rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid #fcd34d;
+  border-radius: 0.75rem;
+  background: #fffbeb;
+  color: #92400e;
+  font-size: 0.9rem;
+}
+
+.purchase-reason-overlay {
+  z-index: 10020;
+}
+
+.purchase-reason-dialog {
+  width: min(32rem, calc(100vw - 2rem));
+  max-height: calc(100vh - 2rem);
+  overflow-y: auto;
+}
+
+.purchase-reason-dialog textarea {
+  width: 100%;
+  margin: 0.5rem 0;
+  resize: vertical;
+}
+
+.purchase-reason-error {
+  min-height: 1.25rem;
+  color: var(--color-danger, #b91c1c);
+  font-size: 0.85rem;
+}
+
+#app-layout .cashbook-confirm-dialog {
+  width: min(32rem, calc(100vw - 2rem));
+  max-height: calc(100vh - 2rem);
+  overflow-y: auto;
 }
 
 #app-layout .purchase-empty-icon {
@@ -11160,7 +10966,7 @@ button.btn,
   box-shadow: 0 1px 2px rgba(0, 111, 253, 0.2) !important;
 }
 
-#app-layout .purchase-empty-btn:hover {
+#app-layout .purchase-empty-btn:not(:disabled):not([aria-disabled="true"]):hover {
   background: #005ce6 !important;
 }
 
@@ -11231,34 +11037,32 @@ button.btn,
 }
 
 /* 4. Action Buttons in Tables and Cards */
-#app-layout .table .btn-circle,
-#app-layout .table .icon-btn,
-#app-layout .table .edit-cust-btn,
-#app-layout .table .history-copy-btn,
-#app-layout .table .history-activity-btn,
-#app-layout .table .history-notes-btn,
-#app-layout .order-card .history-copy-btn,
-#app-layout .order-card .history-activity-btn,
-#app-layout .order-card .history-notes-btn {
+#app-layout .table :is(.btn-circle, .icon-btn, .edit-cust-btn, .history-copy-btn, .history-activity-btn, .history-notes-btn):not(.btn-primary):not(.btn-danger):not(.btn-success):not(.btn-warning):not(.btn-indigo):not(.btn-teal):not(.delete-price-override),
+#app-layout .order-card :is(.history-copy-btn, .history-activity-btn, .history-notes-btn):not(.btn-primary):not(.btn-danger):not(.btn-success):not(.btn-warning):not(.btn-indigo):not(.btn-teal):not(.delete-price-override) {
   color: #1e40af !important;
   border: 1.5px solid #cbd5e1 !important;
   background: #ffffff !important;
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05) !important;
 }
 
-#app-layout .table .btn-circle:hover,
-#app-layout .table .icon-btn:hover,
-#app-layout .table .edit-cust-btn:hover,
-#app-layout .table .history-copy-btn:hover,
-#app-layout .table .history-activity-btn:hover,
-#app-layout .table .history-notes-btn:hover,
-#app-layout .order-card .history-copy-btn:hover,
-#app-layout .order-card .history-activity-btn:hover,
-#app-layout .order-card .history-notes-btn:hover {
+#app-layout .table :is(.btn-circle, .icon-btn, .edit-cust-btn, .history-copy-btn, .history-activity-btn, .history-notes-btn):not(.btn-primary):not(.btn-danger):not(.btn-success):not(.btn-warning):not(.btn-indigo):not(.btn-teal):not(.delete-price-override):not(:disabled):not([aria-disabled="true"]):hover,
+#app-layout .order-card :is(.history-copy-btn, .history-activity-btn, .history-notes-btn):not(.btn-primary):not(.btn-danger):not(.btn-success):not(.btn-warning):not(.btn-indigo):not(.btn-teal):not(.delete-price-override):not(:disabled):not([aria-disabled="true"]):hover {
   color: #1d4ed8 !important;
   background: #eff6ff !important;
   border-color: #93c5fd !important;
   box-shadow: 0 2px 4px rgba(37, 99, 235, 0.12) !important;
+}
+
+#app-layout .table .delete-price-override {
+  color: #b91c1c !important;
+  border-color: #fecdd3 !important;
+  background: #fff5f5 !important;
+}
+
+#app-layout .table .delete-price-override:not(:disabled):not([aria-disabled="true"]):hover {
+  color: #991b1b !important;
+  border-color: #fda4af !important;
+  background: #fee2e2 !important;
 }
 
 #app-layout .table .delete-cust-btn,
@@ -11269,8 +11073,8 @@ button.btn,
   box-shadow: 0 1px 2px rgba(220, 38, 38, 0.05) !important;
 }
 
-#app-layout .table .delete-cust-btn:hover,
-#app-layout .history-delete-btn:hover {
+#app-layout .table .delete-cust-btn:not(:disabled):not([aria-disabled="true"]):hover,
+#app-layout .history-delete-btn:not(:disabled):not([aria-disabled="true"]):hover {
   color: #b91c1c !important;
   background: #fee2e2 !important;
   border-color: #f87171 !important;
@@ -11291,12 +11095,12 @@ button.btn,
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06) !important;
 }
 
-#app-layout .table .pay-debt-btn:hover {
+#app-layout .table .pay-debt-btn:not(:disabled):not([aria-disabled="true"]):hover {
   background: linear-gradient(180deg, #4338ca 0%, #3730a3 100%) !important;
   box-shadow: 0 4px 10px rgba(79, 70, 229, 0.35) !important;
 }
 
-#app-layout .order-card .history-print-btn:hover {
+#app-layout .order-card .history-print-btn:not(:disabled):not([aria-disabled="true"]):hover {
   color: #0f172a !important;
   background: #f8fafc !important;
   border-color: #94a3b8 !important;
@@ -11304,9 +11108,9 @@ button.btn,
 }
 
 /* 5. Pagination Buttons */
-#app-layout .pagination-controls .btn,
-#app-layout .so-quy-pagination-controls .btn,
-#app-layout .price-matrix-pagination-controls .btn {
+#app-layout .pagination-controls .btn-secondary,
+#app-layout .so-quy-pagination-controls .btn-secondary,
+#app-layout .price-matrix-pagination-controls .btn-secondary {
   color: #1e293b !important;
   border: 1.5px solid #cbd5e1 !important;
   background: #ffffff !important;
@@ -11316,18 +11120,18 @@ button.btn,
   min-height: 36px !important;
 }
 
-#app-layout .pagination-controls .btn:not(:disabled):hover,
-#app-layout .so-quy-pagination-controls .btn:not(:disabled):hover,
-#app-layout .price-matrix-pagination-controls .btn:not(:disabled):hover {
+#app-layout .pagination-controls .btn-secondary:not(:disabled):not([aria-disabled="true"]):hover,
+#app-layout .so-quy-pagination-controls .btn-secondary:not(:disabled):not([aria-disabled="true"]):hover,
+#app-layout .price-matrix-pagination-controls .btn-secondary:not(:disabled):not([aria-disabled="true"]):hover {
   color: #0f172a !important;
   background: #f8fafc !important;
   border-color: #94a3b8 !important;
   box-shadow: 0 2px 4px rgba(15, 23, 42, 0.1) !important;
 }
 
-#app-layout .pagination-controls .btn:disabled,
-#app-layout .so-quy-pagination-controls .btn:disabled,
-#app-layout .price-matrix-pagination-controls .btn:disabled {
+#app-layout .pagination-controls .btn-secondary:disabled,
+#app-layout .so-quy-pagination-controls .btn-secondary:disabled,
+#app-layout .price-matrix-pagination-controls .btn-secondary:disabled {
   opacity: 0.45 !important;
   background: #f8fafc !important;
   border-color: #e2e8f0 !important;
@@ -11435,10 +11239,10 @@ button.btn,
   color: #1e293b !important;
   box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08) !important;
   cursor: pointer !important;
-  transition: all 0.2s ease !important;
+  transition: color .15s ease, background-color .15s ease, border-color .15s ease, box-shadow .15s ease !important;
 }
 
-#app-layout .top-header .dashboard-header-actions .btn:hover {
+#app-layout .top-header .dashboard-header-actions .btn:not(:disabled):not([aria-disabled="true"]):not(.btn-primary):not(.btn-danger):not(.btn-success):not(.btn-warning):not(.btn-indigo):not(.btn-teal):hover {
   background: #f8fafc !important;
   border-color: #94a3b8 !important;
   color: #0f172a !important;
@@ -11799,11 +11603,11 @@ button.btn,
   border-radius: 7px !important;
   cursor: pointer !important;
   box-shadow: none !important;
-  transition: all 0.15s ease !important;
+  transition: color .15s ease, background-color .15s ease, border-color .15s ease, box-shadow .15s ease !important;
   line-height: 1.2 !important;
 }
 
-#app-layout #dashboard-panel.stitch-dashboard .chart-view-switcher .chart-view-btn:hover {
+#app-layout #dashboard-panel.stitch-dashboard .chart-view-switcher .chart-view-btn:not(:disabled):not([aria-disabled="true"]):not(.active):hover {
   color: #0f172a !important;
   background: rgba(255, 255, 255, 0.6) !important;
 }
@@ -11834,7 +11638,7 @@ button.btn,
   transition: color 0.15s ease !important;
 }
 
-#app-layout #dashboard-panel.stitch-dashboard .dashboard-link-btn:hover {
+#app-layout #dashboard-panel.stitch-dashboard .dashboard-link-btn:not(:disabled):not([aria-disabled="true"]):hover {
   color: #1d4ed8 !important;
   text-decoration: underline !important;
 }
@@ -11963,10 +11767,10 @@ button.btn,
   gap: 8px !important;
   box-shadow: 0 4px 14px rgba(0, 102, 255, 0.28) !important;
   cursor: pointer !important;
-  transition: all 0.2s ease !important;
+  transition: color .16s ease, background-color .16s ease, border-color .16s ease, box-shadow .16s ease, transform .16s ease !important;
 }
 
-#app-layout #dashboard-panel.stitch-dashboard .dash-btn-create-order:hover {
+#app-layout #dashboard-panel.stitch-dashboard .dash-btn-create-order:not(:disabled):not([aria-disabled="true"]):hover {
   background: #0052cc !important;
   box-shadow: 0 6px 18px rgba(0, 102, 255, 0.38) !important;
   transform: translateY(-1px) !important;
@@ -12375,7 +12179,7 @@ button.btn,
   cursor: pointer !important;
 }
 
-#app-layout .history-card-actions-toggle:hover { border-color: #94a3b8 !important; background: #eef4fb !important; }
+#app-layout .history-card-actions-toggle:not(:disabled):not([aria-disabled="true"]):hover { border-color: #94a3b8 !important; background: #eef4fb !important; }
 #app-layout .history-card-actions-toggle[aria-expanded="true"] { border-color: #a9c6ef !important; background: #edf5ff !important; color: #0057cd !important; }
 #app-layout .history-card-actions-toggle svg { width: 16px !important; height: 16px !important; flex: 0 0 16px !important; }
 
@@ -12401,13 +12205,31 @@ button.btn,
   box-shadow: none !important;
 }
 
-#app-layout .history-expanded-actions .history-detail-action:hover { background: #f8fafc !important; border-color: #94a3b8 !important; }
+#app-layout .history-expanded-actions :is(.history-action-print, .history-action-view, .history-action-copy):not(:disabled):not([aria-disabled="true"]):hover {
+  background: #f8fafc !important;
+  border-color: #94a3b8 !important;
+}
 #app-layout .history-expanded-actions .history-action-edit { border-color: #1e40af !important; background: #0057cd !important; color: #ffffff !important; }
 #app-layout .history-expanded-actions .history-action-return { border-color: #d97706 !important; background: #f59e0b !important; color: #ffffff !important; }
 #app-layout .history-expanded-actions .history-action-delete { border-color: #fecdd3 !important; background: #fff5f5 !important; color: #b91c1c !important; }
 #app-layout .history-expanded-actions .history-action-print,
 #app-layout .history-expanded-actions .history-action-view,
 #app-layout .history-expanded-actions .history-action-copy { border-color: #cbd8e3 !important; background: #ffffff !important; color: #334155 !important; }
+#app-layout .history-expanded-actions .history-action-edit:not(:disabled):not([aria-disabled="true"]):hover {
+  border-color: #003b82 !important;
+  background: #00419d !important;
+  color: #ffffff !important;
+}
+#app-layout .history-expanded-actions .history-action-return:not(:disabled):not([aria-disabled="true"]):hover {
+  border-color: #92400e !important;
+  background: #b45309 !important;
+  color: #ffffff !important;
+}
+#app-layout .history-expanded-actions .history-action-delete:not(:disabled):not([aria-disabled="true"]):hover {
+  border-color: #fda4af !important;
+  background: #fee2e2 !important;
+  color: #991b1b !important;
+}
 
 #app-layout .history-view-toggle-group {
   display: flex !important;
@@ -12429,4 +12251,52 @@ button.btn,
 
 @media (max-width: 360px) {
   #app-layout .history-card-actions-toggle { gap: 5px !important; padding: 0 6px !important; font-size: .76rem !important; }
+}
+
+/* Keep the invoice customer suggestions outside the builder card's clip area. */
+#app-layout #invoice-panel.stitch-order-entry .invoice-builder > .glass-panel.invoice-main-card {
+  overflow: visible !important;
+}
+
+/* Cashbook filter popup: fixed title/footer, bounded filter content. */
+#app-layout .module-filter-sidebar[data-filter-owner="so-quy-panel"].is-mobile-open {
+  display: grid !important;
+  grid-template-rows: auto minmax(0, 1fr) auto !important;
+  gap: 0 !important;
+}
+
+#app-layout .module-filter-sidebar[data-filter-owner="so-quy-panel"].is-mobile-open > .module-filter-heading {
+  min-height: 76px !important;
+}
+
+#app-layout .module-filter-sidebar[data-filter-owner="so-quy-panel"].is-mobile-open > .module-filter-body {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  align-content: start !important;
+  min-height: 0 !important;
+  margin: 0 !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  overscroll-behavior: contain !important;
+}
+
+#app-layout .module-filter-sidebar[data-filter-owner="so-quy-panel"].is-mobile-open .module-filter-active-chips {
+  grid-column: 1 / -1 !important;
+  max-height: 96px !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+}
+
+#app-layout .module-filter-sidebar[data-filter-owner="so-quy-panel"].is-mobile-open > .module-filter-footer {
+  min-height: 70px !important;
+  margin: 0 !important;
+}
+
+@media (max-width: 640px) {
+  #app-layout .module-filter-sidebar[data-filter-owner="so-quy-panel"].is-mobile-open > .module-filter-body {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+}
+body.brand-catalog-hidden [data-brand-feature] {
+  display: none !important;
 }

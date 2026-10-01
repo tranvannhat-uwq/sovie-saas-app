@@ -8,6 +8,8 @@ import {
   requestSaasCustomDomain,
   requestSaasOrganizationArchive,
   requestSaasPlanChange,
+  saveSalesBrandSettings,
+  saveInvoiceIssuerProfile,
   saveSaasBranch,
   saveSaasWarehouse,
   setPrimarySaasCustomDomain,
@@ -103,7 +105,71 @@ export function renderWorkspaceSwitcher() {
   renderCustomDomainManagement();
   renderBillingManagement();
   renderLocationManagement();
+  renderSalesPolicyManagement();
+  renderInvoiceIssuerManagement();
   renderOrganizationArchiveManagement();
+}
+
+export function renderSalesPolicyManagement() {
+  const section = document.getElementById('sales-policy-section');
+  const restrictionCheckbox = document.getElementById('sales-brand-restriction-enabled');
+  const catalogCheckbox = document.getElementById('sales-brand-catalog-enabled');
+  const canManage = ['owner', 'admin'].includes(state.currentUser?.organizationRole);
+  if (section) section.style.display = canManage ? 'block' : 'none';
+  if (!canManage || !restrictionCheckbox || !catalogCheckbox) return;
+  const config = state.businessCapabilities?.modules?.sales?.config || {};
+  restrictionCheckbox.checked = config.brand_restriction_enabled === true;
+  catalogCheckbox.checked = typeof config.brand_catalog_enabled === 'boolean'
+    ? config.brand_catalog_enabled || restrictionCheckbox.checked
+    : Boolean((state.brands || []).length || restrictionCheckbox.checked);
+  catalogCheckbox.disabled = restrictionCheckbox.checked;
+}
+
+function renderInvoiceIssuerManagement() {
+  const section = document.getElementById('invoice-issuer-section');
+  const form = document.getElementById('invoice-issuer-form');
+  const companySelect = document.getElementById('invoice-issuer-company');
+  const canManage = ['owner', 'admin'].includes(state.currentUser?.organizationRole);
+  if (section) section.style.display = canManage ? 'block' : 'none';
+  if (!canManage || !form || !companySelect) return;
+
+  const organizationId = String(state.saasContext?.organizationId || '').trim();
+  const companies = new Map((state.companies || []).map(company => [String(company.id), company]));
+  (state.businessCapabilities?.branches || []).forEach(branch => {
+    const id = String(branch.id || '').trim();
+    if (id && !companies.has(id)) companies.set(id, { id, name: branch.name || branch.code || id });
+  });
+  if (organizationId && !companies.has(organizationId)) {
+    companies.set(organizationId, { id: organizationId, name: state.saasContext?.organizationName || 'Doanh nghiệp' });
+  }
+  const currentCompanyId = companySelect.value || organizationId;
+  companySelect.replaceChildren(...[...companies.values()].map(company => {
+    const option = document.createElement('option');
+    option.value = String(company.id);
+    option.textContent = String(company.name || company.id);
+    return option;
+  }));
+  companySelect.value = companies.has(currentCompanyId) ? currentCompanyId : (organizationId || companies.keys().next().value || '');
+
+  const profiles = state.businessCapabilities?.settings?.branding?.invoice_issuers || {};
+  const profile = profiles[companySelect.value] || {};
+  const fields = {
+    'invoice-issuer-name': profile.legal_name || '',
+    'invoice-issuer-tax-code': profile.tax_code || '',
+    'invoice-issuer-logo': profile.logo_url || '',
+    'invoice-issuer-hotline': profile.hotline || '',
+    'invoice-issuer-customer-service': profile.customer_service_phone || '',
+    'invoice-issuer-email': profile.email || '',
+    'invoice-issuer-address': profile.address || '',
+    'invoice-issuer-factory-address': profile.factory_address || '',
+    'invoice-issuer-business-address': profile.business_address || '',
+    'invoice-issuer-warehouse-text': profile.invoice_warehouse_text || '',
+    'invoice-issuer-sales-phone': profile.sales_phone || ''
+  };
+  Object.entries(fields).forEach(([id, value]) => {
+    const input = document.getElementById(id);
+    if (input && document.activeElement !== input) input.value = value;
+  });
 }
 
 export function renderSubscriptionAccessNotice() {
@@ -410,6 +476,17 @@ export function setupWorkspaceManagement() {
   const branchForm = document.getElementById('branch-management-form');
   const warehouseForm = document.getElementById('warehouse-management-form');
   const archiveForm = document.getElementById('organization-archive-form');
+  const salesPolicyForm = document.getElementById('sales-policy-form');
+  const invoiceIssuerForm = document.getElementById('invoice-issuer-form');
+  const restrictionCheckbox = document.getElementById('sales-brand-restriction-enabled');
+  const catalogCheckbox = document.getElementById('sales-brand-catalog-enabled');
+  const issuerCompanySelect = document.getElementById('invoice-issuer-company');
+
+  restrictionCheckbox?.addEventListener('change', () => {
+    if (restrictionCheckbox.checked && catalogCheckbox) catalogCheckbox.checked = true;
+    if (catalogCheckbox) catalogCheckbox.disabled = restrictionCheckbox.checked;
+  });
+  issuerCompanySelect?.addEventListener('change', renderInvoiceIssuerManagement);
 
   document.getElementById('btn-close-workspace-onboarding')?.addEventListener('click', closeWorkspaceOnboarding);
   document.getElementById('btn-cancel-workspace-onboarding')?.addEventListener('click', closeWorkspaceOnboarding);
@@ -529,6 +606,49 @@ export function setupWorkspaceManagement() {
     } catch (error) {
       submit.disabled = false;
       showToast(error?.message || 'Không thể gửi yêu cầu lưu trữ.', 'danger');
+    }
+  });
+
+  salesPolicyForm?.addEventListener('submit', async event => {
+    event.preventDefault();
+    const submit = salesPolicyForm.querySelector('button[type="submit"]');
+    if (submit) submit.disabled = true;
+    try {
+      await saveSalesBrandSettings({
+        restrictionEnabled: restrictionCheckbox?.checked === true,
+        catalogEnabled: catalogCheckbox?.checked === true
+      });
+      showToast('Đã cập nhật cấu hình thương hiệu. Đang tải lại workspace...', 'success');
+      window.location.reload();
+    } catch (error) {
+      if (submit) submit.disabled = false;
+      showToast(error?.message || 'Không thể cập nhật chính sách bán hàng.', 'danger');
+    }
+  });
+
+  invoiceIssuerForm?.addEventListener('submit', async event => {
+    event.preventDefault();
+    const submit = invoiceIssuerForm.querySelector('button[type="submit"]');
+    if (submit) submit.disabled = true;
+    try {
+      await saveInvoiceIssuerProfile(issuerCompanySelect?.value, {
+        legalName: document.getElementById('invoice-issuer-name')?.value,
+        taxCode: document.getElementById('invoice-issuer-tax-code')?.value,
+        logoUrl: document.getElementById('invoice-issuer-logo')?.value,
+        hotline: document.getElementById('invoice-issuer-hotline')?.value,
+        customerServicePhone: document.getElementById('invoice-issuer-customer-service')?.value,
+        email: document.getElementById('invoice-issuer-email')?.value,
+        address: document.getElementById('invoice-issuer-address')?.value,
+        factoryAddress: document.getElementById('invoice-issuer-factory-address')?.value,
+        businessAddress: document.getElementById('invoice-issuer-business-address')?.value,
+        invoiceWarehouseText: document.getElementById('invoice-issuer-warehouse-text')?.value,
+        salesPhone: document.getElementById('invoice-issuer-sales-phone')?.value
+      });
+      showToast('Đã lưu thông tin đơn vị phát hành. Đang tải lại workspace...', 'success');
+      window.location.reload();
+    } catch (error) {
+      if (submit) submit.disabled = false;
+      showToast(error?.message || 'Không thể lưu thông tin phát hành.', 'danger');
     }
   });
 

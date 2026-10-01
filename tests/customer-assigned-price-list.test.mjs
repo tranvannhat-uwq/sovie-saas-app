@@ -46,7 +46,13 @@ test('browser permits the exception only when the current order customer referen
   assert.match(pricelists, /data-customer-assigned="true"/);
   assert.equal((service.match(/canUserUsePriceListForCustomer\(state\.currentUser, priceList, orderCustomer\)/g) || []).length, 2);
   assert.match(service, /export async function dbLoadCustomerAssignedPricing\(customer\)/);
-  assert.match(service, /\.eq\('price_list_id', priceList\.id\)/);
+  const assignedPricingLoader = service.slice(
+    service.indexOf('export async function dbLoadCustomerAssignedPricing(customer)'),
+    service.indexOf('\nfunction parseDebtHistory', service.indexOf('export async function dbLoadCustomerAssignedPricing(customer)'))
+  );
+  assert.match(assignedPricingLoader, /rpc\('rpc_get_customer_assigned_pricing'/);
+  assert.match(assignedPricingLoader, /fetchPriceListItemsForIds\(\[priceList\.id\]\)/);
+  assert.match(service, /\.in\('price_list_id', chunk\)/);
   assert.match(invoice, /await dbLoadCustomerAssignedPricing\(customer\)/);
   assert.match(invoice, /applicablePricing\.selectionSource !== 'customer_default'/);
   assert.match(invoice, /selectionSource: 'missing_customer_default'/);

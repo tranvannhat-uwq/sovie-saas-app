@@ -1,10 +1,10 @@
-import { state } from '../state.js';
+import { state, DEFAULT_COMPANIES } from '../state.js';
 import { COMPANY_SUPABASE_URL, COMPANY_SUPABASE_KEY, assertSaasStagingConnection, defaultProducts } from '../config.js';
-import { showToast, updateDbStatusUI, isSameUser, getRevenueAttributes, getBrandById } from '../utils.js';
-import { rawMaterialsSeed } from '../components/goods_seed.js';
+import { showToast, updateDbStatusUI, isSameUser, getRevenueAttributes, getBrandById, resolveWorkspaceCompanyId } from '../utils.js';
 import { normalizePriceListType, filterPriceListsForUser, canUserViewPriceList, canUserUsePriceListForCustomer } from '../domain/pricing.js';
 import { isPrintOnlyPriceList } from '../domain/invoice-discount.js';
 import { collectAllPages } from '../domain/pagination.js';
+import { resolvePurchaseSupplierDetails } from '../domain/purchase-supplier.js';
 import { getCustomerDebtPostingDate, mergeCustomerDebtHistory } from '../domain/customer-debt.js';
 import { loadAuthorizedPricingCache, saveAuthorizedPricingCache } from './pricing-cache.js';
 import { resolveActiveSaasContext } from '../domain/saas-context.js';
@@ -20,19 +20,103 @@ import {
 } from '../domain/order-history.js';
 import { activateTenantStorage, clearTenantStorageContext, tenantStorage } from './tenant-storage.js';
 
+const LEGACY_PAINT_ORGANIZATION_ID = '00000000-0000-4000-8000-000000000001';
+
+function syncWorkspaceCompanyOptions() {
+  const organization = state.saasContext;
+  if (!organization?.organizationId) return;
+  if (organization.organizationId === LEGACY_PAINT_ORGANIZATION_ID) {
+    state.companies = DEFAULT_COMPANIES.map(company => ({ ...company }));
+    return;
+  }
+
+  const companies = new Map();
+  const addCompany = (id, name = '') => {
+    const rawCompanyId = String(id || '').trim();
+    const companyId = resolveWorkspaceCompanyId(rawCompanyId, organization.organizationId);
+    if (!companyId || ['shared', 'all'].includes(companyId.toLowerCase())) return;
+    const prior = companies.get(companyId);
+    const legacyCompanyAlias = organization.organizationId !== LEGACY_PAINT_ORGANIZATION_ID
+      && ['ABS_NORTH', 'ABS_SOUTH', 'EMP_USA'].includes(rawCompanyId.toUpperCase());
+    companies.set(companyId, {
+      id: companyId,
+      code: prior?.code || companyId,
+      name: String(legacyCompanyAlias ? organization.organizationName : (name || prior?.name || companyId)).trim(),
+      status: 'active'
+    });
+  };
+
+  (state.brands || []).forEach(brand => addCompany(brand.companyId, brand.companyName));
+  (state.users || []).forEach(user => addCompany(user.companyId || user.company_id));
+  addCompany(organization.organizationId, organization.organizationName || organization.organizationSlug);
+  state.companies = [...companies.values()];
+}
+
 export let supabaseClient = null;
 export let isCloudActive = false;
-let cloudReadHealth = Object.freeze({ status: 'unknown', failedDomains: [] });
+let cloudReadHealth = Object.freeze({ status: 'unknown', failedDomains: [], failureDetails: Object.freeze({}) });
+
+const CLOUD_DOMAIN_LABELS = Object.freeze({
+  products: 'Sản phẩm',
+  orders: 'Đơn hàng',
+  customers: 'Khách hàng',
+  pricelists: 'Bảng giá',
+  users: 'Người dùng',
+  brands: 'Thương hiệu',
+  cashbook: 'Sổ quỹ',
+  startingBalances: 'Số dư đầu kỳ',
+  suppliers: 'Nhà cung cấp',
+  purchases: 'Phiếu mua',
+  salesReturns: 'Trả hàng',
+  unknown: 'Dữ liệu hệ thống'
+});
+
+const CLOUD_DOMAIN_REQUESTS = Object.freeze({
+  products: () => `${tableProductsName} · SELECT sản phẩm`,
+  orders: () => `${tableOrdersName} và ${tableDraftOrdersName} · SELECT lịch sử/nháp`,
+  customers: () => `${tableCustomersName} · SELECT khách hàng`,
+  pricelists: () => `${tablePricelistsName} và ${tablePriceListItemsName} · SELECT bảng giá/chi tiết`,
+  users: () => `${tableUsersName} · SELECT hồ sơ người dùng`,
+  brands: () => `${tableBrandsName} · SELECT thương hiệu`,
+  cashbook: () => `RPC rpc_get_cashbook_window / ${tableCashbookTransactionsName} · SELECT sổ quỹ`,
+  startingBalances: () => `${tableStartingBalancesName} · SELECT id=current_balances`,
+  suppliers: () => `${tableSuppliersName} · SELECT nhà cung cấp`,
+  purchases: () => `purchases, purchase_items, purchase_payments · SELECT phiếu mua`,
+  salesReturns: () => `${tableSalesReturnsName} và ${tableSalesReturnItemsName} · SELECT trả hàng`,
+  unknown: () => 'Yêu cầu tải dữ liệu Cloud không xác định'
+});
 
 export function getCloudReadHealth() {
   return cloudReadHealth;
 }
 
-function publishCloudReadHealth(failedDomains = [], attemptedDomains = []) {
-  cloudReadHealth = mergeCloudReadHealth(cloudReadHealth, failedDomains, attemptedDomains);
+export function refreshCloudReadHealthUI() {
+  return publishCloudReadHealth();
+}
+
+function publishCloudReadHealth(failedDomains = [], attemptedDomains = [], failureDetails = {}) {
+  cloudReadHealth = mergeCloudReadHealth(cloudReadHealth, failedDomains, attemptedDomains, failureDetails);
+  const failedLabels = cloudReadHealth.failedDomains.map(domain => {
+    const label = CLOUD_DOMAIN_LABELS[domain] || domain;
+    const code = cloudReadHealth.failureDetails[domain]?.code;
+    return code ? `${label} (${code})` : label;
+  });
+  const failureDescriptions = cloudReadHealth.failedDomains.map(domain => {
+    const failure = cloudReadHealth.failureDetails[domain] || {};
+    const label = CLOUD_DOMAIN_LABELS[domain] || domain;
+    const request = failure.request || CLOUD_DOMAIN_REQUESTS[domain]?.() || domain;
+    const code = failure.code ? ` · ${failure.code}` : '';
+    const message = failure.message ? ` · ${failure.message}` : '';
+    return `${label}: ${request}${code}${message}`;
+  });
   updateDbStatusUI(
     cloudReadHealth.status === 'degraded' ? 'cloud_degraded' : 'cloud',
-    cloudReadHealth.status === 'degraded' ? 'Cloud đã nối • Lỗi đọc dữ liệu' : ''
+    cloudReadHealth.status === 'degraded'
+      ? `Cloud đã nối • Lỗi đọc: ${failedLabels.join(', ')}`
+      : '',
+    cloudReadHealth.status === 'degraded'
+      ? failureDescriptions.join('\n')
+      : ''
   );
   return cloudReadHealth;
 }
@@ -158,6 +242,12 @@ export async function validateSaasOrganizationSlug(slug) {
 
 export async function getPlatformCustomerAccounts() {
   if (!isCloudActive || !supabaseClient) return null;
+  const { data: isPlatformStaff, error: staffCheckError } = await supabaseClient.rpc('is_platform_staff', {
+    p_roles: null
+  });
+  if (staffCheckError) throw staffCheckError;
+  if (isPlatformStaff !== true) return null;
+
   const { data, error } = await supabaseClient.rpc('rpc_platform_customer_accounts');
   if (error) throw error;
   return data || null;
@@ -410,6 +500,62 @@ export async function saveSaasWarehouse(warehouse = {}) {
   return data;
 }
 
+export async function saveSalesBrandRestriction(enabled) {
+  if (!isCloudActive || !supabaseClient) {
+    throw new Error('Cần kết nối Supabase để cập nhật chính sách bán hàng.');
+  }
+  if (!['owner', 'admin'].includes(state.currentUser?.organizationRole)) {
+    throw new Error('Chỉ Owner hoặc Admin của workspace được đổi chính sách này.');
+  }
+  const { data, error } = await supabaseClient.rpc('rpc_set_sales_brand_restriction', {
+    p_enabled: enabled === true
+  });
+  if (error) throw error;
+  return data;
+}
+
+export async function saveSalesBrandSettings({ restrictionEnabled, catalogEnabled } = {}) {
+  if (!isCloudActive || !supabaseClient) {
+    throw new Error('Cần kết nối Supabase để cập nhật cấu hình thương hiệu.');
+  }
+  if (!['owner', 'admin'].includes(state.currentUser?.organizationRole)) {
+    throw new Error('Chỉ Owner hoặc Admin của workspace được đổi cấu hình thương hiệu.');
+  }
+  const { data, error } = await supabaseClient.rpc('rpc_set_sales_brand_settings', {
+    p_brand_restriction_enabled: restrictionEnabled === true,
+    p_brand_catalog_enabled: catalogEnabled === true
+  });
+  if (error) throw error;
+  return data;
+}
+
+export async function saveInvoiceIssuerProfile(companyId, profile = {}) {
+  if (!isCloudActive || !supabaseClient) {
+    throw new Error('Cần kết nối Supabase để lưu thông tin đơn vị phát hành.');
+  }
+  if (!['owner', 'admin'].includes(state.currentUser?.organizationRole)) {
+    throw new Error('Chỉ Owner hoặc Admin của workspace được sửa thông tin phát hành.');
+  }
+  const { data, error } = await supabaseClient.rpc('rpc_set_invoice_issuer_profile', {
+    p_company_id: String(companyId || state.saasContext?.organizationId || '').trim(),
+    p_profile: {
+      legal_name: String(profile.legalName || '').trim(),
+      tax_code: String(profile.taxCode || '').trim(),
+      logo_url: String(profile.logoUrl || '').trim(),
+      hotline: String(profile.hotline || '').trim(),
+      customer_service_phone: String(profile.customerServicePhone || '').trim(),
+      email: String(profile.email || '').trim(),
+      address: String(profile.address || '').trim(),
+      factory_address: String(profile.factoryAddress || '').trim(),
+      business_address: String(profile.businessAddress || '').trim(),
+      invoice_warehouse_text: String(profile.invoiceWarehouseText || '').trim(),
+      sales_phone: String(profile.salesPhone || '').trim()
+    }
+  });
+  if (error) throw error;
+  return data;
+}
+
 export async function getSaasBackupInventory() {
   if (!isCloudActive || !supabaseClient) throw new Error('Cần kết nối Supabase để kiểm kê bản sao.');
   const { data, error } = await supabaseClient.rpc('rpc_my_backup_inventory');
@@ -440,6 +586,7 @@ export let tablePriceListItemsName = 'price_list_items';
 // Authorization profiles linked to Supabase Auth. Never query legacy users.password.
 export let tableUsersName = 'profiles';
 export let tableBrandsName = 'brands';
+export let tableSuppliersName = 'suppliers';
 export let tableCashbookTransactionsName = 'cashbook_transactions';
 export let tableStartingBalancesName = 'starting_balances';
 export let tableRawMaterialsName = 'raw_materials';
@@ -538,12 +685,13 @@ export function loadLocalStorageBackup() {
   if (storedSuppliers && JSON.parse(storedSuppliers).length > 0) {
     state.suppliers = JSON.parse(storedSuppliers);
   } else {
-    const isLegacyTenant = state.saasContext?.organizationId === '00000000-0000-4000-8000-000000000001';
+    const isLegacyTenant = state.saasContext?.organizationId === LEGACY_PAINT_ORGANIZATION_ID;
     state.suppliers = isLegacyTenant ? [
       { id: 'supplier-abs', code: 'NCC001', name: 'CÔNG TY CỔ PHẦN ABS JAPAN', phone: '088.603.7878', address: 'Tiên Kha - Phúc Thịnh - Hà Nội', debt: 0, notes: 'Nhà máy cung cấp sơn chính hãng Nano10*' }
     ] : [];
     tenantStorage.setItem('billing_system_suppliers', JSON.stringify(state.suppliers));
   }
+  state.supplierDirectory = [...state.suppliers];
 
   // Identity and role are never restored from browser-controlled storage.
   tenantStorage.removeItem('billing_system_users');
@@ -553,7 +701,8 @@ export function loadLocalStorageBackup() {
   // switch in browser storage. Keep only non-secret bootstrap lists in memory.
   tenantStorage.removeItem('billing_system_pricelists');
   tenantStorage.removeItem('billing_system_price_list_items');
-  state.pricelists = [
+  const isLegacyTenant = state.saasContext?.organizationId === LEGACY_PAINT_ORGANIZATION_ID;
+  state.pricelists = isLegacyTenant ? [
       {
         id: 'pl-02',
         name: 'Bảng giá 02',
@@ -578,7 +727,7 @@ export function loadLocalStorageBackup() {
           'festivanano': 0
         }
       }
-  ];
+  ] : [];
   state.allPricelists = [...state.pricelists];
   state.priceListItems = [];
   state.allPriceListItems = [];
@@ -587,7 +736,7 @@ export function loadLocalStorageBackup() {
   if (storedBrands) {
     state.brands = JSON.parse(storedBrands);
   } else {
-    const isLegacyTenant = state.saasContext?.organizationId === '00000000-0000-4000-8000-000000000001';
+    const isLegacyTenant = state.saasContext?.organizationId === LEGACY_PAINT_ORGANIZATION_ID;
     state.brands = isLegacyTenant ? [
       { name: 'COVA NANO', companyName: 'Công ty Cổ phần ABS JAPAN (Miền Bắc)', companyId: 'ABS_NORTH', logoFilename: 'absjapan.png' },
       { name: 'FESTIVA NANO', companyName: 'Công ty Cổ phần EMP Hoa Kỳ', companyId: 'EMP_USA', logoFilename: 'festiva.png' },
@@ -604,7 +753,7 @@ export function loadLocalStorageBackup() {
   if (storedRaw && JSON.parse(storedRaw).length > 0) {
     state.rawMaterials = JSON.parse(storedRaw);
   } else {
-    state.rawMaterials = [...rawMaterialsSeed];
+    state.rawMaterials = [];
     tenantStorage.setItem('billing_system_raw_materials', JSON.stringify(state.rawMaterials));
   }
 
@@ -665,6 +814,7 @@ export async function connectSupabase(url, key, verbose = true) {
       tablePriceListItemsName = 'price_list_items';
       tableUsersName = 'profiles';
       tableBrandsName = 'brands';
+      tableSuppliersName = 'suppliers';
       tableCashbookTransactionsName = 'cashbook_transactions';
       tableStartingBalancesName = 'starting_balances';
       tableRawMaterialsName = 'raw_materials';
@@ -686,6 +836,7 @@ export async function connectSupabase(url, key, verbose = true) {
         tablePriceListItemsName = 'wl_price_list_items';
         tableUsersName = 'profiles';
         tableBrandsName = 'wl_brands';
+        tableSuppliersName = 'wl_suppliers';
         tableCashbookTransactionsName = 'wl_cashbook_transactions';
         tableStartingBalancesName = 'wl_starting_balances';
         tableRawMaterialsName = 'wl_raw_materials';
@@ -705,6 +856,7 @@ export async function connectSupabase(url, key, verbose = true) {
         tablePriceListItemsName = 'price_list_items';
         tableUsersName = 'profiles';
         tableBrandsName = 'brands';
+        tableSuppliersName = 'suppliers';
         tableCashbookTransactionsName = 'cashbook_transactions';
         tableStartingBalancesName = 'starting_balances';
         tableRawMaterialsName = 'raw_materials';
@@ -778,7 +930,7 @@ export function disconnectSupabase() {
   
   supabaseClient = null;
   isCloudActive = false;
-  cloudReadHealth = Object.freeze({ status: 'unknown', failedDomains: [] });
+  cloudReadHealth = Object.freeze({ status: 'unknown', failedDomains: [], failureDetails: Object.freeze({}) });
   if (connectedClient?.removeAllChannels) {
     void connectedClient.removeAllChannels().catch(error => {
       console.warn('Could not close Cloud realtime channels:', error);
@@ -822,7 +974,16 @@ async function fetchFullTableData(tableName, columns = '*') {
   return collectAllPages((offset, end) => supabaseClient
       .from(tableName)
       .select(columns, { count: 'exact' })
+      .order('id', { ascending: true })
       .range(offset, end), pageSize);
+}
+
+async function fetchAllRowsByStableId(tableName, columns = '*', pageSize = 1000) {
+  return collectAllPages((offset, end) => supabaseClient
+    .from(tableName)
+    .select(columns)
+    .order('id', { ascending: true })
+    .range(offset, end), pageSize);
 }
 
 const CUSTOMER_LIST_COLUMNS = [
@@ -833,7 +994,12 @@ const CUSTOMER_LIST_COLUMNS = [
   'imported_total_transaction_baseline', 'imported_total_return_baseline',
   'imported_net_revenue_baseline', 'imported_last_order_at_baseline', 'imported_created_at_baseline',
   'financial_baseline_imported_at', 'last_order_at', 'last_payment_at', 'notes', 'pricelist_id',
-  'default_price_list_id', 'managed_by', 'created_at', 'updated_at', 'deleted_at'
+  'default_price_list_id', 'managed_by', 'created_at', 'updated_at', 'deleted_at', 'assigned_brand_id'
+].join(',');
+
+const PRICE_LIST_ITEM_READ_COLUMNS = [
+  'id', 'price_list_id', 'product_id', 'variant_id', 'price', 'is_override',
+  'source_type', 'created_at', 'updated_at', 'updated_by'
 ].join(',');
 
 async function fetchPriceListItemsForIds(priceListIds) {
@@ -846,8 +1012,12 @@ async function fetchPriceListItemsForIds(priceListIds) {
     const chunk = uniqueIds.slice(start, start + chunkSize);
     const chunkRows = await collectAllPages((offset, end) => supabaseClient
       .from(tablePriceListItemsName)
-      .select('*', { count: 'exact' })
+      // Avoid an exact count on every page. Pricing snapshots can contain
+      // thousands of rows, and PostgREST's exact count repeated the same
+      // tenant/RLS scan for every offset before the rows were returned.
+      .select(PRICE_LIST_ITEM_READ_COLUMNS)
       .in('price_list_id', chunk)
+      .order('id', { ascending: true })
       .range(offset, end), 1000);
     rows.push(...chunkRows);
   }
@@ -1023,11 +1193,7 @@ export async function dbLoadCustomerAssignedPricing(customer) {
     }
 
     if (itemRows === null) {
-      itemRows = await collectAllPages((offset, end) => supabaseClient
-        .from(tablePriceListItemsName)
-        .select('*', { count: 'exact' })
-        .eq('price_list_id', priceList.id)
-        .range(offset, end), 1000);
+      itemRows = await fetchPriceListItemsForIds([priceList.id]);
     }
     const items = (itemRows || []).map(mapAuthorizedPriceListItem);
 
@@ -1133,21 +1299,17 @@ async function hydrateCustomerDebtHistory(customers) {
 }
 
 async function fetchCustomerDebtRows(customerId) {
-  const rows = [];
   const pageSize = 1000;
-  for (let from = 0; ; from += pageSize) {
-    const { data, error } = await supabaseClient
+  return collectAllPages(async (from, to) => {
+    const { data, error, count } = await supabaseClient
       .from(tableCustomerDebtTransactionsName)
-      .select('*')
+      .select('*', { count: 'exact' })
       .eq('customer_id', customerId)
       .order('created_at', { ascending: true })
       .order('id', { ascending: true })
-      .range(from, from + pageSize - 1);
-    if (error) throw error;
-    rows.push(...(data || []));
-    if (!data || data.length < pageSize) break;
-  }
-  return rows;
+      .range(from, to);
+    return { data, error, count };
+  }, pageSize, { getRowKey: row => row?.id });
 }
 
 function mapCashbookTransaction(t) {
@@ -1214,6 +1376,11 @@ export function applyStartingBalanceRealtimePayload(payload = {}) {
 }
 
 function mapOrderRowForState(order, isDraft = false) {
+  let issuerProfileSnapshot = order.issuer_profile_snapshot || order.issuerProfileSnapshot || null;
+  if (typeof issuerProfileSnapshot === 'string') {
+    try { issuerProfileSnapshot = JSON.parse(issuerProfileSnapshot); }
+    catch (_error) { issuerProfileSnapshot = null; }
+  }
   return {
     id: order.id,
     customerId: order.customer_id || null,
@@ -1247,7 +1414,8 @@ function mapOrderRowForState(order, isDraft = false) {
     createdBy: order.created_by || 'admin',
     salespersonId: order.salesperson_id || order.salespersonId || order.created_by || order.createdBy || 'admin',
     customerManagerId: order.customer_manager_id || order.customerManagerId || '',
-    companyId: order.company_id || order.companyId || 'ABS_NORTH',
+    companyId: resolveWorkspaceCompanyId(order.company_id || order.companyId),
+    issuerProfileSnapshot,
     status: isDraft ? 'draft' : (order.status || 'settled')
   };
 }
@@ -1313,7 +1481,9 @@ async function loadFullCashbookFallback() {
 export async function dbLoadCashbookForRange(startIso, endExclusiveIso) {
   if (!isCloudActive || !supabaseClient || !startIso || !endExclusiveIso) return false;
   try {
-    return await loadCashbookWindowFromCloud(startIso, endExclusiveIso);
+    const transactions = await loadCashbookWindowFromCloud(startIso, endExclusiveIso);
+    publishCloudReadHealth([], ['cashbook']);
+    return transactions;
   } catch (error) {
     const code = String(error?.code || '').toUpperCase();
     const message = String(error?.message || '').toLowerCase();
@@ -1321,13 +1491,29 @@ export async function dbLoadCashbookForRange(startIso, endExclusiveIso) {
       || (message.includes('rpc_get_cashbook_window') && message.includes('schema cache'));
     if (!migrationMissing) {
       console.warn('Không thể tải Sổ quỹ theo khoảng ngày:', error);
+      publishCloudReadHealth(['cashbook'], ['cashbook'], {
+        cashbook: {
+          request: CLOUD_DOMAIN_REQUESTS.cashbook(),
+          code: String(error?.code || ''),
+          message: String(error?.message || error || '').slice(0, 240)
+        }
+      });
       return false;
     }
     console.warn('Migration 0051 chưa có; tạm tải toàn bộ Sổ quỹ để giữ số dư chính xác.');
     try {
-      return await loadFullCashbookFallback();
+      const transactions = await loadFullCashbookFallback();
+      publishCloudReadHealth([], ['cashbook']);
+      return transactions;
     } catch (fallbackError) {
       console.warn('Không thể tải dữ liệu Sổ quỹ dự phòng:', fallbackError);
+      publishCloudReadHealth(['cashbook'], ['cashbook'], {
+        cashbook: {
+          request: `${tableCashbookTransactionsName} · SELECT dự phòng`,
+          code: String(fallbackError?.code || ''),
+          message: String(fallbackError?.message || fallbackError || '').slice(0, 240)
+        }
+      });
       return false;
     }
   }
@@ -1375,11 +1561,24 @@ function replaceLoadedOrderWindow(rawOrders, startIso = null, endExclusiveIso = 
   return mapped;
 }
 
+function replaceLoadedDraftOrders(rawDrafts) {
+  const mappedDrafts = (rawDrafts || []).map(order => mapOrderRowForState(order, true));
+  const withoutOldDrafts = (state.savedOrders || []).filter(order => order.status !== 'draft');
+  state.savedOrders = [...mappedDrafts, ...withoutOldDrafts]
+    .sort((left, right) => new Date(right.date || 0) - new Date(left.date || 0));
+  cacheOrdersLocally(state.savedOrders);
+  return mappedDrafts;
+}
+
 export async function dbLoadOrdersForHistoryRange(startIso = null, endExclusiveIso = null) {
   if (!isCloudActive || !supabaseClient) return false;
   try {
-    const rows = await fetchOrderRowsForHistoryWindow(startIso, endExclusiveIso);
+    const [rows, rawDrafts] = await Promise.all([
+      fetchOrderRowsForHistoryWindow(startIso, endExclusiveIso),
+      fetchFullTableData(tableDraftOrdersName)
+    ]);
     const loaded = replaceLoadedOrderWindow(rows, startIso, endExclusiveIso);
+    replaceLoadedDraftOrders(rawDrafts);
     publishCloudReadHealth([], ['orders']);
     return loaded;
   } catch (error) {
@@ -1430,6 +1629,11 @@ function handleOptionalProductGroupsError(error) {
 }
 
 const optionalProductSchemaColumns = new Set([
+  'item_kind',
+  'sell_unit_code',
+  'purchase_unit_code',
+  'track_inventory',
+  'metadata',
   'variant_code',
   'product_group_id',
   'base_code',
@@ -1479,6 +1683,10 @@ async function runProductWriteWithSchemaFallback(writeFactory) {
 
 function normalizeProductRow(row, localProducts = []) {
   const local = localProducts.find(lp => lp.id === row.id || (lp.code === row.code && lp.brand === row.brand));
+  const brandMatch = (state.brands || []).find(brand =>
+    (row.brand_id && String(brand.id) === String(row.brand_id))
+    || (row.brand && String(brand.name || '').trim().toLocaleLowerCase() === String(row.brand).trim().toLocaleLowerCase())
+  );
   return {
     id: row.id || null,
     code: row.code,
@@ -1488,26 +1696,46 @@ function normalizeProductRow(row, localProducts = []) {
     baseProductId: row.base_product_id || row.parent_product_id || row.baseProductId || null,
     parentProductId: row.parent_product_id || row.base_product_id || row.parentProductId || null,
     name: row.name,
-    brand: row.brand || (local ? local.brand : 'Nano10*'),
-    brandId: row.brand_id || (local ? local.brandId : null),
+    brand: row.brand !== undefined
+      ? String(row.brand || '')
+      : (local?.brand || brandMatch?.name || (
+        state.saasContext?.organizationId === LEGACY_PAINT_ORGANIZATION_ID && row.is_legacy === true
+          ? 'Nano10*' : ''
+      )),
+    brandId: row.brand_id !== undefined
+      ? (row.brand_id || null)
+      : (brandMatch?.id || local?.brandId || null),
     group: row.product_group || row.group || (local ? local.group : ''),
     packageType: row.package_type || row.packageType || '',
     packagingName: row.packaging_name || row.package_type || row.packageType || '',
     packageWeight: row.package_weight || row.packageWeight || '',
     weightOrVolume: row.weight_or_volume ?? row.package_weight ?? row.packageWeight ?? '',
-    packageWeightUnit: row.package_weight_unit || row.packageWeightUnit || row.unit || (local ? local.packageWeightUnit : 'kg'),
-    unitName: row.unit_name || row.package_weight_unit || row.packageWeightUnit || row.unit || 'kg',
+    packageWeightUnit: row.package_weight_unit || row.packageWeightUnit || row.unit || (local ? local.packageWeightUnit : ''),
+    unitName: row.unit_name || row.package_weight_unit || row.packageWeightUnit || row.unit || local?.unitName || '',
     displaySpecification: row.display_specification || row.displaySpecification || '',
     conversionQuantity: Number(row.conversion_quantity || 1),
     barcode: row.barcode || '',
     purchasePrice: Number(row.purchase_price || 0),
     categoryId: row.category_id || null,
+    itemKind: row.item_kind || local?.itemKind || 'stock',
+    sellUnitCode: row.sell_unit_code || local?.sellUnitCode || '',
+    purchaseUnitCode: row.purchase_unit_code || local?.purchaseUnitCode || '',
+    trackInventory: row.track_inventory !== false,
     description: row.description || '',
     isActive: row.is_active !== false,
     isLegacy: row.is_legacy === true,
     createdAt: row.created_at || '',
     updatedAt: row.updated_at || ''
   };
+}
+
+function resolveProductBrandId(product) {
+  const brandName = String(product?.brand || '').trim().toLocaleLowerCase();
+  if (!brandName) return null;
+  if (product?.brandId) return String(product.brandId);
+  return (state.brands || []).find(brand =>
+    String(brand?.name || '').trim().toLocaleLowerCase() === brandName
+  )?.id || null;
 }
 
 export function applyProductRealtimePayload(payload = {}) {
@@ -1531,7 +1759,7 @@ function mapBrandRow(row = {}) {
   return {
     id: row.id || ('brand_' + String(row.name || '').toLowerCase().replace(/[^a-z0-9]/g, '')),
     name: row.name || '',
-    companyId: row.company_id || row.companyId || null,
+    companyId: resolveWorkspaceCompanyId(row.company_id || row.companyId),
     companyName: row.company_name || row.companyName || 'Dùng chung',
     logoFilename: row.logo_filename || row.logoFilename || '',
     hotline: row.hotline || '',
@@ -1540,7 +1768,7 @@ function mapBrandRow(row = {}) {
     addressMain: row.address_main || row.addressMain || '',
     addressFactory: row.address_factory || row.addressFactory || '',
     addressBusiness: row.address_business || row.addressBusiness || null,
-    invoiceWarehouseText: row.invoice_warehouse_text || row.invoiceWarehouseText || 'Xuất Tại kho số 03 Chi nhánh Thái Nguyên',
+    invoiceWarehouseText: row.invoice_warehouse_text || row.invoiceWarehouseText || '',
     salesPhone: row.sales_phone || row.salesPhone || ''
   };
 }
@@ -1567,20 +1795,27 @@ export async function fetchCloudData(options = {}) {
     ? new Set(options.onlyDomains.filter(Boolean))
     : null;
   const failedDomains = new Set();
+  const readFailureDetails = {};
   const recordReadFailure = (domain, error, message) => {
     failedDomains.add(domain);
+    const errorMessage = String(error?.message || error || '').trim();
+    readFailureDetails[domain] = {
+      request: CLOUD_DOMAIN_REQUESTS[domain]?.() || domain,
+      code: String(error?.code || ''),
+      message: errorMessage.slice(0, 240)
+    };
     console.warn(message, error?.message || error);
   };
   try {
     // Luồng tải dữ liệu lõi (nếu lỗi sẽ dừng và báo lỗi toàn cục)
     const fetchProducts = async () => {
       try {
-        const { data: prodData, error: prodErr } = await supabaseClient
+        const prodData = await collectAllPages((offset, end) => supabaseClient
           .from(tableProductsName)
           .select('*')
-          .order('code', { ascending: true });
-          
-        if (prodErr) throw prodErr;
+          .order('code', { ascending: true })
+          .order('id', { ascending: true })
+          .range(offset, end), 1000);
         
         const localProducts = JSON.parse(tenantStorage.getItem('billing_system_products') || '[]');
         state.products = (prodData || []).map(row => normalizeProductRow(row, localProducts));
@@ -1599,11 +1834,7 @@ export async function fetchCloudData(options = {}) {
           fetchFullTableData(tableDraftOrdersName)
         ]);
         replaceLoadedOrderWindow(rawOrders, currentWeek.startIso, currentWeek.endExclusiveIso);
-        const mappedDrafts = rawDrafts.map(o => mapOrderRowForState(o, true));
-        const withoutOldDrafts = state.savedOrders.filter(order => order.status !== 'draft');
-        state.savedOrders = [...mappedDrafts, ...withoutOldDrafts]
-          .sort((a, b) => new Date(b.date) - new Date(a.date));
-        cacheOrdersLocally(state.savedOrders);
+        replaceLoadedDraftOrders(rawDrafts);
       } catch (ordErr) {
         recordReadFailure('orders', ordErr, 'Could not load orders from Supabase, fallback to tenant cache:');
         const cachedOrders = JSON.parse(tenantStorage.getItem('billing_system_orders') || '[]');
@@ -1629,6 +1860,7 @@ export async function fetchCloudData(options = {}) {
             phone: cust.phone,
             address: cust.address,
             assignedBrand: cust.assigned_brand || 'Tất cả',
+            assignedBrandId: cust.assigned_brand_id || null,
             brandDiscounts: typeof cust.brand_discounts === 'string' ? JSON.parse(cust.brand_discounts) : (cust.brand_discounts || {}),
             shippingSupport: cust.shipping_support || false,
             debt: parseFloat(cust.debt || 0),
@@ -1686,11 +1918,7 @@ export async function fetchCloudData(options = {}) {
         // Compatibility path while migration 0043 is being deployed, and the
         // unchanged direct-table path for Admin/Accounting price management.
         if (plData === null) {
-          const { data, error } = await supabaseClient
-            .from(tablePricelistsName)
-            .select('*');
-          if (error) throw error;
-          plData = data || [];
+          plData = await fetchAllRowsByStableId(tablePricelistsName);
         }
 
         const mappedPricelists = (plData || []).map(mapAuthorizedPriceList);
@@ -1699,18 +1927,15 @@ export async function fetchCloudData(options = {}) {
         // Build one complete authorized snapshot before touching shared state.
         // A price-list refresh is used by login and Realtime; publishing the
         // list before its item rows arrive makes prices briefly disappear.
-        // Sale loads only the global lists explicitly enabled by Accounting.
+        // Load item rows only for lists in this actor's authorized snapshot.
         // Customer-assigned exceptions are loaded on demand by
-        // dbLoadCustomerAssignedPricing after the exact dealer is selected.
-        // This avoids evaluating the customer-assignment RLS branch for every
-        // unrelated price row and prevents one slow item request from erasing
-        // the otherwise valid visible price-list snapshot.
+        // dbLoadCustomerAssignedPricing after the exact customer is selected.
+        // Scanning the entire item table needlessly evaluates unrelated RLS
+        // rows and can time out on tenants with large pricing histories.
         if (!includeItems) {
           itemData = [];
         } else if (itemData === null) {
-          itemData = state.currentUser?.role === 'sale'
-            ? await fetchPriceListItemsForIds([...visiblePriceListIds])
-            : await fetchFullTableData(tablePriceListItemsName);
+          itemData = await fetchPriceListItemsForIds([...visiblePriceListIds]);
         }
         const mappedPriceListItems = (itemData || []).map(mapAuthorizedPriceListItem);
         if (!includeItems) {
@@ -1730,7 +1955,7 @@ export async function fetchCloudData(options = {}) {
         if (includeItems) state.pricingSnapshotCachedAt = new Date().toISOString();
         scheduleAuthorizedPricingCachePersist();
       } catch (plErr) {
-        failedDomains.add('pricelists');
+        recordReadFailure('pricelists', plErr, 'Could not load authorized price lists from Supabase:');
         // Keep the last in-memory snapshot for this authenticated session on
         // transient refresh failures. Bootstrap data or a snapshot belonging
         // to another account must still fail closed.
@@ -1776,7 +2001,7 @@ export async function fetchCloudData(options = {}) {
             username: u.username,
             displayName: u.display_name,
             role: u.role || 'sale',
-            companyId: u.company_id || u.companyId || 'ABS_NORTH',
+            companyId: resolveWorkspaceCompanyId(u.company_id || u.companyId),
             isExternal: false,
             isActive: u.status === 'active',
             membershipId: u.membership_id,
@@ -1792,7 +2017,7 @@ export async function fetchCloudData(options = {}) {
           username: person.username,
           displayName: person.display_name,
           role: 'sale',
-          companyId: person.company_id || 'ABS_NORTH',
+          companyId: resolveWorkspaceCompanyId(person.company_id),
           isExternal: true,
           isActive: person.status === 'active',
           membershipStatus: person.status || 'active',
@@ -1806,7 +2031,8 @@ export async function fetchCloudData(options = {}) {
         
         const uniqueUsers = [];
         merged.forEach(u => {
-          const isOldAbs = u.username === 'abs_japan' || u.username === 'abs-japan' || u.username === 'absjapan';
+          const isLegacyWorkspace = state.saasContext?.organizationId === LEGACY_PAINT_ORGANIZATION_ID;
+          const isOldAbs = isLegacyWorkspace && ['abs_japan', 'abs-japan', 'absjapan'].includes(String(u.username || '').toLowerCase());
           if (isOldAbs) {
             const hasNewAbs = merged.some(ru => ru.username === 'ctyabs@lendon.com');
             if (hasNewAbs) return;
@@ -1826,12 +2052,12 @@ export async function fetchCloudData(options = {}) {
 
     const fetchBrands = async () => {
       try {
-        const { data: brandData, error: brandErr } = await supabaseClient
+        const brandData = await collectAllPages((offset, end) => supabaseClient
           .from(tableBrandsName)
           .select('*')
-          .order('name', { ascending: true });
-
-        if (brandErr) throw brandErr;
+          .order('name', { ascending: true })
+          .order('id', { ascending: true })
+          .range(offset, end), 1000);
 
         // An empty Cloud result is authoritative for a new or reset tenant.
         // Reusing a previous browser snapshot here makes an empty workspace
@@ -1850,7 +2076,7 @@ export async function fetchCloudData(options = {}) {
             uniqueBrands.push({
               id: bId,
               name: b.name,
-              companyId: b.company_id || b.companyId || null,
+              companyId: resolveWorkspaceCompanyId(b.company_id || b.companyId),
               companyName: b.company_name || b.companyName || 'Dùng chung',
               logoFilename: b.logo_filename || b.logoFilename || '',
               hotline: b.hotline || '',
@@ -1859,7 +2085,7 @@ export async function fetchCloudData(options = {}) {
               addressMain: b.address_main || b.addressMain || '',
               addressFactory: b.address_factory || b.addressFactory || '',
               addressBusiness: b.address_business || b.addressBusiness || null,
-              invoiceWarehouseText: b.invoice_warehouse_text || b.invoiceWarehouseText || 'Xuất Tại kho số 03 Chi nhánh Thái Nguyên',
+              invoiceWarehouseText: b.invoice_warehouse_text || b.invoiceWarehouseText || '',
               salesPhone: b.sales_phone || b.salesPhone || ''
             });
           }
@@ -1905,15 +2131,14 @@ export async function fetchCloudData(options = {}) {
     };
     const fetchSuppliers = async () => {
       try {
-        const tableName = tableProductsName.startsWith('wl_') ? 'wl_suppliers' : 'suppliers';
-        const { data, error } = await supabaseClient
-          .from(tableName)
+        const data = await collectAllPages((offset, end) => supabaseClient
+          .from(tableSuppliersName)
           .select('*')
-          .order('name', { ascending: true });
-        if (error) throw error;
-        console.log("[SUPPLIERS] API:", data?.length || 0);
+          .order('name', { ascending: true })
+          .order('id', { ascending: true })
+          .range(offset, end), 1000);
         if (data) {
-          state.suppliers = data.map(s => ({
+          state.supplierDirectory = data.map(s => ({
             id: s.id,
             code: s.code,
             name: s.name,
@@ -1925,26 +2150,35 @@ export async function fetchCloudData(options = {}) {
             totalPaid: parseFloat(s.total_paid || 0),
             notes: s.notes || '',
             isActive: s.is_active !== false
-          })).filter(s => s.isActive);
+          }));
+          state.suppliers = state.supplierDirectory.filter(s => s.isActive);
         }
-        console.log("[SUPPLIERS] STATE:", state.suppliers?.length || 0);
       } catch (err) {
         recordReadFailure('suppliers', err, 'Could not load suppliers from Supabase:');
-        state.suppliers = [];
       }
     };
     const fetchPurchases = async () => {
       try {
-        const [purchaseResult, itemResult, paymentResult] = await Promise.all([
-          supabaseClient.from('purchases').select('*').order('purchase_date', { ascending: false }),
-          supabaseClient.from('purchase_items').select('*').order('line_number', { ascending: true }),
-          supabaseClient.from('purchase_payments').select('*').order('created_at', { ascending: true })
+        const [purchaseRows, itemRows, paymentRows] = await Promise.all([
+          collectAllPages((offset, end) => supabaseClient.from('purchases')
+            .select('*')
+            .order('purchase_date', { ascending: false })
+            .order('id', { ascending: true })
+            .range(offset, end), 1000),
+          collectAllPages((offset, end) => supabaseClient.from('purchase_items')
+            .select('*')
+            .order('purchase_id', { ascending: true })
+            .order('line_number', { ascending: true })
+            .order('id', { ascending: true })
+            .range(offset, end), 1000),
+          collectAllPages((offset, end) => supabaseClient.from('purchase_payments')
+            .select('*')
+            .order('created_at', { ascending: true })
+            .order('id', { ascending: true })
+            .range(offset, end), 1000)
         ]);
-        if (purchaseResult.error) throw purchaseResult.error;
-        if (itemResult.error) throw itemResult.error;
-        if (paymentResult.error) throw paymentResult.error;
         const itemsByPurchase = new Map();
-        (itemResult.data || []).forEach(item => {
+        itemRows.forEach(item => {
           const list = itemsByPurchase.get(item.purchase_id) || [];
           list.push({
             id: item.id,
@@ -1959,7 +2193,7 @@ export async function fetchCloudData(options = {}) {
           itemsByPurchase.set(item.purchase_id, list);
         });
         const paymentsByPurchase = new Map();
-        (paymentResult.data || []).forEach(payment => {
+        paymentRows.forEach(payment => {
           if (!payment.purchase_id) return;
           const list = paymentsByPurchase.get(payment.purchase_id) || [];
           list.push({
@@ -1976,14 +2210,13 @@ export async function fetchCloudData(options = {}) {
           });
           paymentsByPurchase.set(payment.purchase_id, list);
         });
-        state.purchases = (purchaseResult.data || []).map(purchase => {
-          const supplier = state.suppliers.find(s => String(s.id) === String(purchase.supplier_id));
+        state.purchases = purchaseRows.map(purchase => {
+          const supplierDetails = resolvePurchaseSupplierDetails(purchase, state.supplierDirectory);
           return {
             id: purchase.id,
             code: purchase.code,
             supplierId: purchase.supplier_id,
-            supplierName: supplier?.name || '',
-            supplierCode: supplier?.code || '',
+            ...supplierDetails,
             invoiceNumber: purchase.invoice_number || '',
             purchaseDate: purchase.purchase_date,
             date: purchase.purchase_date,
@@ -2004,7 +2237,6 @@ export async function fetchCloudData(options = {}) {
         });
       } catch (err) {
         recordReadFailure('purchases', err, 'Could not load authoritative purchases from Supabase:');
-        state.purchases = [];
       }
     };
     const fetchRawMaterials = async () => {
@@ -2015,14 +2247,14 @@ export async function fetchCloudData(options = {}) {
             id: r.id,
             code: r.code,
             name: r.name,
-            unit: r.unit || 'kg',
+            unit: r.unit || '',
             importPrice: parseFloat(r.import_price || 0),
             quantity: parseFloat(r.quantity || 0),
             notes: r.notes || ''
           }));
           tenantStorage.setItem('billing_system_raw_materials', JSON.stringify(state.rawMaterials));
         } else {
-          state.rawMaterials = [...rawMaterialsSeed];
+          state.rawMaterials = [];
           tenantStorage.setItem('billing_system_raw_materials', JSON.stringify(state.rawMaterials));
         }
       } catch (err) {
@@ -2038,7 +2270,7 @@ export async function fetchCloudData(options = {}) {
             id: s.id,
             code: s.code,
             name: s.name,
-            unit: s.unit || 'kg',
+            unit: s.unit || '',
             quantity: parseFloat(s.quantity || 0),
             notes: s.notes || ''
           }));
@@ -2168,11 +2400,9 @@ export async function fetchCloudData(options = {}) {
 
     const enrichSecondaryState = () => {
       state.purchases = (state.purchases || []).map(purchase => {
-        const supplier = state.suppliers.find(item => String(item.id) === String(purchase.supplierId));
         return {
           ...purchase,
-          supplierName: purchase.supplierName || supplier?.name || '',
-          supplierCode: purchase.supplierCode || supplier?.code || ''
+          ...resolvePurchaseSupplierDetails(purchase, state.supplierDirectory)
         };
       });
 
@@ -2211,8 +2441,9 @@ export async function fetchCloudData(options = {}) {
         .map(domain => loaders[domain])
         .filter(Boolean)
         .map(loader => loader()));
-      if (onlyDomains.has('purchases') || onlyDomains.has('salesReturns')) enrichSecondaryState();
-      publishCloudReadHealth([...failedDomains], [...onlyDomains]);
+      if (onlyDomains.has('brands')) syncWorkspaceCompanyOptions();
+      if (onlyDomains.has('suppliers') || onlyDomains.has('purchases') || onlyDomains.has('salesReturns')) enrichSecondaryState();
+      publishCloudReadHealth([...failedDomains], [...onlyDomains], readFailureDetails);
       return { background: null, domains: [...onlyDomains], failedDomains: [...failedDomains] };
     }
 
@@ -2230,15 +2461,18 @@ export async function fetchCloudData(options = {}) {
     const secondaryLoad = Promise.all(leanBootstrap ? [] : [
       fetchCashbook(),
       fetchStartingBalances(),
-      fetchSuppliers(),
-      fetchPurchases(),
+      (async () => {
+        await fetchSuppliers();
+        await fetchPurchases();
+      })(),
       fetchSalesReturns()
     ]);
 
     await coreLoad;
+    syncWorkspaceCompanyOptions();
     const coreDomains = ['products', 'customers', 'pricelists', 'users', 'brands',
       ...(leanBootstrap ? [] : ['orders'])];
-    publishCloudReadHealth([...failedDomains], coreDomains);
+    publishCloudReadHealth([...failedDomains], coreDomains, readFailureDetails);
 
     const finishSecondaryLoad = async () => {
       await secondaryLoad;
@@ -2248,7 +2482,7 @@ export async function fetchCloudData(options = {}) {
       publishCloudReadHealth([...failedDomains], [
         ...coreDomains,
         ...(leanBootstrap ? [] : ['cashbook', 'startingBalances', 'suppliers', 'purchases', 'salesReturns'])
-      ]);
+      ], readFailureDetails);
       return true;
     };
 
@@ -2266,7 +2500,8 @@ export async function fetchCloudData(options = {}) {
   } catch(err) {
     console.error('Error fetching cloud data:', err);
     failedDomains.add('unknown');
-    publishCloudReadHealth([...failedDomains]);
+    readFailureDetails.unknown = { code: String(err?.code || '') };
+    publishCloudReadHealth([...failedDomains], [], readFailureDetails);
     showToast('Lỗi đồng bộ dữ liệu đám mây!', 'danger');
     return { background: null, failedDomains: [...failedDomains] };
   }
@@ -2340,7 +2575,7 @@ async function legacyLocalUploadDisabled() {
       const existingByKey = new Map((existingProducts || []).map(product => [productKey(product), product]));
 
       const dbRows = localProducts
-        .filter(p => p.id && p.packageType)
+        .filter(p => p.id && (p.sellUnitCode || p.unitName || p.packageType || p.packagingName))
         .map(p => {
           const existing = existingById.get(p.id) || existingByKey.get(productKey(p));
           if (existing?.id) p.id = existing.id;
@@ -2352,9 +2587,9 @@ async function legacyLocalUploadDisabled() {
             brand_id: p.brandId || null,
             base_product_id: p.baseProductId || p.parentProductId || null,
             parent_product_id: p.parentProductId || p.baseProductId || null,
-            package_type: p.packageType,
+            package_type: p.packageType || null,
             package_weight: p.packageWeight || null,
-            package_weight_unit: p.packageWeightUnit || 'kg',
+            package_weight_unit: p.packageWeightUnit || null,
             display_specification: p.displaySpecification || '',
             product_group: p.group || null,
             is_active: p.isActive !== false,
@@ -2443,7 +2678,7 @@ async function legacyLocalUploadDisabled() {
         address_main: b.addressMain || '',
         address_factory: b.addressFactory || '',
         address_business: b.addressBusiness || null,
-        invoice_warehouse_text: b.invoiceWarehouseText || 'Xuất Tại kho số 03 Chi nhánh Thái Nguyên',
+        invoice_warehouse_text: b.invoiceWarehouseText || null,
         sales_phone: b.salesPhone || ''
       }));
       
@@ -2460,7 +2695,7 @@ async function legacyLocalUploadDisabled() {
     // 9. Sync Suppliers
     if (localSuppliers.length > 0) {
       try {
-        const tableName = tableProductsName.startsWith('wl_') ? 'wl_suppliers' : 'suppliers';
+        const tableName = tableSuppliersName;
         const dbRows = localSuppliers.map(s => ({
           id: s.id,
           code: s.code,
@@ -2486,7 +2721,7 @@ async function legacyLocalUploadDisabled() {
           id: r.id,
           code: r.code,
           name: r.name,
-          unit: r.unit || 'kg',
+          unit: r.unit || '',
           import_price: parseFloat(r.importPrice || 0),
           quantity: parseFloat(r.quantity || 0),
           notes: r.notes || ''
@@ -2504,7 +2739,7 @@ async function legacyLocalUploadDisabled() {
           id: s.id,
           code: s.code,
           name: s.name,
-          unit: s.unit || 'kg',
+          unit: s.unit || '',
           quantity: parseFloat(s.quantity || 0),
           notes: s.notes || ''
         }));
@@ -2567,7 +2802,6 @@ async function legacyLocalUploadDisabled() {
     }
     
     await fetchCloudData();
-    updateDbStatusUI('cloud');
     showToast(
       (localTxs.length > 0 || localBalances || localOrders.some(order => order.status !== 'draft'))
         ? 'Đã đồng bộ danh mục và đơn nháp. Dữ liệu tài chính local không được ghi đè lên Cloud.'
@@ -2578,7 +2812,6 @@ async function legacyLocalUploadDisabled() {
   } catch(err) {
     console.error('Migration failed:', err);
     showToast('Lỗi đồng bộ dữ liệu: ' + err.message, 'danger');
-    updateDbStatusUI('cloud');
     return false;
   }
 }
@@ -2605,12 +2838,14 @@ export async function dbSaveProduct(product) {
       }
 
       if (!existingRow) {
-        const { data, error } = await supabaseClient
+        let query = supabaseClient
           .from(tableProductsName)
           .select('id')
-          .eq('code', product.code)
-          .eq('brand', product.brand || '')
-          .maybeSingle();
+          .eq('code', product.code);
+        query = String(product.brand || '').trim()
+          ? query.eq('brand', String(product.brand).trim())
+          : query.or('brand.is.null,brand.eq.');
+        const { data, error } = await query.maybeSingle();
         if (error) throw error;
         existingRow = data;
       }
@@ -2629,14 +2864,18 @@ export async function dbSaveProduct(product) {
         base_product_id: product.baseProductId || product.parentProductId || null,
         parent_product_id: product.parentProductId || product.baseProductId || null,
         name: product.name,
-        brand: product.brand || '',
-        brand_id: product.brandId || ('brand_' + String(product.brand).toLowerCase().replace(/[^a-z0-9]/g, '')),
-        package_type: product.packageType || '',
-        packaging_name: product.packagingName || product.packageType || '',
+        brand: String(product.brand || '').trim() || null,
+        brand_id: resolveProductBrandId(product),
+        item_kind: ['stock', 'non_stock', 'service', 'bundle'].includes(product.itemKind) ? product.itemKind : 'stock',
+        sell_unit_code: product.sellUnitCode || 'piece',
+        purchase_unit_code: product.purchaseUnitCode || product.sellUnitCode || 'piece',
+        track_inventory: product.trackInventory !== false,
+        package_type: product.packageType || null,
+        packaging_name: product.packagingName || product.packageType || null,
         package_weight: product.packageWeight === '' ? null : product.packageWeight,
         weight_or_volume: product.weightOrVolume === '' ? (product.packageWeight === '' ? null : product.packageWeight) : product.weightOrVolume,
-        package_weight_unit: product.packageWeightUnit || 'kg',
-        unit_name: product.unitName || product.packageWeightUnit || 'kg',
+        package_weight_unit: product.packageWeightUnit || null,
+        unit_name: product.unitName || product.packageWeightUnit || '',
         display_specification: product.displaySpecification || '',
         conversion_quantity: Number(product.conversionQuantity || 1),
         barcode: product.barcode || null,
@@ -2729,14 +2968,18 @@ export async function dbSaveProductsBulk(products) {
         base_product_id: product.baseProductId || product.parentProductId || null,
         parent_product_id: product.parentProductId || product.baseProductId || null,
         name: product.name,
-        brand: product.brand || '',
-        brand_id: product.brandId || ('brand_' + String(product.brand).toLowerCase().replace(/[^a-z0-9]/g, '')),
-        package_type: product.packageType || '',
-        packaging_name: product.packagingName || product.packageType || '',
+        brand: String(product.brand || '').trim() || null,
+        brand_id: resolveProductBrandId(product),
+        item_kind: ['stock', 'non_stock', 'service', 'bundle'].includes(product.itemKind) ? product.itemKind : 'stock',
+        sell_unit_code: product.sellUnitCode || 'piece',
+        purchase_unit_code: product.purchaseUnitCode || product.sellUnitCode || 'piece',
+        track_inventory: product.trackInventory !== false,
+        package_type: product.packageType || null,
+        packaging_name: product.packagingName || product.packageType || null,
         package_weight: product.packageWeight === '' ? null : product.packageWeight,
         weight_or_volume: product.weightOrVolume === '' ? (product.packageWeight === '' ? null : product.packageWeight) : product.weightOrVolume,
-        package_weight_unit: product.packageWeightUnit || 'kg',
-        unit_name: product.unitName || product.packageWeightUnit || 'kg',
+        package_weight_unit: product.packageWeightUnit || null,
+        unit_name: product.unitName || product.packageWeightUnit || '',
         display_specification: product.displaySpecification || '',
         conversion_quantity: Number(product.conversionQuantity || 1),
         barcode: product.barcode || null,
@@ -2759,7 +3002,7 @@ export async function dbSaveProductsBulk(products) {
           id: product.productGroupId,
           base_code: product.baseCode,
           product_name: product.name,
-          brand_id: product.brandId || current?.brand_id || null,
+          brand_id: product.brandId || null,
           brand_name: product.brand || '',
           category_id: product.categoryId || current?.category_id || null,
           description: product.description || current?.description || null,
@@ -3087,6 +3330,7 @@ export async function dbFetchCustomers({ includeHistory = false } = {}) {
         status: cust.status || 'active',
         createdBy: cust.created_by || '',
         assignedBrand: cust.assigned_brand || 'Tất cả',
+        assignedBrandId: cust.assigned_brand_id || null,
         brandDiscounts: typeof cust.brand_discounts === 'string' ? JSON.parse(cust.brand_discounts) : (cust.brand_discounts || {}),
         shippingSupport: cust.shipping_support || false,
         debt: parseFloat(cust.debt || 0),
@@ -3158,6 +3402,7 @@ export async function dbFetchCustomerById(customerId) {
       status: cust.status || 'active',
       createdBy: cust.created_by || '',
       assignedBrand: cust.assigned_brand || 'Tất cả',
+      assignedBrandId: cust.assigned_brand_id || null,
       brandDiscounts: typeof cust.brand_discounts === 'string' ? JSON.parse(cust.brand_discounts) : (cust.brand_discounts || {}),
       shippingSupport: cust.shipping_support || false,
       debt: Number(cust.debt || 0),
@@ -3675,7 +3920,7 @@ export async function dbSaveOrder(order) {
         idempotency_key: order.idempotencyKey || null,
         customer_id: order.customerId || null,
         customer_name: order.customerName,
-        company_id: order.companyId || 'ABS_NORTH',
+        company_id: order.companyId || state.currentUser?.companyId || state.saasContext?.organizationId || 'main',
         notes: order.notes,
         items: order.items,
         total_market: order.totalMarket || 0,
@@ -3846,7 +4091,7 @@ export async function authRegisterOrUpdateUser(user, isNew, initialPassword = ''
         ...(useInvitation ? {} : { password: initialPassword }),
         displayName: user.displayName,
         role: user.role,
-        companyId: user.companyId || 'ABS_NORTH'
+        companyId: user.companyId || state.saasContext?.organizationId || 'main'
       }
     });
     if (error) {
@@ -3894,7 +4139,7 @@ export async function dbSaveUser(user, { initialPassword = '' } = {}) {
         p_role: user.role,
         p_status: user.isActive === false ? 'suspended' : 'active',
         p_display_name: user.displayName,
-        p_company_id: user.companyId || 'ABS_NORTH'
+        p_company_id: user.companyId || state.saasContext?.organizationId || 'main'
       });
       if (error) throw error;
       return true;
@@ -3962,24 +4207,13 @@ export async function dbSaveBrand(brand, oldName = null) {
         address_main: brand.addressMain || '',
         address_factory: brand.addressFactory || '',
         address_business: brand.addressBusiness || null,
-        invoice_warehouse_text: brand.invoiceWarehouseText || 'Xuất Tại kho số 03 Chi nhánh Thái Nguyên',
+        invoice_warehouse_text: brand.invoiceWarehouseText || null,
         sales_phone: brand.salesPhone || ''
       };
 
-      // Xóa các dòng cũ trên Cloud trùng ID hoặc Tên (bất kể chữ hoa/thường)
-      if (brandId) {
-        await supabaseClient.from(tableBrandsName).delete().eq('id', brandId);
-      }
-      if (oldName) {
-        await supabaseClient.from(tableBrandsName).delete().ilike('name', oldName);
-      }
-      if (brand.name) {
-        await supabaseClient.from(tableBrandsName).delete().ilike('name', brand.name);
-      }
-      
       const { error: upsertErr } = await supabaseClient
         .from(tableBrandsName)
-        .upsert(dbRow);
+        .upsert(dbRow, { onConflict: 'id' });
 
       if (upsertErr) throw upsertErr;
       return true;
@@ -4106,7 +4340,7 @@ async function legacyDbSaveSuppliersBulk(suppliers) {
         debt: parseFloat(supplier.debt || 0),
         notes: supplier.notes || ''
       }));
-      const tableName = tableProductsName.startsWith('wl_') ? 'wl_suppliers' : 'suppliers';
+        const tableName = tableSuppliersName;
       const { error } = await supabaseClient
         .from(tableName)
         .upsert(dbRows, { onConflict: 'id' });
@@ -4160,7 +4394,10 @@ export async function dbDeleteSupplier(supplierId, reason = 'Ngừng sử dụng
       p_reason: reason
     });
     if (error) throw error;
-    state.suppliers = state.suppliers.filter(item => String(item.id) !== String(supplierId));
+    const normalizedId = String(supplierId);
+    state.suppliers = state.suppliers.filter(item => String(item.id) !== normalizedId);
+    const historicalSupplier = state.supplierDirectory.find(item => String(item.id) === normalizedId);
+    if (historicalSupplier) historicalSupplier.isActive = false;
     return data || { success: true };
   } catch (err) {
     console.warn('Cloud supplier deactivation failed:', err.message || err);
@@ -4184,11 +4421,20 @@ function applyCanonicalSupplier(supplier) {
     notes: supplier.notes || '',
     isActive: supplier.isActive !== false
   };
+  const historicalIndex = state.supplierDirectory.findIndex(item => String(item.id) === String(normalized.id));
+  if (historicalIndex >= 0) state.supplierDirectory[historicalIndex] = normalized;
+  else state.supplierDirectory.push(normalized);
+
   const index = state.suppliers.findIndex(item => String(item.id) === String(normalized.id));
   if (normalized.isActive) {
     if (index >= 0) state.suppliers[index] = normalized;
     else state.suppliers.push(normalized);
   } else if (index >= 0) state.suppliers.splice(index, 1);
+
+  state.purchases = (state.purchases || []).map(purchase => ({
+    ...purchase,
+    ...resolvePurchaseSupplierDetails(purchase, state.supplierDirectory)
+  }));
 }
 
 function applyCanonicalPurchase(purchase) {
@@ -4209,6 +4455,7 @@ function applyCanonicalPurchase(purchase) {
     })) : [],
     payments: Array.isArray(purchase.payments) ? purchase.payments : []
   };
+  Object.assign(normalized, resolvePurchaseSupplierDetails(normalized, state.supplierDirectory));
   const index = state.purchases.findIndex(item => String(item.id) === String(normalized.id));
   if (index >= 0) state.purchases[index] = normalized;
   else state.purchases.unshift(normalized);
@@ -4314,7 +4561,7 @@ export async function dbSaveRawMaterial(item) {
         id: item.id,
         code: item.code,
         name: item.name,
-        unit: item.unit || 'kg',
+        unit: item.unit || '',
         import_price: parseFloat(item.importPrice || 0),
         quantity: parseFloat(item.quantity || 0),
         notes: item.notes || ''
@@ -4352,7 +4599,7 @@ export async function dbSaveSemiFinished(item) {
         id: item.id,
         code: item.code,
         name: item.name,
-        unit: item.unit || 'kg',
+        unit: item.unit || '',
         quantity: parseFloat(item.quantity || 0),
         notes: item.notes || ''
       };
@@ -4471,7 +4718,7 @@ export async function dbSaveRawMaterialsBulk(items) {
         id: item.id,
         code: item.code,
         name: item.name,
-        unit: item.unit || 'kg',
+        unit: item.unit || '',
         import_price: parseFloat(item.importPrice || 0),
         quantity: parseFloat(item.quantity || 0),
         notes: item.notes || ''
@@ -4515,7 +4762,7 @@ export async function dbSaveSemiFinishedBulk(items) {
         id: item.id,
         code: item.code,
         name: item.name,
-        unit: item.unit || 'kg',
+        unit: item.unit || '',
         quantity: parseFloat(item.quantity || 0),
         notes: item.notes || ''
       }));
@@ -4649,10 +4896,13 @@ export function backfillMultiCompanyAndRevenueData() {
     state.savedOrders.forEach(order => {
       if (!order.companyId) {
         const creator = (state.users || []).find(u => isSameUser(u.username, order.createdBy));
-        order.companyId = creator ? (creator.companyId || creator.company_id || 'ABS_NORTH') : 'ABS_NORTH';
+        order.companyId = creator
+          ? (creator.companyId || creator.company_id || state.saasContext?.organizationId || 'main')
+          : (state.saasContext?.organizationId || 'main');
       }
 
-      let customerAgencyBrand = 'Nano10*';
+      const legacyBrand = state.saasContext?.organizationId === LEGACY_PAINT_ORGANIZATION_ID ? 'Nano10*' : '';
+      let customerAgencyBrand = legacyBrand;
       if (order.customerId) {
         const cust = (state.customers || []).find(c => c.id === order.customerId);
         if (cust && cust.assignedBrand && cust.assignedBrand !== 'Tất cả') {
@@ -4663,7 +4913,7 @@ export function backfillMultiCompanyAndRevenueData() {
       if (order.items) {
         order.items.forEach(item => {
           if (!item.companyId) item.companyId = order.companyId;
-          if (!item.productBrand) item.productBrand = item.brand || 'Nano10*';
+          if (!item.productBrand) item.productBrand = item.brand || legacyBrand;
           if (!item.agencyBrand) item.agencyBrand = customerAgencyBrand;
           if (!item.revenueBrand || !item.revenueCompany) {
             const revAttrs = getRevenueAttributes(item.productBrand, item.agencyBrand, order.companyId, state.brands);
@@ -4679,10 +4929,13 @@ export function backfillMultiCompanyAndRevenueData() {
     state.salesReturns.forEach(ret => {
       if (!ret.companyId) {
         const creator = (state.users || []).find(u => isSameUser(u.username, ret.createdBy));
-        ret.companyId = creator ? (creator.companyId || creator.company_id || 'ABS_NORTH') : 'ABS_NORTH';
+        ret.companyId = creator
+          ? (creator.companyId || creator.company_id || state.saasContext?.organizationId || 'main')
+          : (state.saasContext?.organizationId || 'main');
       }
 
-      let customerAgencyBrand = 'Nano10*';
+      const legacyBrand = state.saasContext?.organizationId === LEGACY_PAINT_ORGANIZATION_ID ? 'Nano10*' : '';
+      let customerAgencyBrand = legacyBrand;
       if (ret.customerId) {
         const cust = (state.customers || []).find(c => c.id === ret.customerId);
         if (cust && cust.assignedBrand && cust.assignedBrand !== 'Tất cả') {
@@ -4693,7 +4946,7 @@ export function backfillMultiCompanyAndRevenueData() {
       if (ret.items) {
         ret.items.forEach(item => {
           if (!item.companyId) item.companyId = ret.companyId;
-          if (!item.productBrand) item.productBrand = item.brand || 'Nano10*';
+          if (!item.productBrand) item.productBrand = item.brand || legacyBrand;
           if (!item.agencyBrand) item.agencyBrand = customerAgencyBrand;
           if (!item.revenueBrand || !item.revenueCompany) {
             const revAttrs = getRevenueAttributes(item.productBrand, item.agencyBrand, ret.companyId, state.brands);
@@ -5382,30 +5635,28 @@ export async function dbFetchCustomersOrderHistory(customerIds, startIso, endExc
   if (isCloudActive && supabaseClient) {
     try {
       const pageSize = 1000;
-      let from = 0;
-      const allRows = [];
-      while (true) {
+      const allRows = await collectAllPages(async (from, to) => {
         let query = supabaseClient
           .from(tableOrdersName)
-          .select('*')
+          .select('*', { count: 'exact' })
           .in('customer_id', Array.from(idSet))
           .gte('created_at', startIso)
           .lt('created_at', endExclusiveIso)
           .order('created_at', { ascending: true })
-          .range(from, from + pageSize - 1);
+          .order('id', { ascending: true })
+          .range(from, to);
         if (status === 'settled') query = query.in('status', ['settled', 'completed', 'complete', 'confirmed']);
         else if (status === 'cancelled') query = query.in('status', ['cancelled', 'canceled']);
         else if (status && status !== 'all') query = query.eq('status', status);
         else query = query.in('status', ['settled', 'completed', 'complete', 'confirmed', 'partially_returned', 'returned']);
-        const { data, error } = await query;
-        if (error) throw error;
-        allRows.push(...(data || []));
-        if (!data || data.length < pageSize) break;
-        from += pageSize;
-      }
+        const { data, error, count } = await query;
+        return { data, error, count };
+      }, pageSize, { getRowKey: row => row?.id });
       return allRows.map(mapOrderHistoryRow);
     } catch (err) {
-      console.warn('Loi tai lich su don hang khach hang tu Supabase, dung du lieu local:', err.message || err);
+      console.error('Không thể tải đầy đủ lịch sử đơn hàng khách hàng từ Supabase:', err.message || err);
+      showToast('Không thể tải đầy đủ lịch sử đơn hàng từ đám mây. Vui lòng thử lại.', 'danger');
+      throw err;
     }
   }
 

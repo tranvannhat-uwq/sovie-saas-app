@@ -1053,9 +1053,13 @@ export function setupStandaloneSidebar(selector, label) {
     body.append(child);
   });
 
+  // Active cashbook chips can wrap to several lines. Keep them inside the
+  // scrollable area so they cannot push the fixed footer below the viewport.
+  body.prepend(chipsContainer);
+
   const footer = createFilterFooter();
 
-  sidebar.append(heading, chipsContainer, body, footer);
+  sidebar.append(heading, body, footer);
   sidebar.dataset[FILTER_LAYOUT_READY] = 'true';
   setupMobileDrawer(sidebar.parentElement, sidebar);
   setupFilterInteractions(sidebar);

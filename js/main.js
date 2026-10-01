@@ -1,6 +1,6 @@
 import { state } from './state.js';
 import { COMPANY_SUPABASE_URL, COMPANY_SUPABASE_KEY, defaultProducts } from './config.js';
-import { connectSupabase, disconnectSupabase, retrySupabaseConnection, syncLocalToCloud, isCloudActive, supabaseClient, loadLocalStorageBackup, backfillMultiCompanyAndRevenueData, clearSupabaseAuthStorage, fetchCloudData, getMaintenanceStatus, setMaintenanceMode, loadSaasContext } from './services/supabase.js';
+import { connectSupabase, disconnectSupabase, retrySupabaseConnection, syncLocalToCloud, isCloudActive, supabaseClient, loadLocalStorageBackup, backfillMultiCompanyAndRevenueData, clearSupabaseAuthStorage, fetchCloudData, getMaintenanceStatus, setMaintenanceMode, loadSaasContext, refreshCloudReadHealthUI } from './services/supabase.js';
 import { setupBackupRestoreListeners } from './services/backup.js';
 import { updateDashboardStats, setupDashboardFilters, setupDashboardQuickActions } from './components/dashboard.js';
 import { renderProductsTable, setupExcelImportAndTemplate, setupProductManagement } from './components/products.js';
@@ -14,13 +14,14 @@ import { setupSoQuyPanel, renderSoQuyTable } from './components/so_quy.js';
 import { renderSuppliersTable, setupSupplierManagement, populateSupplierDatalist } from './components/suppliers.js';
 import { renderGoodsPanel } from './components/goods.js';
 import { setupReportsPanel, renderDebtReport, renderReturnsReport } from './components/reports.js';
-import { showToast, safeCreateIcons, updateDbStatusUI } from './utils.js';
+import { showToast, safeCreateIcons, updateDbStatusUI, resolveWorkspaceCompanyId } from './utils.js';
 import { startRealtimeSync, stopRealtimeSync } from './services/realtime.js';
 import { setupActivityLog, renderActivityLog } from './components/activity-log.js';
 import { setupNavigationDropdowns } from './components/navigation-theme.js';
 import { setupModuleFilterLayouts } from './components/module-filter-layout.js';
 import { openWorkspaceOnboarding, renderWorkspaceSwitcher, renderSubscriptionAccessNotice, setupWorkspaceManagement } from './components/workspaces.js';
 import { hydratePlatformAdmin, renderPlatformAdmin, setupPlatformAdmin } from './components/platform-admin.js';
+import { isBrandCatalogEnabled } from './domain/business-capabilities.js';
 
 const PANEL_CLOUD_DOMAINS = Object.freeze({
   'invoice-panel': ['pricelists'],
@@ -116,6 +117,13 @@ export async function ensurePanelCloudData(panelId, { force = false, domains: do
 // Chỉ render panel đang nhìn thấy. Các panel khác sẽ render khi người dùng
 // chuyển tab, tránh dựng hàng nghìn dòng DOM ẩn trong mỗi lần cập nhật.
 export function renderAll() {
+  const brandCatalogEnabled = isBrandCatalogEnabled(state.businessCapabilities, state.brands, state.products);
+  document.body.classList.toggle(
+    'brand-catalog-hidden',
+    !brandCatalogEnabled
+  );
+  if (!brandCatalogEnabled && state.dashboardFilter) state.dashboardFilter.brand = 'all';
+
   // Never render or query business modules before an authenticated database
   // profile has been established. This also prevents dashboard RPC noise on
   // the login screen and avoids leaking stale cached business data.
@@ -456,7 +464,7 @@ function setupSupabaseSettings() {
     if (success) {
       renderAll();
     } else {
-      if (isCloudActive) updateDbStatusUI('cloud');
+      if (isCloudActive) refreshCloudReadHealthUI();
       else updateDbStatusUI('local', 'Kết nối thất bại');
     }
   });
@@ -604,7 +612,7 @@ async function initApp() {
             organizationId: tenantContext.organizationId,
             organizationName: tenantContext.organizationName,
             organizationSlug: tenantContext.organizationSlug,
-            companyId: profile.company_id || 'ABS_NORTH',
+            companyId: resolveWorkspaceCompanyId(profile.company_id, tenantContext.organizationId),
             isExternal: profile.is_external === true,
             isActive: profile.is_active === true
           };
@@ -684,7 +692,7 @@ async function initApp() {
       organizationId: '',
       organizationName: '',
       organizationSlug: '',
-      companyId: onboardingProfile.company_id || 'ABS_NORTH',
+      companyId: '',
       isExternal: onboardingProfile.is_external === true,
       isActive: onboardingProfile.is_active !== false
     };

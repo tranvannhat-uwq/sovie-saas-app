@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import test from 'node:test';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const jsRoot = path.join(root, 'js');
@@ -14,30 +14,31 @@ function listJavaScriptFiles(directory) {
   });
 }
 
-test('stateful browser modules use one URL identity across the entire import graph', () => {
-  const imports = listJavaScriptFiles(jsRoot).flatMap(file => {
+test('browser module imports resolve to one canonical file URL', () => {
+  const files = listJavaScriptFiles(jsRoot);
+  const canonicalUrls = new Map();
+
+  for (const file of files) {
     const source = fs.readFileSync(file, 'utf8');
-    return [...source.matchAll(/from\s+['"]([^'"]+\?v=([^'"]+))['"]/g)]
-      .map(match => ({ file, specifier: match[1], version: match[2] }));
-  });
+    const specifiers = [...source.matchAll(/(?:from\s*|import\s*\()(['"])([^'"]+)\1/g)]
+      .map(match => match[2])
+      .filter(specifier => specifier.startsWith('.'));
 
-  const versions = new Set(imports.map(item => item.version));
-  assert.deepEqual([...versions], ['20260924-ui-cleanup-v3']);
+    for (const specifier of specifiers) {
+      const resolvedUrl = new URL(specifier, pathToFileURL(file));
+      assert.equal(resolvedUrl.search, '', `${path.relative(root, file)} imports ${specifier} with a query string`);
+      assert.equal(resolvedUrl.hash, '', `${path.relative(root, file)} imports ${specifier} with a fragment`);
+      assert.ok(resolvedUrl.pathname.endsWith('.js'), `${specifier} should resolve to a JavaScript module`);
+      assert.ok(fs.existsSync(fileURLToPath(resolvedUrl)), `${path.relative(root, file)} imports missing ${specifier}`);
 
-  const allSources = listJavaScriptFiles(jsRoot).map(file => fs.readFileSync(file, 'utf8')).join('\n');
-  for (const moduleName of ['services/supabase.js', 'components/products.js', 'components/pricelists.js']) {
-    const escaped = moduleName.replaceAll('/', '\\/').replaceAll('.', '\\.');
-    assert.doesNotMatch(
-      allSources,
-      new RegExp(`from\\s+['\"][^'\"]*${escaped}['\"]`),
-      `${moduleName} must not also be imported without the shared version identity`
-    );
+      const resolvedPath = path.resolve(fileURLToPath(resolvedUrl));
+      const priorUrl = canonicalUrls.get(resolvedPath);
+      if (priorUrl) assert.equal(priorUrl, resolvedUrl.href, `${resolvedPath} has multiple browser URL identities`);
+      else canonicalUrls.set(resolvedPath, resolvedUrl.href);
+    }
   }
 
-  for (const moduleName of ['main.js', 'services/supabase.js']) {
-    const identities = new Set(imports
-      .filter(item => item.specifier.includes(moduleName))
-      .map(item => item.specifier.replace(/^.*?(?=(?:services\/)?(?:main|supabase)\.js)/, '')));
-    assert.equal(identities.size, 1, `${moduleName} must not be instantiated more than once`);
+  for (const moduleName of ['state.js', 'services/supabase.js', 'components/products.js', 'components/pricelists.js']) {
+    assert.ok(fs.existsSync(path.join(jsRoot, moduleName)), `${moduleName} must exist in the application module graph`);
   }
 });

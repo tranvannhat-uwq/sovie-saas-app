@@ -1,5 +1,5 @@
 import { state, resetTenantBusinessState } from '../state.js';
-import { showToast, safeCreateIcons, isSameUser, getCompanyNameById } from '../utils.js';
+import { showToast, safeCreateIcons, isSameUser, getCompanyNameById, getDefaultCompanyId, resolveWorkspaceCompanyId } from '../utils.js';
 import { dbSaveUser, dbDeleteUser, isCloudActive, supabaseClient, fetchCloudData, clearSupabaseAuthStorage, getMaintenanceStatus, loadSaasContext, clearTenantStorageContext, transferSaasOrganizationOwnership } from '../services/supabase.js';
 import { startRealtimeSync, stopRealtimeSync } from '../services/realtime.js';
 import { renderAll, switchTab } from '../main.js';
@@ -132,7 +132,10 @@ function getAvailableCompaniesForUserForm() {
 
   if (state.companies && state.companies.length > 0) {
     if (orgName && !isLegacyTenant) {
-      const customCompanies = state.companies.filter(c => c.id !== 'ABS_NORTH' && c.id !== 'ABS_SOUTH' && c.id !== 'EMP_USA');
+      const isLegacyPaintWorkspace = state.saasContext?.organizationId === '00000000-0000-4000-8000-000000000001';
+      const customCompanies = isLegacyPaintWorkspace
+        ? state.companies.filter(c => !['ABS_NORTH', 'ABS_SOUTH', 'EMP_USA'].includes(String(c.id).toUpperCase()))
+        : state.companies;
       if (customCompanies.length > 0) return customCompanies;
       return [{ id: state.saasContext.organizationId || 'main', name: orgName }];
     }
@@ -409,7 +412,7 @@ export async function saveUser() {
       return;
     }
     
-    const companyId = document.getElementById('user-company') ? document.getElementById('user-company').value : 'ABS_NORTH';
+    const companyId = document.getElementById('user-company') ? document.getElementById('user-company').value : getDefaultCompanyId();
     user = {
       id: 'u-' + Date.now(),
       username,
@@ -433,7 +436,7 @@ export async function saveUser() {
       return;
     }
     
-    const companyId = document.getElementById('user-company') ? document.getElementById('user-company').value : 'ABS_NORTH';
+    const companyId = document.getElementById('user-company') ? document.getElementById('user-company').value : getDefaultCompanyId();
     user = {
       ...existingUser,
       username,
@@ -759,7 +762,7 @@ export async function handleLogin(e) {
         organizationId: '',
         organizationName: '',
         organizationSlug: '',
-        companyId: profile.company_id || 'ABS_NORTH',
+        companyId: profile.company_id || 'main',
         isExternal: profile.is_external === true,
         isActive: profile.is_active !== false
       };
@@ -778,7 +781,7 @@ export async function handleLogin(e) {
       organizationId: tenantContext.organizationId,
       organizationName: tenantContext.organizationName,
       organizationSlug: tenantContext.organizationSlug,
-      companyId: profile.company_id || 'ABS_NORTH',
+      companyId: resolveWorkspaceCompanyId(profile.company_id, tenantContext.organizationId),
       isExternal: profile.is_external === true,
       isActive: profile.is_active !== false
     };

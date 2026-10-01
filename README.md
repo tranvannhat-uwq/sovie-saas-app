@@ -45,7 +45,7 @@ npm run deploy
   và tên miền `chamsockhachhang.store`; không đổi custom domain hoặc `CNAME`
   của repository đó khi triển khai SaaS.
 
-- Chuỗi migration trong mã nguồn hiện có đến `0101`; trạng thái staging được ghi nhận gần nhất trong [docs/SAAS_STAGING_READINESS.md](docs/SAAS_STAGING_READINESS.md) chỉ xác nhận đến `0097`. Đối chiếu `public.schema_migrations` trên staging trước khi áp dụng `0098`–`0101`; repository không tự xác nhận các migration mới hơn đã được triển khai.
+- Chuỗi migration trong mã nguồn hiện có đến `0105`. Lần kiểm tra Cloud ngày 2026-09-30 xác nhận staging `mqxqswwssmemkimnolfu` đã chạy đến `0104`; `0105` mới được chuẩn bị trong repo và chưa áp dụng lên Cloud. Chi tiết và các bước nghiệm thu còn mở nằm trong [docs/SAAS_STAGING_READINESS.md](docs/SAAS_STAGING_READINESS.md).
 - Bản web SaaS được ghim vào Supabase staging clone `mqxqswwssmemkimnolfu`; cấu hình production không còn nằm trong `js/config.js`.
 - Dữ liệu hiện tại được giữ trong workspace tương thích `legacy-weblendon`.
 - 35 bảng nghiệp vụ và 39 RPC callable đã được cách ly tenant và kiểm thử trên staging; migrations `0063`–`0066` đã bật tạo/chuyển workspace, trial Starter, quota, quản trị membership, lời mời email và chuyển quyền Owner nguyên tử.

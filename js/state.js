@@ -8,7 +8,7 @@ export const DEFAULT_COMPANIES = [
 export const state = {
   products: [],
   brands: [],
-  companies: [...DEFAULT_COMPANIES],
+  companies: [],
   invoiceItems: [], // [{ product, brand, package, colorCode, colorPercent, quantity, discountPercent, price }]
   savedOrders: [],
   cashbookOpeningNetByMethod: null,
@@ -36,6 +36,7 @@ export const state = {
   activeOrganizationId: '',
   activeCustomerId: '',
   activeCustomerBrand: 'Tất cả',
+  activeCustomerBrandId: '',
   currentTab: 'dashboard-panel',
   isQuickCustomerMode: false,
   dashboardFilter: {
@@ -52,6 +53,7 @@ export const state = {
   productsPage: 1,
   customersPage: 1,
   suppliers: [],
+  supplierDirectory: [],
   suppliersPage: 1,
   priceMatrixPage: 1,
   priceMatrixPageSize: 25,
@@ -81,6 +83,7 @@ export function resetTenantBusinessState() {
   state.allPriceListItems = [];
   state.users = [];
   state.suppliers = [];
+  state.supplierDirectory = [];
   state.purchases = [];
   state.rawMaterials = [];
   state.semiFinished = [];
@@ -90,4 +93,5 @@ export function resetTenantBusinessState() {
   state.salesReturns = [];
   state.activeCustomerId = '';
   state.activeCustomerBrand = 'Tất cả';
+  state.activeCustomerBrandId = '';
 }

@@ -120,10 +120,9 @@ test('invalid item moves leave the current order array untouched', () => {
 });
 
 test('editable historical orders refresh current prices while read-only orders keep snapshots', () => {
-  const listener = invoiceSource.slice(
-    invoiceSource.indexOf("document.addEventListener('loadDraftOrder'"),
-    invoiceSource.indexOf("document.addEventListener('loadDraftOrder'") + 900
-  );
+  const listenerStart = invoiceSource.indexOf("document.addEventListener('loadDraftOrder'");
+  const listenerEnd = invoiceSource.indexOf('\n});', listenerStart);
+  const listener = invoiceSource.slice(listenerStart, listenerEnd + 4);
 
   assert.match(listener, /if \(isReadOnly\)[\s\S]*renderInvoiceTable\(\)[\s\S]*return;/);
   assert.match(listener, /applyActivePriceListToInvoice\(\)/);

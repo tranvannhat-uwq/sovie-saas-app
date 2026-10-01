@@ -1,5 +1,5 @@
 import { state } from '../state.js';
-import { formatCurrency, safeCreateIcons, isSameUser, getUserCompanyId, getCompanyNameById, getCompanyIdByBrand, getCanonicalBrandName, normalizeCompanyId, getNormalizedBrandName, removeVietnameseTones, showToast, getUserDisplayName } from '../utils.js';
+import { formatCurrency, safeCreateIcons, isSameUser, getUserCompanyId, getCompanyNameById, getCompanyIdByBrand, getCanonicalBrandName, normalizeCompanyId, getNormalizedBrandName, removeVietnameseTones, showToast, getUserDisplayName, isLegacyPaintWorkspace } from '../utils.js';
 import { switchTab } from '../main.js';
 import { openProductModal } from './products.js';
 import { tenantStorage } from '../services/tenant-storage.js';
@@ -173,16 +173,17 @@ function isValidDashboardOrder(order) {
 }
 
 function getOrderCompanyId(order) {
-  return normalizeCompanyId(order?.companyId || order?.company_id || 'ABS_NORTH');
+  return normalizeCompanyId(order?.companyId || order?.company_id);
 }
 
 function getItemRevenueCompanyId(item, orderCompanyId) {
-  const pBrand = getCanonicalBrandName(item.productBrand || item.brand || 'COVA NANO', state.brands);
-  const rBrand = getCanonicalBrandName(item.revenueBrand || pBrand, state.brands);
-  // Công ty nhận doanh thu được xác định từ thương hiệu của từng dòng hàng.
-  // Không dùng công ty của người lập/chốt đơn vì một đơn có thể chứa nhãn của
-  // công ty khác với công ty của nhân viên thao tác.
-  return normalizeCompanyId(getCompanyIdByBrand(rBrand, state.brands), rBrand);
+  const transactionCompanyId = normalizeCompanyId(orderCompanyId);
+  if (transactionCompanyId) return transactionCompanyId;
+  if (!isLegacyPaintWorkspace()) return '';
+  return normalizeCompanyId(getCompanyIdByBrand(
+    item?.revenueBrand || item?.agencyBrand || item?.productBrand || item?.brand,
+    state.brands
+  ));
 }
 
 function getOrderManagedSalesperson(order) {
@@ -194,8 +195,7 @@ function getOrderManagedSalesperson(order) {
 function orderMatchesDashboardCompany(order, companyId) {
   if (!companyId || companyId === 'all') return true;
   const selectedCompanyId = normalizeCompanyId(companyId);
-  if (getOrderCompanyId(order) === selectedCompanyId) return true;
-  return (order.items || []).some(item => getItemRevenueCompanyId(item, getOrderCompanyId(order)) === selectedCompanyId);
+  return getOrderCompanyId(order) === selectedCompanyId;
 }
 
 function isValidReturn(ret) {
@@ -229,7 +229,7 @@ function getOrderRevenueRows(order, sign = 1) {
   return (order.items || []).map(item => {
     const qty = toNumber(item.quantity);
     const gross = sign > 0 ? getItemGross(item) * ratio : toNumber(item.subtotal ?? (toNumber(item.refundPrice) * qty));
-    const rawPBrand = item.productBrand || item.brand || 'COVA NANO';
+    const rawPBrand = item.productBrand || item.brand || '';
     const pBrand = getCanonicalBrandName(rawPBrand, state.brands);
     const rBrand = getCanonicalBrandName(item.revenueBrand || pBrand, state.brands);
     const rCompany = getItemRevenueCompanyId(item, orderCompany);
@@ -800,7 +800,7 @@ function renderServerDashboard(payload) {
   const currentDebt = Number(summary.current_debt || 0);
   setKpiContext('stat-revenue-context', orderCount ? `Doanh số theo ${periodLabel.slice(1, -1).toLowerCase()}` : 'Chưa có đơn hàng trong kỳ');
   setKpiContext('stat-orders-context', orderCount ? `${orderCount} đơn hợp lệ trong kỳ` : 'Chưa phát sinh đơn hàng');
-  setKpiContext('stat-debt-context', currentDebt > 0 ? 'Cần theo dõi công nợ hiện tại' : 'Không có công nợ cần thu', currentDebt > 0 ? 'warning' : 'up');
+  setKpiContext('stat-debt-context', currentDebt > 0 ? 'Cần theo dõi công nợ ròng' : 'Số dư công nợ ròng không dương', currentDebt > 0 ? 'warning' : 'up');
   setKpiContext('stat-products-context', soldQuantity ? `${soldQuantity} sản phẩm đã bán trong kỳ` : 'Chưa có sản phẩm bán');
 
   const ordersPill = document.getElementById('stat-orders-pill');
@@ -814,9 +814,9 @@ function renderServerDashboard(payload) {
   const debtPill = document.getElementById('stat-debt-pill');
   const debtPillText = document.getElementById('stat-debt-pill-text');
   if (debtPillText) {
-    debtPillText.textContent = currentDebt > 0 ? 'Cần theo dõi' : '+9.2% đúng hẹn';
+    debtPillText.textContent = currentDebt > 0 ? 'Cần theo dõi' : 'Công nợ ròng không dương';
   } else if (debtPill) {
-    debtPill.textContent = currentDebt > 0 ? 'Cần theo dõi' : '+9.2% đúng hẹn';
+    debtPill.textContent = currentDebt > 0 ? 'Cần theo dõi' : 'Công nợ ròng không dương';
   }
   const syncLabel = document.getElementById('dashboard-sync-time-label');
   if (syncLabel) {
@@ -867,6 +867,7 @@ function renderServerDashboard(payload) {
     if (search) { search.value = button.dataset.id; search.dispatchEvent(new Event('input')); }
   }));
   safeCreateIcons();
+  updateDashboardFilterSummary();
 }
 
 export async function updateDashboardStats({ force = false } = {}) {
@@ -901,6 +902,12 @@ export async function updateDashboardStats({ force = false } = {}) {
       console.error('Phase 5 dashboard RPC error:', error);
       ['stat-total-revenue', 'stat-total-orders', 'stat-total-debt', 'stat-total-sold-products'].forEach(id => {
         const element = document.getElementById(id); if (element) element.innerText = '—';
+      });
+      ['stat-orders-pill-text', 'stat-debt-pill-text'].forEach(id => {
+        const element = document.getElementById(id); if (element) element.textContent = '—';
+      });
+      ['stat-revenue-context', 'stat-orders-context', 'stat-debt-context', 'stat-products-context'].forEach(id => {
+        const element = document.getElementById(id); if (element) element.textContent = 'Chưa tải được dữ liệu.';
       });
       showToast('Không tải được dashboard từ cơ sở dữ liệu. Kiểm tra migration 0012.', 'danger');
       return null;
@@ -994,7 +1001,7 @@ function updateDashboardStatsLegacy() {
   };
   setKpiContext('stat-revenue-context', totalOrdersCount ? `Doanh số theo ${labelSuffix.slice(1, -1).toLowerCase()}` : 'Chưa có đơn hàng trong kỳ');
   setKpiContext('stat-orders-context', totalOrdersCount ? `${totalOrdersCount} đơn hợp lệ trong kỳ` : 'Chưa phát sinh đơn hàng');
-  setKpiContext('stat-debt-context', totalDebt > 0 ? 'Cần theo dõi công nợ hiện tại' : 'Không có công nợ cần thu', totalDebt > 0 ? 'warning' : 'up');
+  setKpiContext('stat-debt-context', totalDebt > 0 ? 'Cần theo dõi công nợ ròng' : 'Số dư công nợ ròng không dương', totalDebt > 0 ? 'warning' : 'up');
   setKpiContext('stat-products-context', totalSoldProducts ? `${totalSoldProducts} sản phẩm đã bán trong kỳ` : 'Chưa có sản phẩm bán');
 
   const ordersPill = document.getElementById('stat-orders-pill');
@@ -1008,9 +1015,9 @@ function updateDashboardStatsLegacy() {
   const debtPill = document.getElementById('stat-debt-pill');
   const debtPillText = document.getElementById('stat-debt-pill-text');
   if (debtPillText) {
-    debtPillText.textContent = totalDebt > 0 ? 'Cần theo dõi' : '+9.2% đúng hẹn';
+    debtPillText.textContent = totalDebt > 0 ? 'Cần theo dõi' : 'Công nợ ròng không dương';
   } else if (debtPill) {
-    debtPill.textContent = totalDebt > 0 ? 'Cần theo dõi' : '+9.2% đúng hẹn';
+    debtPill.textContent = totalDebt > 0 ? 'Cần theo dõi' : 'Công nợ ròng không dương';
   }
 
   renderDashboardBreakdownChart({
@@ -1250,6 +1257,10 @@ export function closeDashboardFilterModal() {
   modal.classList.remove('active');
   modal.setAttribute('aria-hidden', 'true');
   document.getElementById('btn-open-dashboard-filter')?.setAttribute('aria-expanded', 'false');
+  ['dashboard-sale-suggestions', 'dashboard-customer-suggestions'].forEach(id => {
+    const suggestions = document.getElementById(id);
+    if (suggestions) suggestions.style.display = 'none';
+  });
 }
 
 export function updateDashboardFilterSummary() {
@@ -1295,11 +1306,52 @@ export function updateDashboardFilterSummary() {
 let saleDebounceTimer = null;
 let customerDebounceTimer = null;
 
+function setupDashboardSuggestionPopover(input, list) {
+  const appRoot = document.getElementById('app-layout');
+  if (appRoot && list.parentElement !== appRoot) appRoot.append(list);
+
+  const positionPopover = () => {
+    if (list.style.display === 'none' || !input.isConnected) return;
+
+    const inputRect = input.getBoundingClientRect();
+    if (!inputRect.width || !inputRect.height) return;
+
+    const viewportPadding = 12;
+    const gap = 4;
+    const maxPopoverHeight = 200;
+    const spaceBelow = Math.max(0, window.innerHeight - inputRect.bottom - viewportPadding);
+    const spaceAbove = Math.max(0, inputRect.top - viewportPadding);
+    const naturalHeight = Math.min(maxPopoverHeight, Math.max(72, list.scrollHeight));
+    const placeAbove = spaceBelow < naturalHeight && spaceAbove > spaceBelow;
+    const availableSpace = placeAbove ? spaceAbove : spaceBelow;
+    const popoverHeight = Math.max(72, Math.min(maxPopoverHeight, availableSpace - gap));
+
+    list.style.setProperty('position', 'fixed', 'important');
+    list.style.setProperty('top', placeAbove ? 'auto' : `${inputRect.bottom + gap}px`, 'important');
+    list.style.setProperty('bottom', placeAbove ? `${window.innerHeight - inputRect.top + gap}px` : 'auto', 'important');
+    list.style.setProperty('left', `${inputRect.left}px`, 'important');
+    list.style.setProperty('right', 'auto', 'important');
+    list.style.setProperty('width', `${inputRect.width}px`, 'important');
+    list.style.setProperty('max-height', `${popoverHeight}px`, 'important');
+    list.style.setProperty('z-index', '1301', 'important');
+  };
+
+  if (list.dataset.dashboardPopoverPositionBound !== 'true') {
+    document.querySelector('#dashboard-filter-modal .dashboard-filter-modal-body')
+      ?.addEventListener('scroll', positionPopover, { passive: true });
+    window.addEventListener('resize', positionPopover);
+    list.dataset.dashboardPopoverPositionBound = 'true';
+  }
+
+  return positionPopover;
+}
+
 function setupSaleAutocomplete() {
   const input = document.getElementById('dashboard-sale-search-input');
   const clearBtn = document.getElementById('btn-clear-sale-search');
   const list = document.getElementById('dashboard-sale-suggestions');
   if (!input || !list) return;
+  const positionSuggestions = setupDashboardSuggestionPopover(input, list);
 
   const updateInputDisplay = () => {
     if (state.dashboardFilter.saleUser && state.dashboardFilter.saleUser !== 'all') {
@@ -1347,6 +1399,7 @@ function setupSaleAutocomplete() {
 
     list.innerHTML = html;
     list.style.display = 'block';
+    positionSuggestions();
 
     list.querySelectorAll('.select-sale-opt').forEach(li => {
       li.onclick = () => {
@@ -1395,6 +1448,7 @@ function setupCustomerAutocomplete() {
   const clearBtn = document.getElementById('btn-clear-customer-search');
   const list = document.getElementById('dashboard-customer-suggestions');
   if (!input || !list) return;
+  const positionSuggestions = setupDashboardSuggestionPopover(input, list);
 
   const updateInputDisplay = () => {
     if (state.dashboardFilter.customerId && state.dashboardFilter.customerId !== 'all') {
@@ -1452,6 +1506,7 @@ function setupCustomerAutocomplete() {
 
     list.innerHTML = html;
     list.style.display = 'block';
+    positionSuggestions();
 
     list.querySelectorAll('.select-cust-opt').forEach(li => {
       li.onclick = () => {

@@ -26,7 +26,7 @@ test('horizontal navigation uses the SoVie gradient bar and Lucide SVG icons', (
   const tokens = read('styles/base.css');
   const css = read('styles/app.css');
 
-  assert.match(html, /styles\/app\.css\?v=20260924-ui-cleanup-v3/);
+  assert.match(html, /href="styles\/app\.css(?:\?[^"']*)?"/);
   assert.doesNotMatch(css, /Material Symbols Rounded|data-reference-icon\]::before/);
   assert.match(tokens, /--vi-primary:\s*#0057cd/);
   assert.match(tokens, /--vi-primary-container:\s*#006eff/);

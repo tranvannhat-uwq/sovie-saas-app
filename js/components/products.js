@@ -1,4 +1,5 @@
 import { state } from '../state.js';
+import { isBrandCatalogEnabled } from '../domain/business-capabilities.js';
 import { showToast, safeCreateIcons, getBrandName } from '../utils.js';
 import { dbSaveProductsBulk, dbDeleteProduct } from '../services/supabase.js';
 import { renderAll } from '../main.js';
@@ -8,6 +9,7 @@ import {
   getProductBaseCode,
   normalizeCatalogText,
   searchProductFamilies,
+  isCatalogVariant,
   variantSpecification
 } from '../domain/product-catalog.js';
 
@@ -16,7 +18,7 @@ let isSelectingFile = false;
 let editingProductFamilyKey = '';
 
 function isSku(product) {
-  return Boolean(product && product.id && product.packageType && !product.isLegacy);
+  return isCatalogVariant(product);
 }
 
 function specificationOf(product) {
@@ -36,9 +38,30 @@ function createProductGroupId(baseCode, name, brand) {
   return `pg-${source || Date.now()}-${suffix}`;
 }
 
+function getWorkspaceUnits() {
+  const configured = state.businessCapabilities?.catalog?.units;
+  if (Array.isArray(configured) && configured.length) return configured;
+  return [{ code: 'piece', name: 'Cái', symbol: 'cái' }];
+}
+
+function resolveUnit(value) {
+  const normalized = String(value || '').trim().toLocaleLowerCase();
+  return getWorkspaceUnits().find(unit => [unit.code, unit.symbol, unit.name]
+    .some(candidate => String(candidate || '').trim().toLocaleLowerCase() === normalized))
+    || getWorkspaceUnits()[0];
+}
+
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, character => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  })[character]);
+}
+
 function getFilteredSkuProducts() {
   const search = (document.getElementById('product-search-input')?.value || '').trim().toLowerCase();
-  const brandFilter = document.getElementById('product-brand-filter')?.value || '';
+  const brandFilter = isBrandCatalogEnabled(state.businessCapabilities, state.brands, state.products)
+    ? (document.getElementById('product-brand-filter')?.value || '')
+    : '';
   const packageFilter = document.getElementById('product-package-filter')?.value || '';
   const statusFilter = document.getElementById('product-status-filter')?.value || '';
 
@@ -59,7 +82,9 @@ function getFilteredSkuProducts() {
 
 function getFilteredProductFamilies() {
   const search = (document.getElementById('product-search-input')?.value || '').trim();
-  const brandFilter = document.getElementById('product-brand-filter')?.value || '';
+  const brandFilter = isBrandCatalogEnabled(state.businessCapabilities, state.brands, state.products)
+    ? (document.getElementById('product-brand-filter')?.value || '')
+    : '';
   const packageFilter = document.getElementById('product-package-filter')?.value || '';
   const statusFilter = document.getElementById('product-status-filter')?.value || '';
   let families = buildProductFamilies(state.products, { includeInactive: true });
@@ -80,7 +105,9 @@ function populateBrandOptions() {
   const brands = [...new Set([
     ...(state.brands || []).map(brand => brand.name),
     ...(state.products || []).map(product => getBrandName(product.brandId || product.brand, product.brand)).filter(Boolean)
-  ])].sort((a, b) => a.localeCompare(b, 'vi'));
+  ])]
+    .filter(brand => !['all', 'tất cả'].includes(normalizeCatalogText(brand)))
+    .sort((a, b) => a.localeCompare(b, 'vi'));
 
   if (filter) {
     const current = filter.value;
@@ -90,7 +117,7 @@ function populateBrandOptions() {
 
   if (modalSelect) {
     const current = modalSelect.value;
-    modalSelect.innerHTML = `${brands.map(brand => `<option value="${brand}">${brand}</option>`).join('')}<option value="Khác">Khác</option>`;
+    modalSelect.innerHTML = `<option value="">Không gán thương hiệu</option>${brands.map(brand => `<option value="${escapeHtml(brand)}">${escapeHtml(brand)}</option>`).join('')}<option value="Khác">Nhập thương hiệu mới</option>`;
     if (current && [...modalSelect.options].some(option => option.value === current)) modalSelect.value = current;
   }
 }
@@ -119,18 +146,21 @@ export function renderProductsTable() {
   tableBody.innerHTML = pageItems.length
     ? pageItems.map((family, index) => {
       const activeVariants = family.variants.filter(variant => variant.isActive !== false);
-      const packageNames = [...new Set(family.variants.map(variant => variant.packagingName || variant.packageType))].join(', ');
+      const packageNames = [...new Set(family.variants
+        .map(variant => variant.packagingName || variant.packageType || variant.unitName || variant.sellUnitCode)
+        .filter(Boolean))].join(', ');
       const weights = family.variants.map(variant => {
         const value = variant.weightOrVolume ?? variant.packageWeight ?? '';
         const unit = variant.unitName || variant.packageWeightUnit || '';
+        if (value === '' || value === null || value === undefined) return '';
         return `${String(value).replace('.', ',')} ${unit}`.trim();
-      }).join(', ');
+      }).filter(Boolean).join(', ');
       return `
       <tr>
         <td class="text-center" style="font-weight: 600; color: var(--text-muted);">${start + index + 1}</td>
         <td class="sku-code"><span class="table-code-chip code-chip-product">${family.baseCode}</span></td>
         <td title="${family.name}" style="font-weight: 700; color: #0f172a;">${family.name}</td>
-        <td><span style="font-weight: 600; color: #334155;">${family.brand}</span></td>
+        <td data-brand-feature><span style="font-weight: 600; color: #334155;">${family.brand || ''}</span></td>
         <td>${packageNames || '-'}</td>
         <td title="${weights}">${weights || '-'}</td>
         <td><span class="table-code-chip" style="background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; font-size: 0.75rem; margin-bottom: 3px;">${family.variants.length} quy cách</span><br><small style="color: var(--text-secondary);">${family.variants.map(variant => variant.code).join(', ')}</small></td>
@@ -191,24 +221,20 @@ function addVariantEditorRow(variant = {}) {
   const id = variant.id || '';
   const packageName = variant.packagingName || variant.packageType || '';
   const weight = variant.weightOrVolume ?? variant.packageWeight ?? '';
-  const unit = variant.unitName || variant.packageWeightUnit || 'kg';
+  const currentUnit = resolveUnit(variant.sellUnitCode || variant.unitName || variant.packageWeightUnit || 'piece');
+  const unitOptions = getWorkspaceUnits().map(unit => `
+    <option value="${escapeHtml(unit.code)}" ${String(unit.code) === String(currentUnit.code) ? 'selected' : ''}>${escapeHtml(unit.name || unit.symbol || unit.code)}${unit.symbol ? ` (${escapeHtml(unit.symbol)})` : ''}</option>
+  `).join('');
   body.insertAdjacentHTML('beforeend', `
     <tr class="product-variant-editor-row" data-variant-id="${id}">
       <td><input class="form-control variant-code-input" value="${variant.variantCode || variant.code || ''}" placeholder="CT-Đ1-LON" required></td>
       <td>
-        <select class="form-control variant-package-input" required>
-          <option value="">Chọn</option>
-          ${['Thùng', 'Lon', 'Hộp', 'Bao', 'Túi', 'Chai', 'Gói', 'Kg', 'Lít', 'Cái', 'Bộ', 'Mét', 'Lọ'].map(value =>
-            `<option value="${value}" ${packageName === value ? 'selected' : ''}>${value}</option>`
-          ).join('')}
-        </select>
+        <input class="form-control variant-package-input" value="${escapeHtml(packageName)}" placeholder="Ví dụ: Hộp, Gói dịch vụ (có thể để trống)">
       </td>
-      <td><input class="form-control variant-weight-input" inputmode="decimal" value="${String(weight).replace('.', ',')}" placeholder="6,3" required></td>
+      <td><input class="form-control variant-weight-input" inputmode="decimal" value="${escapeHtml(String(weight).replace('.', ','))}" placeholder="Để trống nếu không áp dụng"></td>
       <td>
         <select class="form-control variant-unit-input">
-          ${['kg', 'g', 'l', 'ml', 'bộ', 'cái'].map(value =>
-            `<option value="${value}" ${unit === value ? 'selected' : ''}>${value}</option>`
-          ).join('')}
+          ${unitOptions}
         </select>
       </td>
       <td><input class="form-control variant-purchase-price-input" inputmode="numeric" value="${Number(variant.purchasePrice || 0)}"></td>
@@ -242,6 +268,8 @@ export function openProductModal(index = -1) {
   document.getElementById('prod-name').value = family?.name || '';
   document.getElementById('prod-product-group').value = family?.group || '';
   document.getElementById('prod-description').value = family?.description || '';
+  const itemKindSelect = document.getElementById('prod-item-kind');
+  if (itemKindSelect) itemKindSelect.value = family?.variants?.[0]?.itemKind || 'stock';
   const brandSelect = document.getElementById('prod-brand');
   const customBrandGroup = document.getElementById('prod-brand-custom-group');
   const customBrandInput = document.getElementById('prod-brand-custom');
@@ -251,7 +279,7 @@ export function openProductModal(index = -1) {
     brandSelect.value = 'Khác';
     customBrandInput.value = family.brand;
   } else if (brandSelect.options.length) {
-    brandSelect.selectedIndex = 0;
+    brandSelect.value = '';
     customBrandInput.value = '';
   }
   customBrandGroup.style.display = brandSelect.value === 'Khác' ? 'block' : 'none';
@@ -273,23 +301,23 @@ export async function saveProduct() {
   if (brand === 'Khác') brand = document.getElementById('prod-brand-custom').value.trim();
 
   const rows = [...document.querySelectorAll('.product-variant-editor-row')];
-  if (!baseCode || !name || !brand || rows.length === 0) {
+  if (!baseCode || !name || rows.length === 0) {
     showToast('Vui lòng nhập thông tin chung và ít nhất một quy cách.', 'warning');
     return;
   }
 
   const matchedBrand = (state.brands || []).find(item => item.name.toLowerCase() === brand.toLowerCase());
-  const groupId = document.getElementById('prod-id').value || createProductGroupId(baseCode, name, brand);
+  const groupId = document.getElementById('prod-id').value || createProductGroupId(baseCode, name, brand || '');
   const existingFamily = editingProductFamilyKey
     ? buildProductFamilies(state.products, { includeInactive: true }).find(item => item.key === editingProductFamilyKey)
     : null;
 
   const variants = rows.map(row => {
     const variantCode = row.querySelector('.variant-code-input').value.trim().toUpperCase();
-    const packageType = row.querySelector('.variant-package-input').value;
+    const packageType = row.querySelector('.variant-package-input').value.trim() || null;
     const weightRaw = row.querySelector('.variant-weight-input').value.trim().replace(',', '.');
     const weight = weightRaw === '' ? null : Number(weightRaw);
-    const unit = row.querySelector('.variant-unit-input').value || 'kg';
+    const unit = resolveUnit(row.querySelector('.variant-unit-input').value);
     const existing = (existingFamily?.variants || []).find(item => item.id === row.dataset.variantId);
     return {
       ...(existing || {}),
@@ -300,14 +328,17 @@ export async function saveProduct() {
       baseCode,
       name,
       brand,
-      brandId: matchedBrand?.id || existing?.brandId || null,
+      brandId: matchedBrand?.id || null,
+      itemKind: document.getElementById('prod-item-kind')?.value || existing?.itemKind || 'stock',
+      sellUnitCode: unit.code,
+      trackInventory: (document.getElementById('prod-item-kind')?.value || existing?.itemKind || 'stock') === 'stock',
       packageType,
       packagingName: packageType,
       packageWeight: weight,
       weightOrVolume: weight,
-      packageWeightUnit: unit,
-      unitName: unit,
-      displaySpecification: `${packageType} ${String(weight ?? '').replace('.', ',')} ${unit}`.trim(),
+      packageWeightUnit: unit.symbol || unit.code,
+      unitName: unit.symbol || unit.code,
+      displaySpecification: [packageType, weight === null ? '' : String(weight).replace('.', ','), unit.symbol || unit.code].filter(Boolean).join(' ').trim(),
       purchasePrice: Number(row.querySelector('.variant-purchase-price-input').value.replace(/\D/g, '') || 0),
       conversionQuantity: Number(existing?.conversionQuantity || 1),
       group: document.getElementById('prod-product-group').value.trim(),
@@ -317,11 +348,11 @@ export async function saveProduct() {
     };
   });
 
-  if (variants.some(variant => !variant.code || !variant.packageType || variant.packageWeight === null || !Number.isFinite(variant.packageWeight) || variant.packageWeight < 0)) {
-    showToast('Mỗi quy cách phải có mã SKU, loại đóng gói và khối lượng hợp lệ.', 'warning');
+  if (variants.some(variant => !variant.code || !variant.sellUnitCode || (variant.packageWeight !== null && (!Number.isFinite(variant.packageWeight) || variant.packageWeight < 0)))) {
+    showToast('Mỗi SKU cần mã và đơn vị bán; số đo nếu nhập phải hợp lệ.', 'warning');
     return;
   }
-  const variantKeys = variants.map(variant => `${variant.code}\u0000${brand.toLowerCase()}`);
+  const variantKeys = variants.map(variant => `${variant.code}\u0000${String(brand || '').toLowerCase()}`);
   if (new Set(variantKeys).size !== variantKeys.length) {
     showToast('Mã SKU trong cùng sản phẩm không được trùng nhau.', 'danger');
     return;
@@ -329,7 +360,7 @@ export async function saveProduct() {
   const editedIds = new Set(variants.map(variant => variant.id));
   const duplicate = state.products.some(product =>
     !editedIds.has(product.id) &&
-    product.brand?.toLowerCase() === brand.toLowerCase() &&
+    String(product.brand || '').toLowerCase() === String(brand || '').toLowerCase() &&
     variants.some(variant => variant.code === product.code)
   );
   if (duplicate) {
@@ -376,12 +407,12 @@ export async function deleteProduct(code, brand) {
 
 export function downloadExcelTemplate() {
   const rows = [
-    ['Mã SKU *', 'Tên sản phẩm *', 'Thương hiệu *', 'Mã sản phẩm gốc', 'Loại bao bì *', 'Khối lượng *', 'Đơn vị *', 'Quy cách hiển thị', 'Nhóm sản phẩm', 'Giá nhập', 'Đang áp dụng'],
-    ['SKU-001', 'Sản phẩm mẫu', 'Thương hiệu A', 'SP-001', 'Hộp', 1, 'kg', 'Hộp 1 kg', '', 0, true]
+    ['Mã SKU *', 'Tên sản phẩm *', 'Thương hiệu', 'Mã sản phẩm gốc', 'Tên quy cách (không bắt buộc)', 'Số đo bổ sung', 'Đơn vị danh mục', 'Quy cách hiển thị', 'Nhóm sản phẩm', 'Giá nhập', 'Đang áp dụng', 'Loại mặt hàng'],
+    ['SKU-001', 'Sản phẩm mẫu', '', 'SP-001', '', '', 'cái', 'cái', '', 0, true, 'stock']
   ];
   const workbook = XLSX.utils.book_new();
   const sheet = XLSX.utils.aoa_to_sheet(rows);
-  sheet['!cols'] = [{ wch: 18 }, { wch: 45 }, { wch: 22 }, { wch: 18 }, { wch: 15 }, { wch: 12 }, { wch: 10 }, { wch: 22 }, { wch: 20 }, { wch: 14 }, { wch: 14 }];
+  sheet['!cols'] = [{ wch: 18 }, { wch: 45 }, { wch: 22 }, { wch: 20 }, { wch: 22 }, { wch: 16 }, { wch: 18 }, { wch: 24 }, { wch: 20 }, { wch: 14 }, { wch: 15 }, { wch: 16 }];
   XLSX.utils.book_append_sheet(workbook, sheet, 'Danh Sach SKU');
   XLSX.writeFile(workbook, 'Mau_Danh_Sach_SKU.xlsx');
 }
@@ -392,23 +423,24 @@ export function exportProductsExcel() {
     return {
       'Mã SKU *': product.code,
       'Tên sản phẩm *': product.name,
-      'Thương hiệu *': getBrandName(product.brandId || product.brand, product.brand || ''),
+      'Thương hiệu': getBrandName(product.brandId || product.brand, product.brand || ''),
       'Mã sản phẩm gốc': getProductBaseCode(product, state.products),
-      'Loại bao bì *': product.packageType,
-      'Khối lượng *': Number(product.packageWeight),
-      'Đơn vị *': product.packageWeightUnit || 'kg',
+      'Tên quy cách (không bắt buộc)': product.packageType || '',
+      'Số đo bổ sung': product.packageWeight === null || product.packageWeight === '' ? '' : Number(product.packageWeight),
+      'Đơn vị danh mục': product.packageWeightUnit || product.sellUnitCode || 'piece',
       'Quy cách hiển thị': specificationOf(product),
       'Nhóm sản phẩm': product.group || '',
       'Giá nhập': Number(product.purchasePrice || 0),
-      'Đang áp dụng': product.isActive !== false
+      'Đang áp dụng': product.isActive !== false,
+      'Loại mặt hàng': product.itemKind || 'stock'
     };
   });
   const workbook = XLSX.utils.book_new();
   const sheet = XLSX.utils.json_to_sheet(rows, {
-    header: ['Mã SKU *', 'Tên sản phẩm *', 'Thương hiệu *', 'Mã sản phẩm gốc', 'Loại bao bì *', 'Khối lượng *', 'Đơn vị *', 'Quy cách hiển thị', 'Nhóm sản phẩm', 'Giá nhập', 'Đang áp dụng']
+    header: ['Mã SKU *', 'Tên sản phẩm *', 'Thương hiệu', 'Mã sản phẩm gốc', 'Tên quy cách (không bắt buộc)', 'Số đo bổ sung', 'Đơn vị danh mục', 'Quy cách hiển thị', 'Nhóm sản phẩm', 'Giá nhập', 'Đang áp dụng', 'Loại mặt hàng']
   });
-  sheet['!cols'] = [{ wch: 18 }, { wch: 45 }, { wch: 22 }, { wch: 20 }, { wch: 16 }, { wch: 13 }, { wch: 11 }, { wch: 24 }, { wch: 20 }, { wch: 14 }, { wch: 15 }];
-  sheet['!autofilter'] = { ref: `A1:K${Math.max(1, products.length + 1)}` };
+  sheet['!cols'] = [{ wch: 18 }, { wch: 45 }, { wch: 22 }, { wch: 20 }, { wch: 22 }, { wch: 16 }, { wch: 18 }, { wch: 24 }, { wch: 20 }, { wch: 14 }, { wch: 15 }, { wch: 16 }];
+  sheet['!autofilter'] = { ref: `A1:L${Math.max(1, products.length + 1)}` };
   XLSX.utils.book_append_sheet(workbook, sheet, 'Danh Sach SKU');
   XLSX.writeFile(workbook, `Danh_Sach_SKU_${new Date().toISOString().slice(0, 10)}.xlsx`);
   showToast(`Đã xuất ${products.length} SKU theo bộ lọc hiện tại.`);
@@ -423,7 +455,7 @@ function handleExcelFileSelect(file) {
       const hasPurchasePriceColumn = normalizeCatalogText(rows[0]?.[9]).includes('gia nhap');
       const importedGroupIds = new Map();
       excelImportData = rows.slice(1).filter(row => row[0]).map(row => {
-        const brand = String(row[2] || '').trim();
+      const brand = String(row[2] || '').trim();
         const name = String(row[1] || '').trim();
         const baseCode = String(row[3] || row[0]).trim().toUpperCase();
         const matchedBrand = (state.brands || []).find(item => item.name.toLowerCase() === brand.toLowerCase());
@@ -434,8 +466,11 @@ function handleExcelFileSelect(file) {
         }
         const productGroupId = importedGroupIds.get(familyKey);
         const packageType = String(row[4] || '').trim();
-        const weight = Number(String(row[5] ?? '').replace(',', '.'));
-        const unit = String(row[6] || 'kg').trim();
+        const weightRaw = String(row[5] ?? '').trim().replace(',', '.');
+        const weight = weightRaw === '' ? null : Number(weightRaw);
+        const unit = resolveUnit(String(row[6] || 'piece').trim());
+        const itemKind = ['stock', 'non_stock', 'service', 'bundle'].includes(String(row[11] || '').trim())
+          ? String(row[11]).trim() : 'stock';
         return {
           id: createProductId(),
           code: String(row[0]).trim().toUpperCase(),
@@ -445,12 +480,15 @@ function handleExcelFileSelect(file) {
           name,
           brand,
           brandId: matchedBrand?.id || null,
+          itemKind,
+          sellUnitCode: unit.code,
+          trackInventory: itemKind === 'stock',
           packageType,
           packagingName: packageType,
           packageWeight: weight,
           weightOrVolume: weight,
-          packageWeightUnit: unit,
-          unitName: unit,
+          packageWeightUnit: unit.symbol || unit.code,
+          unitName: unit.symbol || unit.code,
           displaySpecification: String(row[7] || '').trim(),
           group: String(row[8] || '').trim(),
           purchasePrice: Number(hasPurchasePriceColumn ? row[9] || 0 : 0),
@@ -458,10 +496,11 @@ function handleExcelFileSelect(file) {
             String(hasPurchasePriceColumn ? row[10] : row[9]).toLowerCase() !== 'false',
           isLegacy: false
         };
-      }).filter(product => product.code && product.name && product.brand && product.packageType && Number.isFinite(product.packageWeight));
+      }).filter(product => product.code && product.name && product.sellUnitCode &&
+        (product.packageWeight === null || (Number.isFinite(product.packageWeight) && product.packageWeight >= 0)));
 
       document.getElementById('excel-preview-table-body').innerHTML = excelImportData.slice(0, 5).map((product, index) => `
-        <tr><td>${index + 1}</td><td>${product.code}</td><td>${product.name}</td><td>${product.brand}</td><td>${specificationOf(product)}</td><td>Quản lý tại màn hình Bảng giá</td></tr>
+        <tr><td>${index + 1}</td><td>${product.code}</td><td>${product.name}</td><td>${product.brand || '—'}</td><td>${specificationOf(product)}</td><td>Quản lý tại màn hình Bảng giá</td></tr>
       `).join('');
       document.getElementById('excel-preview-summary').innerText = `Đọc được ${excelImportData.length} SKU hợp lệ.`;
       document.getElementById('excel-preview-container').style.display = 'block';

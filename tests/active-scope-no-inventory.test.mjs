@@ -30,8 +30,9 @@ test('purchase details keep presentation in stylesheet classes', () => {
   const harness = fs.readFileSync(path.join(root, 'tests/purchases-ui-harness.html'), 'utf8');
   assert.doesNotMatch(purchases, /\sstyle=/);
   assert.match(css, /\.purchase-template-detail[\s\S]*\.purchase-template-payment-row/);
-  assert.match(harness, /state\.js\?v=20260924-ui-cleanup-v3/);
-  assert.match(harness, /purchases\.js\?v=20260924-ui-cleanup-v3/);
+  assert.match(harness, /import\s+\{\s*state\s*\}\s+from\s+['"]\.\.\/js\/state\.js['"]/);
+  assert.match(harness, /import\s+\{\s*renderPurchasesPanel\s*\}\s+from\s+['"]\.\.\/js\/components\/purchases\.js['"]/);
+  assert.doesNotMatch(harness, /(?:state|purchases)\.js\?v=/);
 });
 
 test('normal Cloud loading does not fetch inventory or production tables', () => {

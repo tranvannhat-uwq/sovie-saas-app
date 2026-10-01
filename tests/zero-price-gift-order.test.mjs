@@ -11,7 +11,8 @@ const service = read('js/services/supabase.js');
 const pricingMigration = read('migrations/0006_authoritative_order_pricing_and_idempotency.sql');
 
 test('invoice treats an explicit zero price as usable and still rejects a missing price', () => {
-  assert.match(invoice, /if \(!isUsableResolvedPrice\(resolvedPrice\)\)/);
+  assert.match(invoice, /if \(!isUsableResolvedPrice\(resolvedPrice\) && !manualPriceMode\)/);
+  assert.match(invoice, /const price = isUsableResolvedPrice\(resolvedPrice\) \? Number\(resolvedPrice\.price\) : null/);
   assert.match(invoice, /const hasPrice = isUsableResolvedPrice\(price\)/);
   assert.match(invoice, /Number\(unitPrice\) < 0/);
   assert.doesNotMatch(invoice, /Number\(resolvedPrice\.price\) <= 0/);

@@ -4,8 +4,10 @@ import {
   dbCancelPurchase,
   dbCancelSupplierPayment,
   dbCreatePurchase,
-  dbRecordSupplierPayment
+  dbRecordSupplierPayment,
+  getCloudReadHealth
 } from '../services/supabase.js';
+import { ensurePanelCloudData, switchTab } from '../main.js';
 
 let pendingPurchaseKey = '';
 const pendingSupplierPaymentKeys = new Map();
@@ -23,6 +25,74 @@ function escapeHtml(value) {
   return String(value ?? '').replace(/[&<>'"]/g, char => ({
     '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
   }[char]));
+}
+
+function requestPurchaseCancellationReason(title) {
+  return new Promise(resolve => {
+    const previousFocus = document.activeElement;
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay active purchase-reason-overlay';
+    overlay.setAttribute('role', 'alertdialog');
+    overlay.setAttribute('aria-modal', 'true');
+    overlay.setAttribute('aria-labelledby', 'purchase-reason-title');
+    overlay.setAttribute('aria-describedby', 'purchase-reason-help');
+    overlay.innerHTML = `
+      <div class="modal-content purchase-reason-dialog" tabindex="-1">
+        <div class="modal-header"><h3 class="modal-title" id="purchase-reason-title">${escapeHtml(title)}</h3></div>
+        <div class="modal-body">
+          <label for="purchase-cancellation-reason">Lý do hủy <span aria-hidden="true">*</span></label>
+          <textarea id="purchase-cancellation-reason" class="form-control" rows="3" maxlength="500" required aria-describedby="purchase-reason-help"></textarea>
+          <small id="purchase-reason-help">Lý do được lưu trong lịch sử nghiệp vụ.</small>
+          <div class="purchase-reason-error" role="alert" aria-live="polite"></div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-purchase-reason-cancel>Để sau</button>
+          <button type="button" class="btn btn-danger" data-purchase-reason-submit>Xác nhận hủy</button>
+        </div>
+      </div>`;
+    document.body.appendChild(overlay);
+
+    const reasonInput = overlay.querySelector('#purchase-cancellation-reason');
+    const errorLabel = overlay.querySelector('.purchase-reason-error');
+    const cancelButton = overlay.querySelector('[data-purchase-reason-cancel]');
+    const submitButton = overlay.querySelector('[data-purchase-reason-submit]');
+    const finish = reason => {
+      overlay.removeEventListener('keydown', onKeyDown);
+      overlay.remove();
+      if (previousFocus?.isConnected) previousFocus.focus();
+      resolve(reason);
+    };
+    const onKeyDown = event => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        finish(null);
+      } else if (event.key === 'Tab') {
+        const focusable = [reasonInput, cancelButton, submitButton];
+        const currentIndex = focusable.indexOf(document.activeElement);
+        const nextIndex = event.shiftKey
+          ? (currentIndex <= 0 ? focusable.length - 1 : currentIndex - 1)
+          : (currentIndex < 0 || currentIndex === focusable.length - 1 ? 0 : currentIndex + 1);
+        event.preventDefault();
+        focusable[nextIndex].focus();
+      }
+    };
+    overlay.addEventListener('keydown', onKeyDown);
+    overlay.addEventListener('click', event => {
+      if (event.target === overlay) finish(null);
+    });
+    cancelButton.addEventListener('click', () => finish(null));
+    submitButton.addEventListener('click', () => {
+      const reason = reasonInput.value.trim();
+      if (!reason) {
+        errorLabel.textContent = 'Vui lòng nhập lý do hủy.';
+        reasonInput.focus();
+        return;
+      }
+      finish(reason);
+    });
+    reasonInput.addEventListener('input', () => { errorLabel.textContent = ''; });
+    reasonInput.focus();
+  });
 }
 
 function purchaseTotal(purchase) {
@@ -172,16 +242,26 @@ function printPurchase(purchase) {
   popup.print();
 }
 
-function renderPurchaseRows(purchases, activeId) {
+function renderPurchaseRows(purchases, activeId, { readFailed = false, supplierReadFailed = false, filtered = false } = {}) {
+  if (readFailed) {
+    return '<tr><td colspan="10" role="alert" class="purchase-empty">Không thể hiển thị danh sách vì lần đọc Cloud thất bại. Hãy dùng nút tải lại phía trên.</td></tr>';
+  }
   if (!purchases.length) {
+    if (filtered) {
+      return '<tr><td colspan="10" class="purchase-empty">Không có phiếu mua phù hợp với từ khóa hoặc trạng thái đã chọn.</td></tr>';
+    }
+    if (supplierReadFailed) {
+      return '<tr><td colspan="10" class="purchase-empty">Chưa thể xác định nhà cung cấp hiện có. Hãy tải lại danh sách nhà cung cấp trước khi tạo phiếu mua.</td></tr>';
+    }
+    const hasSuppliers = (state.suppliers || []).some(supplier => supplier?.isActive !== false);
     return `<tr><td colspan="10" class="purchase-empty">
       <div class="purchase-empty-state">
         <div class="purchase-empty-icon"><i data-lucide="shopping-bag"></i></div>
         <h4>Chưa có phiếu mua hàng trên database.</h4>
         <p>Ghi nhận giá trị mua và công nợ nhà cung cấp khi nhập hàng hóa, dịch vụ vào hệ thống.</p>
-        <button type="button" class="btn btn-primary btn-sm purchase-empty-btn" id="btn-empty-create-purchase">
-          <i data-lucide="plus"></i> Tạo phiếu mua ngay
-        </button>
+        ${hasSuppliers
+          ? `<button type="button" class="btn btn-primary btn-sm purchase-empty-btn" id="btn-empty-create-purchase"><i data-lucide="plus"></i> Tạo phiếu mua ngay</button>`
+          : `<p>Hãy thêm nhà cung cấp trước để lập phiếu mua.</p><button type="button" class="btn btn-secondary btn-sm" id="btn-empty-add-supplier"><i data-lucide="user-plus"></i> Thêm nhà cung cấp</button>`}
       </div>
     </td></tr>`;
   }
@@ -227,13 +307,13 @@ function attachRowEvents(panel) {
     }
   }));
   panel.querySelectorAll('.purchase-cancel-payment-btn').forEach(button => button.addEventListener('click', async event => {
-    event.stopPropagation(); const reason = prompt('Nhập lý do hủy phiếu chi:'); if (!reason?.trim()) return;
-    const result = await dbCancelSupplierPayment(button.dataset.id, reason.trim());
+    event.stopPropagation(); const reason = await requestPurchaseCancellationReason('Hủy phiếu chi nhà cung cấp'); if (!reason) return;
+    const result = await dbCancelSupplierPayment(button.dataset.id, reason);
     if (result) { showToast('Đã hủy phiếu chi và ghi giao dịch đảo.', 'success'); renderPurchasesPanel(panel); }
   }));
   panel.querySelectorAll('.purchase-cancel-btn').forEach(button => button.addEventListener('click', async event => {
-    event.stopPropagation(); const reason = prompt('Nhập lý do hủy phiếu mua:'); if (!reason?.trim()) return;
-    const result = await dbCancelPurchase(button.dataset.id, reason.trim());
+    event.stopPropagation(); const reason = await requestPurchaseCancellationReason('Hủy phiếu mua hàng'); if (!reason) return;
+    const result = await dbCancelPurchase(button.dataset.id, reason);
     if (result) { showToast('Đã hủy phiếu mua và đảo công nợ/phiếu chi.', 'success'); renderPurchasesPanel(panel); }
   }));
   panel.querySelectorAll('.purchase-print-btn').forEach(button => button.addEventListener('click', event => {
@@ -242,6 +322,10 @@ function attachRowEvents(panel) {
   panel.querySelector('#btn-empty-create-purchase')?.addEventListener('click', () => {
     panel.querySelector('#btn-open-purchase-modal')?.click();
   });
+  panel.querySelector('#btn-empty-add-supplier')?.addEventListener('click', () => {
+    switchTab('suppliers-panel');
+    document.getElementById('btn-open-add-supplier-modal')?.click();
+  });
 }
 
 function attachEvents(panel) {
@@ -249,6 +333,17 @@ function attachEvents(panel) {
   const modal = panel.querySelector('#purchase-entry-modal');
   const close = () => modal?.classList.remove('active');
   panel.querySelector('#btn-open-purchase-modal')?.addEventListener('click', () => {
+    const failedDomains = getCloudReadHealth().failedDomains;
+    if (failedDomains.includes('purchases') || failedDomains.includes('suppliers')) {
+      showToast('Chưa thể tạo phiếu mua khi dữ liệu nhà cung cấp hoặc phiếu mua chưa tải được.', 'warning');
+      return;
+    }
+    if (!(state.suppliers || []).some(supplier => supplier?.isActive !== false)) {
+      showToast('Hãy thêm nhà cung cấp trước khi lập phiếu mua.', 'warning');
+      switchTab('suppliers-panel');
+      document.getElementById('btn-open-add-supplier-modal')?.click();
+      return;
+    }
     const date = new Date(); date.setMinutes(date.getMinutes() - date.getTimezoneOffset());
     panel.querySelector('#purchase-date-input').value = date.toISOString().slice(0, 16);
     pendingPurchaseKey ||= newKey('purchase');
@@ -299,6 +394,9 @@ function attachEvents(panel) {
     const statusFilter = panel.dataset.purchaseStatus || 'all';
     const activeId = panel.dataset.activePurchaseId || '';
     const purchases = state.purchases || [];
+    const failedDomains = getCloudReadHealth().failedDomains;
+    const purchasesReadFailed = failedDomains.includes('purchases');
+    const suppliersReadFailed = failedDomains.includes('suppliers');
     const filtered = purchases.filter(p => {
       if (statusFilter !== 'all' && p.status !== statusFilter) return false;
       if (query) {
@@ -309,13 +407,19 @@ function attachEvents(panel) {
     });
     const tbody = panel.querySelector('#purchases-table-body');
     if (tbody) {
-      tbody.innerHTML = renderPurchaseRows(filtered, activeId);
+      tbody.innerHTML = renderPurchaseRows(filtered, activeId, {
+        readFailed: purchasesReadFailed,
+        supplierReadFailed: suppliersReadFailed,
+        filtered: Boolean(query || statusFilter !== 'all')
+      });
       safeCreateIcons();
       attachRowEvents(panel);
     }
     const countEl = panel.querySelector('#purchase-stat-count');
     if (countEl) {
-      countEl.textContent = (query || statusFilter !== 'all')
+      countEl.textContent = purchasesReadFailed
+        ? '—'
+        : (query || statusFilter !== 'all')
         ? `${filtered.length} / ${purchases.length} phiếu`
         : `${purchases.length} phiếu`;
     }
@@ -330,6 +434,13 @@ function attachEvents(panel) {
     panel.dataset.purchaseStatus = event.target.value;
     updateFilteredTable();
   });
+
+  panel.querySelectorAll('[data-retry-cloud-domain]').forEach(button => button.addEventListener('click', async event => {
+    const retryButton = event.currentTarget;
+    const domain = retryButton.dataset.retryCloudDomain;
+    retryButton.disabled = true;
+    await ensurePanelCloudData('goods-panel', { force: true, domains: [domain] });
+  }));
 }
 
 export function renderPurchasesPanel(panel) {
@@ -339,6 +450,10 @@ export function renderPurchasesPanel(panel) {
     return;
   }
   const activeId = panel.dataset.activePurchaseId || '';
+  const failedDomains = getCloudReadHealth().failedDomains;
+  const purchasesReadFailed = failedDomains.includes('purchases');
+  const suppliersReadFailed = failedDomains.includes('suppliers');
+  const hasSuppliers = (state.suppliers || []).some(supplier => supplier?.isActive !== false);
   const purchases = state.purchases || [];
   const query = (panel.dataset.purchaseSearch || '').trim().toLowerCase();
   const statusFilter = panel.dataset.purchaseStatus || 'all';
@@ -367,28 +482,34 @@ export function renderPurchasesPanel(panel) {
             <small class="panel-subtitle">Ghi nhận giá trị mua và công nợ nhà cung cấp</small>
           </div>
           <div class="purchase-actions">
-            <button class="purchase-primary-btn btn btn-primary" id="btn-open-purchase-modal">
+            <button class="purchase-primary-btn btn btn-primary" id="btn-open-purchase-modal" ${purchasesReadFailed || suppliersReadFailed || !hasSuppliers ? 'disabled' : ''}>
               <i data-lucide="plus"></i> Tạo phiếu mua
             </button>
           </div>
         </div>
 
+        ${(purchasesReadFailed || suppliersReadFailed) ? `<div class="purchase-cloud-read-error" role="alert">
+          <span>Không tải được ${[purchasesReadFailed ? 'danh sách phiếu mua' : '', suppliersReadFailed ? 'nhà cung cấp' : ''].filter(Boolean).join(' và ')} từ Cloud. Dữ liệu hiện có thể chưa cập nhật.</span>
+          ${purchasesReadFailed ? '<button type="button" class="btn btn-secondary btn-sm" data-retry-cloud-domain="purchases">Tải lại phiếu mua</button>' : ''}
+          ${suppliersReadFailed ? '<button type="button" class="btn btn-secondary btn-sm" data-retry-cloud-domain="suppliers">Tải lại nhà cung cấp</button>' : ''}
+        </div>` : (!hasSuppliers ? '<div class="purchase-cloud-read-error" role="status">Workspace chưa có nhà cung cấp. Hãy thêm nhà cung cấp trước khi tạo phiếu mua.</div>' : '')}
+
         <div class="purchase-summary-bar">
           <div class="purchase-summary-item">
             <span class="purchase-summary-label">Tổng số phiếu</span>
-            <strong id="purchase-stat-count">${totalCount} phiếu</strong>
+            <strong id="purchase-stat-count">${purchasesReadFailed ? '—' : `${totalCount} phiếu`}</strong>
           </div>
           <div class="purchase-summary-item total-amount">
             <span class="purchase-summary-label">Tổng tiền mua</span>
-            <strong>${formatCurrency(totalAmount)}</strong>
+            <strong>${purchasesReadFailed ? '—' : formatCurrency(totalAmount)}</strong>
           </div>
           <div class="purchase-summary-item total-paid">
             <span class="purchase-summary-label">Đã thanh toán</span>
-            <strong>${formatCurrency(totalPaid)}</strong>
+            <strong>${purchasesReadFailed ? '—' : formatCurrency(totalPaid)}</strong>
           </div>
           <div class="purchase-summary-item total-debt">
             <span class="purchase-summary-label">Còn nợ NCC</span>
-            <strong>${formatCurrency(totalDebt)}</strong>
+            <strong>${purchasesReadFailed ? '—' : formatCurrency(totalDebt)}</strong>
           </div>
         </div>
 
@@ -424,7 +545,12 @@ export function renderPurchasesPanel(panel) {
               </tr>
             </thead>
             <tbody id="purchases-table-body">
-              ${renderPurchaseRows(filteredPurchases, activeId)}
+              ${purchasesReadFailed
+                ? '<tr><td colspan="10" role="alert" class="purchase-empty">Không thể hiển thị danh sách vì lần đọc Cloud thất bại. Hãy dùng nút tải lại phía trên.</td></tr>'
+                : renderPurchaseRows(filteredPurchases, activeId, {
+                  supplierReadFailed: suppliersReadFailed,
+                  filtered: Boolean(query || statusFilter !== 'all')
+                })}
             </tbody>
           </table>
         </div>

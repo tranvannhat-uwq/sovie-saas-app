@@ -107,6 +107,10 @@ Run these files in order on a staging clone first:
 99. `0099_dashboard_customer_filter.sql`
 100. `0100_manual_trial_activation.sql`
 101. `0101_rpc_executor_dependency_permissions.sql`
+102. `0102_enforce_assigned_brand_on_orders.sql`
+103. `0103_workspace_sales_policy_and_neutral_defaults.sql`
+104. `0104_authoritative_catalog_order_policy.sql`
+105. `0105_optional_workspace_brands_and_invoice_issuer.sql`
 
 Every file is additive and records its version in `public.schema_migrations`.
 Apply each version once; the migration table is the source of truth for the
@@ -621,3 +625,36 @@ business RPCs. It grants the complete reachable function graph only to the
 roles, and restores authoritative order confirmation through the price-list
 effectiveness check. Run
 `migrations/tests/saas_rpc_dependency_permissions_integration.sql` on staging.
+
+Migration `0102` enforces the sales module's workspace-specific assigned-brand
+policy on order and draft writes. It validates customer and product ownership
+against the row's workspace, permits explicitly marked service lines, and runs
+when the workspace changes. A missing customer or cross-workspace SKU is an
+error rather than an unrestricted order. Run the order pricing, amendment, and
+tenant-boundary integration checks after deployment.
+
+Migration `0103` preserves the current assigned-brand behavior for existing
+workspaces while leaving new workspaces unrestricted by default; Owners and
+Admins can change the setting through `rpc_set_sales_brand_restriction()`.
+It also drops the original paint-company column defaults and normalizes the
+old ABS company IDs to the current workspace on new or edited orders. It does
+not rewrite historical product or order data. Run the workspace capability,
+order pricing, and tenant-boundary integration checks after deployment.
+
+Migration `0104` makes catalog `item_kind` authoritative for service lines in
+both orders and drafts, so browser-supplied service flags cannot bypass the
+workspace brand policy. Unlinked custom service lines require an explicit
+`allow_unlinked_service_lines` setting in the workspace sales module. The
+Owner/Admin policy RPC also records tenant-scoped before/after activity data.
+Apply after `0103`; then run the sales-policy, order-pricing, and activity-log
+integration checks on staging.
+
+Migration `0105` makes product brand nullable, gives unbranded SKUs a unique
+workspace-scoped code, and separates brand catalog visibility from the
+optional brand-based sales restriction. It adds audited Owner/Admin settings
+for the brand catalog and issuer profiles per company/branch, then snapshots
+the selected issuer on new orders and drafts. It also updates Dashboard company
+attribution to use the transaction's company; brand-based company attribution
+is retained only in the legacy paint workspace's client compatibility path.
+Apply after `0104` and run generic-catalog, issuer-print, order-pricing, and
+tenant-boundary checks before rollout.

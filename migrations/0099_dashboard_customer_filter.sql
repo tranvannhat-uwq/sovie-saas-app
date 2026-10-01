@@ -170,7 +170,7 @@ BEGIN
   ) INTO result;
   RETURN result;
 END;
-$;
+$$;
 
 ALTER FUNCTION public.rpc_get_phase5_dashboard(jsonb) OWNER TO saas_rpc_executor;
 REVOKE ALL ON FUNCTION public.rpc_get_phase5_dashboard(jsonb) FROM PUBLIC, anon;

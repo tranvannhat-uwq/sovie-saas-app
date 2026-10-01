@@ -73,6 +73,6 @@ export function mapOrderHistoryRow(order = {}) {
     salespersonId: order.salesperson_id || order.salespersonId || order.created_by || order.createdBy || '',
     customerManagerId: order.customer_manager_id || order.customerManagerId || '',
     status: order.status || 'settled',
-    companyId: order.company_id || order.companyId || 'ABS_NORTH'
+    companyId: order.company_id || order.companyId || null
   };
 }

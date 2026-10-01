@@ -1,4 +1,5 @@
 import { state } from '../state.js';
+import { isBrandCatalogEnabled } from '../domain/business-capabilities.js';
 import { showToast, safeCreateIcons, getBrandName, makeSelectSearchable } from '../utils.js';
 import {
   dbSavePricelist,
@@ -21,6 +22,7 @@ import {
   parseVndInteger
 } from '../domain/pricing.js';
 import { isPrintOnlyPriceList } from '../domain/invoice-discount.js';
+import { isCatalogVariant, variantSpecification } from '../domain/product-catalog.js';
 
 const pendingChanges = new Map();
 const pendingDeletes = new Set();
@@ -44,6 +46,12 @@ function itemKey(priceListId, productId) {
 
 function getPriceItem(priceListId, productId) {
   return (state.priceListItems || []).find(item => item.priceListId === priceListId && item.productId === productId) || null;
+}
+
+function productBrandLabel(product) {
+  const brand = String(product?.brand || '').trim();
+  const brandId = String(product?.brandId || '').trim();
+  return brand || brandId ? getBrandName(brandId || brand, brand || brandId) : '—';
 }
 
 function upsertPriceListSnapshot(priceList) {
@@ -103,14 +111,16 @@ function visiblePriceLists() {
 
 function getFilteredMatrixProducts() {
   const productSearch = (document.getElementById('price-matrix-product-search')?.value || '').trim().toLowerCase();
-  const brandFilter = document.getElementById('price-matrix-brand-filter')?.value || '';
+  const brandFilter = isBrandCatalogEnabled(state.businessCapabilities, state.brands, state.products)
+    ? (document.getElementById('price-matrix-brand-filter')?.value || '')
+    : '';
   const packageFilter = document.getElementById('price-matrix-package-filter')?.value || '';
   const groupFilter = document.getElementById('price-matrix-group-filter')?.value || '';
 
   return (state.products || [])
-    .filter(product => product.id && product.packageType && !product.isLegacy && product.isActive !== false)
+    .filter(product => isCatalogVariant(product) && product.isActive !== false)
     .filter(product => {
-      const brand = getBrandName(product.brandId || product.brand, product.brand || '');
+      const brand = productBrandLabel(product);
       const haystack = `${product.code} ${product.name} ${brand} ${product.displaySpecification || ''} ${product.group || ''}`.toLowerCase();
       if (productSearch && !haystack.includes(productSearch)) return false;
       if (brandFilter && brand !== brandFilter) return false;
@@ -129,8 +139,8 @@ function matrixProductCells(product) {
   return [
     product.code,
     product.name,
-    getBrandName(product.brandId || product.brand, product.brand || ''),
-    product.displaySpecification || `${product.packageType} ${product.packageWeight ?? ''} ${product.packageWeightUnit || ''}`.trim()
+    productBrandLabel(product),
+    product.displaySpecification || variantSpecification(product)
   ];
 }
 
@@ -225,9 +235,9 @@ function buildPriceListSelector() {
 }
 
 function populateMatrixFilters() {
-  const skuProducts = (state.products || []).filter(product => product.id && product.packageType && !product.isLegacy);
+  const skuProducts = (state.products || []).filter(isCatalogVariant);
   const definitions = [
-    ['price-matrix-brand-filter', 'Tất cả thương hiệu', [...new Set(skuProducts.map(product => getBrandName(product.brandId || product.brand, product.brand)).filter(Boolean))]],
+    ['price-matrix-brand-filter', 'Tất cả thương hiệu', [...new Set(skuProducts.map(productBrandLabel).filter(Boolean))]],
     ['price-matrix-package-filter', 'Tất cả loại bao bì', [...new Set(skuProducts.map(product => product.packageType).filter(Boolean))]],
     ['price-matrix-group-filter', 'Tất cả nhóm sản phẩm', [...new Set(skuProducts.map(product => product.group).filter(Boolean))]]
   ];
@@ -389,7 +399,7 @@ export function renderPricelistsTable(options = {}) {
       <tr>
         <th class="sticky-col sticky-code">Mã sản phẩm</th>
         <th class="sticky-col sticky-name">Tên sản phẩm</th>
-        <th class="sticky-col sticky-brand">Thương hiệu</th>
+        <th class="sticky-col sticky-brand" data-brand-feature>Thương hiệu</th>
         <th class="sticky-col sticky-package">Quy cách</th>
         ${selectedLists.map(priceList => `
           <th class="price-col">
@@ -426,8 +436,8 @@ export function renderPricelistsTable(options = {}) {
     <tr>
       <td class="sticky-col sticky-code sku-code"><span class="table-code-chip code-chip-product">${product.code}</span></td>
       <td class="sticky-col sticky-name" title="${product.name}" style="font-weight: 700; color: #0f172a;">${product.name}</td>
-      <td class="sticky-col sticky-brand"><span style="font-weight: 600; color: #334155;">${getBrandName(product.brandId || product.brand, product.brand || '')}</span></td>
-      <td class="sticky-col sticky-package">${product.displaySpecification || `${product.packageType} ${product.packageWeight ?? ''} ${product.packageWeightUnit || ''}`}</td>
+      <td class="sticky-col sticky-brand" data-brand-feature><span style="font-weight: 600; color: #334155;">${productBrandLabel(product)}</span></td>
+      <td class="sticky-col sticky-package">${product.displaySpecification || variantSpecification(product)}</td>
       ${selectedLists.map(priceList => renderCell(product, priceList, effectivePriceItems)).join('')}
     </tr>
   `).join('');
@@ -660,7 +670,7 @@ export function populatePricelistsDropdowns() {
       <option value="">Tự động theo khách hàng</option>
       ${lists.map(priceList => `<option value="${priceList.id}">${priceListDisplayName(priceList)}</option>`).join('')}
       ${assignedOnly ? `<option value="${assignedOnly.id}" data-customer-assigned="true">${assignedOnly.name} (theo đại lý)</option>` : ''}
-      <option value="retail">Nhập tay có xác nhận</option>
+      ${['admin', 'accounting'].includes(state.currentUser?.role) ? '<option value="retail">Nhập tay có xác nhận</option>' : ''}
     `;
     const desired = current || assignedOnly?.id || '';
     if ([...invoiceSelect.options].some(option => option.value === desired)) invoiceSelect.value = desired;
@@ -769,8 +779,7 @@ function findProductFromExcelRow(code, brand) {
   const normalizedBrand = String(brand || '').trim().toLowerCase();
   const matches = (state.products || []).filter(product =>
     product.code === normalizedCode &&
-    product.packageType &&
-    !product.isLegacy
+    isCatalogVariant(product)
   );
   if (matches.length <= 1 || !normalizedBrand) return matches.length === 1 ? matches[0] : null;
   return matches.find(product =>

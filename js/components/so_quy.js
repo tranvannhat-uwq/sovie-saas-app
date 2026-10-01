@@ -1,7 +1,7 @@
 import { state } from '../state.js';
 import { showToast, formatCurrency, safeCreateIcons, formatDateTime, removeVietnameseTones } from '../utils.js';
-import { renderAll } from '../main.js';
-import { dbSaveCashbookTransaction, dbSaveStartingBalances, dbRecordCustomerPayment, dbCancelCashbookEntry, dbSetCashbookStarred, dbAmendCashbookTransaction, dbReconcileLegacyCustomerReceipt, dbRefreshCustomerFinancialState, dbFetchCashbookTransactionById, dbLoadCashbookForRange, upsertCashbookTransactionSnapshot } from '../services/supabase.js';
+import { ensurePanelCloudData, renderAll } from '../main.js';
+import { dbSaveCashbookTransaction, dbSaveStartingBalances, dbRecordCustomerPayment, dbCancelCashbookEntry, dbSetCashbookStarred, dbAmendCashbookTransaction, dbReconcileLegacyCustomerReceipt, dbRefreshCustomerFinancialState, dbFetchCashbookTransactionById, dbLoadCashbookForRange, upsertCashbookTransactionSnapshot, getCloudReadHealth, isCloudActive } from '../services/supabase.js';
 import { tenantStorage } from '../services/tenant-storage.js';
 import { getCanonicalCashbookId, isEffectiveCashbookTransaction } from '../domain/cashbook.js';
 
@@ -15,6 +15,58 @@ let cashbookTotalPages = 1;
 let cashbookLastFilterSignature = '';
 let cashbookRangeRequestId = 0;
 let cashbookRangeReloadTimer = null;
+let cashbookReadError = false;
+
+function confirmCashbookAction(message) {
+  return new Promise(resolve => {
+    const previousFocus = document.activeElement;
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay cashbook-confirm-overlay active';
+    overlay.setAttribute('role', 'alertdialog');
+    overlay.setAttribute('aria-modal', 'true');
+    overlay.setAttribute('aria-labelledby', 'cashbook-confirm-title');
+    overlay.setAttribute('aria-describedby', 'cashbook-confirm-message');
+    overlay.innerHTML = `
+      <div class="modal-content cashbook-confirm-dialog" tabindex="-1">
+        <div class="modal-header"><h3 class="modal-title" id="cashbook-confirm-title">Xác nhận thao tác</h3></div>
+        <div class="modal-body"><p id="cashbook-confirm-message"></p></div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-confirm-cancel>Để sau</button>
+          <button type="button" class="btn btn-danger" data-confirm-accept>Xác nhận</button>
+        </div>
+      </div>`;
+    overlay.querySelector('#cashbook-confirm-message').textContent = message;
+    document.body.appendChild(overlay);
+
+    const cancelButton = overlay.querySelector('[data-confirm-cancel]');
+    const acceptButton = overlay.querySelector('[data-confirm-accept]');
+    let settled = false;
+    const finish = accepted => {
+      if (settled) return;
+      settled = true;
+      overlay.removeEventListener('keydown', onKeyDown);
+      overlay.remove();
+      if (previousFocus?.isConnected) previousFocus.focus();
+      resolve(accepted);
+    };
+    const onKeyDown = event => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        finish(false);
+      } else if (event.key === 'Tab') {
+        event.preventDefault();
+        (document.activeElement === cancelButton ? acceptButton : cancelButton).focus();
+      }
+    };
+    overlay.addEventListener('keydown', onKeyDown);
+    overlay.addEventListener('click', event => {
+      if (event.target === overlay) finish(false);
+    });
+    cancelButton.addEventListener('click', () => finish(false));
+    acceptButton.addEventListener('click', () => finish(true));
+    acceptButton.focus();
+  });
+}
 
 function escapeCashbookHtml(value) {
   return String(value ?? '').replace(/[&<>"']/g, char => ({
@@ -38,6 +90,14 @@ function getTransactionPartnerAddress(transaction = {}) {
 }
 
 function canEditCashbookTransaction(transaction = {}) {
+  const transactionType = String(transaction.transactionType || '').toLowerCase();
+  return ['admin', 'accounting'].includes(String(state.currentUser?.role || '').toLowerCase())
+    && !isCancelledStatus(transaction.status)
+    && !transaction.reversalOfId
+    && !transactionType.includes('reversal');
+}
+
+function canCancelCashbookTransaction(transaction = {}) {
   const transactionType = String(transaction.transactionType || '').toLowerCase();
   return ['admin', 'accounting'].includes(String(state.currentUser?.role || '').toLowerCase())
     && !isCancelledStatus(transaction.status)
@@ -121,6 +181,22 @@ function setCashbookDateTimeValue(targetId, value) {
   picker.querySelector('[data-cashbook-date]').value = date;
   picker.querySelector('[data-cashbook-hour]').value = hour;
   picker.querySelector('[data-cashbook-minute]').value = minute;
+}
+
+function getCashbookDateTimeValue(targetId) {
+  const target = document.getElementById(targetId);
+  const picker = document.querySelector(`[data-cashbook-datetime-target="${targetId}"]`);
+  if (!target || !picker) return target?.value || '';
+
+  const date = picker.querySelector('[data-cashbook-date]')?.value || '';
+  const hour = picker.querySelector('[data-cashbook-hour]')?.value || '';
+  const minute = picker.querySelector('[data-cashbook-minute]')?.value || '';
+  const pickerValue = date && /^\d{2}$/.test(hour) && /^\d{2}$/.test(minute)
+    ? `${date}T${hour}:${minute}`
+    : '';
+  const value = pickerValue || target.value || '';
+  if (value) target.value = value;
+  return value;
 }
 
 function setupCashbook24HourPicker(targetId) {
@@ -361,10 +437,14 @@ async function reloadCashbookDateWindow() {
   if (tableBody) {
     tableBody.innerHTML = '<tr><td colspan="8" class="text-center py-4">Đang tải dữ liệu sổ quỹ...</td></tr>';
   }
-  await dbLoadCashbookForRange(range.startIso, range.endExclusiveIso);
+  const loaded = await dbLoadCashbookForRange(range.startIso, range.endExclusiveIso);
   if (requestId !== cashbookRangeRequestId) return;
+  cashbookReadError = isCloudActive && !loaded;
   cashbookCurrentPage = 1;
   expandedCashbookTransactionId = '';
+  if (cashbookReadError) {
+    showToast('Không tải được dữ liệu Sổ quỹ từ Cloud. Các số liệu cũ đang được ẩn.', 'warning');
+  }
   renderSoQuyTable();
 }
 
@@ -676,7 +756,12 @@ export function setupSoQuyPanel() {
       e.preventDefault();
       
       const code = document.getElementById('receipt-code').value.trim();
-      const time = document.getElementById('receipt-time').value;
+      const time = getCashbookDateTimeValue('receipt-time');
+      const parsedTime = new Date(time);
+      if (!Number.isFinite(parsedTime.getTime())) {
+        showToast('Vui lòng nhập thời gian phiếu thu hợp lệ.', 'danger');
+        return;
+      }
       const category = document.getElementById('receipt-category').value;
       const payer = document.getElementById('receipt-payer').value.trim();
       const value = parseCashbookCurrencyInput(receiptValueInput);
@@ -709,7 +794,7 @@ export function setupSoQuyPanel() {
       
       const newTx = {
         id: finalCode,
-        date: new Date(time).toISOString(),
+        date: parsedTime.toISOString(),
         type: 'thu',
         category,
         partner: payer,
@@ -864,7 +949,12 @@ export function setupSoQuyPanel() {
       e.preventDefault();
       
       const code = document.getElementById('payment-code').value.trim();
-      const time = document.getElementById('payment-time').value;
+      const time = getCashbookDateTimeValue('payment-time');
+      const parsedTime = new Date(time);
+      if (!Number.isFinite(parsedTime.getTime())) {
+        showToast('Vui lòng nhập thời gian phiếu chi hợp lệ.', 'danger');
+        return;
+      }
       const category = document.getElementById('payment-category').value;
       const recipient = document.getElementById('payment-recipient').value.trim();
       const value = parseCashbookCurrencyInput(paymentValueInput);
@@ -895,7 +985,7 @@ export function setupSoQuyPanel() {
       
       const newTx = {
         id: finalCode,
-        date: new Date(time).toISOString(),
+        date: parsedTime.toISOString(),
         type: 'chi',
         category,
         partner: matchedSupplier ? matchedSupplier.name : recipient,
@@ -966,7 +1056,7 @@ export function setupSoQuyPanel() {
     }
 
     const value = Number(document.getElementById('cashbook-edit-value')?.value || 0);
-    const localDate = document.getElementById('cashbook-edit-time')?.value || '';
+    const localDate = getCashbookDateTimeValue('cashbook-edit-time');
     const parsedDate = new Date(localDate);
     if (!Number.isFinite(value) || value <= 0 || Number.isNaN(parsedDate.getTime())) {
       showToast('Vui lòng nhập thời gian và giá trị phiếu hợp lệ.', 'danger');
@@ -1423,7 +1513,7 @@ function renderCashbookInlineDetail(t) {
           </div>
           <div class="so-quy-inline-actions">
             <div>
-              ${!isCancelled ? `<button type="button" class="btn btn-danger btn-sm js-cashbook-inline-cancel"><i data-lucide="trash-2"></i> Hủy phiếu</button>` : ''}
+              ${canCancelCashbookTransaction(t) ? `<button type="button" class="btn btn-danger btn-sm js-cashbook-inline-cancel"><i data-lucide="trash-2"></i> Hủy phiếu</button>` : ''}
               ${legacyCustomer ? `<button type="button" class="btn btn-primary btn-sm js-cashbook-inline-reconcile"><i data-lucide="badge-check"></i> Ghi vào công nợ</button>` : ''}
             </div>
             <div>
@@ -1469,6 +1559,23 @@ function renderCashbookPagination(totalItems) {
 export function renderSoQuyTable() {
   const tableBody = document.getElementById('so-quy-table-body');
   if (!tableBody) return;
+
+  if (isCloudActive && getCloudReadHealth().failedDomains.includes('cashbook')) cashbookReadError = true;
+  if (cashbookReadError) {
+    ['so-quy-stat-start', 'so-quy-stat-income', 'so-quy-stat-expense', 'so-quy-stat-balance']
+      .forEach(id => { const element = document.getElementById(id); if (element) element.textContent = '—'; });
+    tableBody.innerHTML = `
+      <tr><td colspan="8" role="alert" class="text-center py-4">
+        Không tải được dữ liệu Sổ quỹ từ Cloud. Các giao dịch và số dư cũ đang được ẩn.
+        <button type="button" class="btn btn-secondary btn-sm" id="btn-retry-cashbook-load">Thử tải lại</button>
+      </td></tr>`;
+    document.getElementById('btn-retry-cashbook-load')?.addEventListener('click', async event => {
+      event.currentTarget.disabled = true;
+      await ensurePanelCloudData('so-quy-panel', { force: true, domains: ['cashbook'] });
+      await reloadCashbookDateWindow();
+    });
+    return;
+  }
 
   const allTxs = getCashbookTransactions();
   // Refresh dynamic dropdown options
@@ -1719,7 +1826,7 @@ function wireCashbookInlineDetailActions(t, tableBody) {
         showToast('Không xác định được mã phiếu Cloud. Dữ liệu chưa thay đổi.', 'danger');
         return;
       }
-      if (!confirm(`Ghi phiếu ${t.id} vào công nợ của ${legacyCustomer.name}? Công nợ sẽ giảm ${formatCurrency(t.value)}.`)) return;
+      if (!await confirmCashbookAction(`Ghi phiếu ${t.id} vào công nợ của ${legacyCustomer.name}? Công nợ sẽ giảm ${formatCurrency(t.value)}.`)) return;
 
       reconcileBtn.disabled = true;
       try {
@@ -1744,7 +1851,11 @@ function wireCashbookInlineDetailActions(t, tableBody) {
 
   detailRow.querySelector('.js-cashbook-inline-cancel')?.addEventListener('click', async event => {
     const cancelBtn = event.currentTarget;
-    if (!confirm(`Bạn có chắc chắn muốn hủy phiếu [${t.id}]? Số tiền giao dịch sẽ không còn được hạch toán vào Sổ quỹ và sẽ khôi phục lại công nợ đối tác nếu có.`)) return;
+    if (!canCancelCashbookTransaction(t)) {
+      showToast('Tài khoản hiện tại không có quyền hủy phiếu.', 'danger');
+      return;
+    }
+    if (!await confirmCashbookAction(`Bạn có chắc chắn muốn hủy phiếu [${t.id}]? Số tiền giao dịch sẽ không còn được hạch toán vào Sổ quỹ và sẽ khôi phục lại công nợ đối tác nếu có.`)) return;
 
     const cashbookId = getCanonicalCashbookId(t);
     if (!cashbookId) {

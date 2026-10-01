@@ -1,20 +1,22 @@
 import { state } from '../state.js';
-import { showToast, formatCurrency, formatNumber, formatPhoneNumber, safeCreateIcons, formatDateTime, calculateColorMarkedUpPrice, isSameUser, getProvinceNameByCode, PROVINCES, makeSelectSearchable, docSoTienBangChu, getUserCompanyId, getRevenueAttributes, getBrandName, getCompanyName, getCustomerName, getUserById, getUserDisplayName, getPricelistName } from '../utils.js';
+import { showToast, formatCurrency, formatNumber, formatPhoneNumber, safeCreateIcons, formatDateTime, calculateColorMarkedUpPrice, isSameUser, getProvinceNameByCode, PROVINCES, makeSelectSearchable, docSoTienBangChu, getUserCompanyId, getRevenueAttributes, getBrandName, getBrandById, getCompanyName, getCustomerName, getUserById, getUserDisplayName, getPricelistName, isLegacyPaintWorkspace } from '../utils.js';
 import { dbSaveOrder, dbCreateQuickCustomer, dbConfirmOrder, dbAmendOrder, dbFetchOrderDebtSnapshot, dbLoadCustomerAssignedPricing, dbRefreshCustomerFinancialState, dbRefreshOrderById, cacheOrdersLocally, isCloudActive } from '../services/supabase.js';
 import { renderAll, switchTab } from '../main.js';
 import { tenantStorage } from '../services/tenant-storage.js';
 import { populatePricelistsDropdowns } from './pricelists.js';
-import { generateUniqueCustomerCode } from './customers.js';
+import { generateUniqueCustomerCode, isCustomerFieldRequired } from './customers.js';
 import { addCashbookTransaction } from './so_quy.js';
 import { getApplicablePriceList, resolveCustomerProductPrice, normalizePriceListType, PRICE_LIST_TYPES, filterPriceListsForUser, canUserViewPriceList, canUserUsePriceListForCustomer, isDealerPrivatePriceList, isUsableResolvedPrice, shouldOverrideWithGlobalCustomerPriceList } from '../domain/pricing.js';
 import { normalizeCustomerPhone } from '../domain/customer-query.js';
 import { isPrintOnlyPriceList, requiresOrderSaveApproval, supportsInvoiceLineDiscount } from '../domain/invoice-discount.js';
-import { buildProductFamilies, buildVariantSnapshot, searchProductFamilies, shouldAutoSelectVariant, variantSpecification } from '../domain/product-catalog.js';
+import { buildProductFamilies, buildVariantSnapshot, isCatalogVariant, searchProductFamilies, shouldAutoSelectVariant, variantSpecification } from '../domain/product-catalog.js';
 import { chargeCustomerDebt, getOrderDebtSnapshot, getOrderOutstandingAmount } from '../domain/customer-debt.js';
 import { getOrderDisplayCode } from '../domain/order-display.js';
 import { canAdjustOrderBusinessDate, currentBusinessDateInputValue, parseOrderBusinessDateInput } from '../domain/order-business-date.js';
 import { reorderOrderItems } from '../domain/order-edit.js';
 import { catalogAdjustmentPercent, isCatalogExtensionEnabled } from '../domain/generic-catalog.js';
+import { isSalesBrandRestrictionEnabled } from '../domain/business-capabilities.js';
+import { itemMatchesAssignedBrand, partitionItemsByAssignedBrand } from '../domain/order-brand-policy.js';
 
 let currentOrderToPrint = null;
 let lastFinalizedOrder = null;
@@ -220,11 +222,6 @@ function canApproveManualInvoicePricing() {
   return ['admin', 'accounting'].includes(state.currentUser?.role);
 }
 
-function isTradeTermsDiscountPriceList(priceList = getSelectedInvoicePriceList()) {
-  const label = `${priceList?.name || ''} ${priceList?.code || ''}`.toLowerCase();
-  return label.includes('tt 20/07/2026') || label.includes('tt 20-07-2026') || label.includes('tt 20.07.2026');
-}
-
 function isUsingCustomerDefaultPriceList(customer) {
   if (!customer) return true;
   const selectedId = getSelectedInvoicePriceListId();
@@ -279,21 +276,57 @@ function shouldRequestAuthoritativePriceListOverride() {
   });
 }
 
-function getInvoiceProductFamilies() {
+function getCustomerAssignedBrandId(customer = null) {
+  const source = customer || state.customers.find(item => String(item.id) === String(state.activeCustomerId));
+  return String(source?.assignedBrandId || source?.assigned_brand_id
+    || state.activeCustomerBrandId || getBrandById(source?.assignedBrand || source?.assigned_brand || state.activeCustomerBrand)?.id
+    || '').trim();
+}
+
+function filterInvoiceItemsToAssignedBrand(brandId, brandName, customerLabel = 'Khách hàng') {
+  if (!isSalesBrandRestrictionEnabled(state.businessCapabilities)) return true;
+  if ((!brandId && (!brandName || brandName === 'Tất cả'))) return true;
+  const resolver = (item, name) => getBrandById(item?.brand || item?.productBrand || item?.product?.brand || name)?.id || '';
+  const { matching, excluded } = partitionItemsByAssignedBrand(
+    state.invoiceItems, brandId, brandName, resolver, isLegacyPaintWorkspace()
+  );
+  const invalidItems = excluded;
+  if (invalidItems.length === 0) return true;
+  const ok = confirm(`${customerLabel} chỉ được bán thương hiệu "${brandName}". Xóa ${invalidItems.length} dòng hàng khác thương hiệu khỏi đơn?`);
+  if (!ok) return false;
+  state.invoiceItems = matching;
+  return true;
+}
+
+function getInvoiceProductFamilies({ ignoreAssignedBrand = false } = {}) {
   let variants = (state.products || []).filter(product =>
-    product?.id &&
-    product.packageType &&
-    !product.isLegacy &&
+    isCatalogVariant(product) &&
     product.isActive !== false
   );
-  if (state.activeCustomerBrand && state.activeCustomerBrand !== 'Tất cả') {
-    variants = variants.filter(product => {
-      const brand = String(product.brand || '').toLowerCase().replace(/\s+/g, '');
-      const isFestiva = brand === 'festivanano' || brand === 'festiva';
-      return isFestiva || product.brand === state.activeCustomerBrand;
-    });
+  const assignedBrandId = getCustomerAssignedBrandId();
+  if (!ignoreAssignedBrand && isSalesBrandRestrictionEnabled(state.businessCapabilities)
+      && (assignedBrandId || (state.activeCustomerBrand && state.activeCustomerBrand !== 'Tất cả'))) {
+    const resolver = (product, name) => getBrandById(product?.brand || name)?.id || '';
+    variants = variants.filter(product => itemMatchesAssignedBrand(
+      product, assignedBrandId, state.activeCustomerBrand, resolver, isLegacyPaintWorkspace()
+    ));
   }
   return buildProductFamilies(variants);
+}
+
+function hasRestrictedInvoiceProductMatch(query) {
+  if (!isSalesBrandRestrictionEnabled(state.businessCapabilities)) return false;
+  const assignedBrandId = getCustomerAssignedBrandId();
+  if (!assignedBrandId && (!state.activeCustomerBrand || state.activeCustomerBrand === 'Tất cả')) return false;
+
+  const resolver = (product, name) => getBrandById(product?.brand || name)?.id || '';
+  const matches = searchProductFamilies(getInvoiceProductFamilies({ ignoreAssignedBrand: true }), query);
+  return matches.some(family => {
+    const variant = family.variants.find(item => String(item.id) === String(family.matchedVariantId));
+    return variant && !itemMatchesAssignedBrand(
+      variant, assignedBrandId, state.activeCustomerBrand, resolver, isLegacyPaintWorkspace()
+    );
+  });
 }
 
 function closeVariantPicker() {
@@ -302,35 +335,37 @@ function closeVariantPicker() {
 }
 
 function addVariantToInvoice(variant) {
-  if (!variant?.id || !variant.packageType || variant.isLegacy || variant.isActive === false) {
+  if (!isCatalogVariant(variant) || variant.isActive === false) {
     showToast('Quy cách này đã ngừng áp dụng hoặc không hợp lệ.', 'warning');
     return false;
   }
 
   const resolvedPrice = resolveProductPrice(variant);
-  if (!isUsableResolvedPrice(resolvedPrice)) {
+  const manualPriceMode = isManualInvoicePriceMode() && canApproveManualInvoicePricing();
+  if (!isUsableResolvedPrice(resolvedPrice) && !manualPriceMode) {
     showToast(`SKU "${variant.code}" chưa có giá trong bảng giá đang áp dụng.`, 'warning');
     return false;
   }
 
-  const price = Number(resolvedPrice.price);
+  const price = isUsableResolvedPrice(resolvedPrice) ? Number(resolvedPrice.price) : null;
   const snapshot = buildVariantSnapshot(variant);
   state.invoiceItems.push({
     product: variant,
     ...snapshot,
-    brand: variant.brand || 'Nano10*',
+    brand: variant.brand || '',
     package: snapshot.packagingName,
     packageWeight: snapshot.weightOrVolume,
     colorCode: '',
     colorPercent: 0,
     quantity: 1,
-    discountPercent: getActiveInvoiceDiscount(variant.brand),
+    discountPercent: manualPriceMode ? 0 : getActiveInvoiceDiscount(variant.brand),
     price,
     unitPrice: price,
     listPrice: price,
     priceListId: resolvedPrice.priceListId,
     priceListName: resolvedPrice.priceListName,
-    priceSource: resolvedPrice.source,
+    priceSource: manualPriceMode ? 'manual_override' : resolvedPrice.source,
+    manualPriceEntered: false,
     notes: ''
   });
 
@@ -365,19 +400,20 @@ function openVariantPicker(family, preferredVariantId = '') {
   options.innerHTML = family.variants.map(variant => {
     const price = resolveProductPrice(variant);
     const hasPrice = isUsableResolvedPrice(price);
+    const manualPriceAllowed = isManualInvoicePriceMode() && canApproveManualInvoicePricing();
     return `
       <button
         type="button"
         class="variant-choice ${variant.id === preferredVariantId ? 'highlighted' : ''}"
         data-variant-id="${variant.id}"
-        ${hasPrice ? '' : 'disabled'}
+        ${hasPrice || manualPriceAllowed ? '' : 'disabled'}
       >
         <span class="variant-choice-main">
           <span class="variant-choice-spec">${variantSpecification(variant)}</span>
           <span class="variant-choice-code">Mã SKU: ${variant.code}</span>
         </span>
         <span class="variant-choice-meta">
-          <span class="variant-choice-price">${hasPrice ? formatCurrency(Number(price.price)) : 'Chưa có giá'}</span>
+          <span class="variant-choice-price">${hasPrice ? formatCurrency(Number(price.price)) : manualPriceAllowed ? 'Nhập giá thủ công' : 'Chưa có giá'}</span>
         </span>
       </button>
     `;
@@ -411,6 +447,19 @@ export function applyActivePriceListToInvoice() {
   
   state.invoiceItems.forEach((item, index) => {
     item.discountPercent = getActiveInvoiceDiscount(item.brand);
+    if (isManualInvoicePriceMode() && canApproveManualInvoicePricing()) {
+      if (item.priceSource !== 'manual_override') {
+        item.price = null;
+        item.unitPrice = null;
+        item.listPrice = null;
+        item.manualPriceEntered = false;
+      }
+      item.discountPercent = 0;
+      item.priceSource = 'manual_override';
+      item.priceListId = null;
+      item.priceListName = '';
+      return;
+    }
     if (item.priceSource === 'manual_override' && isManualInvoicePriceMode()) return;
     const resolved = resolveProductPrice(item.product);
     if (resolved.source === 'manual_override') {
@@ -428,19 +477,25 @@ export function applyActivePriceListToInvoice() {
       recalculateItemPriceWithColorMarkup(index);
     } else {
       item.priceSource = 'missing';
+      item.price = null;
+      item.unitPrice = null;
+      item.listPrice = null;
+      item.priceListId = null;
+      item.priceListName = '';
+      item.manualPriceEntered = false;
     }
   });
   
   const label = document.getElementById('invoice-pricelist-source-lbl');
   if (label) {
-    if (!activePriceList) {
+    if (isManualInvoicePriceMode() && canApproveManualInvoicePricing()) {
+      label.innerText = 'Nhập tay có xác nhận';
+      label.style.background = 'rgba(16, 185, 129, 0.1)';
+      label.style.color = '#10b981';
+    } else if (!activePriceList) {
       label.innerText = 'Chưa xác định';
       label.style.background = 'rgba(156, 163, 175, 0.1)';
       label.style.color = '#9ca3af';
-    } else if (plSelect.value === 'retail') {
-      label.innerText = 'Nhập tay';
-      label.style.background = 'rgba(16, 185, 129, 0.1)';
-      label.style.color = '#10b981';
     } else {
       const type = normalizePriceListType(activePriceList.type, activePriceList.customerId);
       label.innerText = type === PRICE_LIST_TYPES.DEALER_PRIVATE
@@ -494,12 +549,7 @@ export function renderInvoiceTable() {
   const isReadOnly = saveBtn && saveBtn.style.display === 'none';
 
   function getProductFeatureBadge(product, name = '', brand = '') {
-    const text = (String(name || '') + ' ' + String(product?.category || '')).toLowerCase();
-    if (text.includes('lót') || text.includes('kháng kiềm')) return 'Kháng kiềm cao cấp';
-    if (text.includes('bóng') || text.includes('ngoại thất') || text.includes('phủ')) return 'Bền màu 8 năm';
-    if (text.includes('bột bả') || text.includes('trét') || text.includes('mutsu')) return 'Nội & Ngoại thất';
-    if (text.includes('chống thấm') || text.includes('ct-11a') || text.includes('festiva')) return 'Chống thấm co giãn';
-    return product?.category || brand || 'Sản phẩm chính hãng';
+    return product?.featureLabel || product?.feature || product?.category || brand || 'Sản phẩm';
   }
 
   function renderColorCellHtml(item, isPrimerOrPutty, disabledAttr) {
@@ -545,7 +595,7 @@ export function renderInvoiceTable() {
 
     const effectiveUnitPrice = Math.round((item.price || 0) * (1 - (item.discountPercent || 0) / 100));
     const adjustmentCellHtml = manualPriceMode
-      ? `<input type="text" class="form-control-inline item-manual-price" value="${formatNumber(item.unitPrice ?? item.listPrice ?? item.price ?? 0)}" title="Nhập đơn giá gốc; phụ thu màu được cộng tự động" style="width: 80px; text-align: right;" ${disabledAttr}>`
+      ? `<input type="text" class="form-control-inline item-manual-price" value="${item.manualPriceEntered ? formatNumber(item.unitPrice) : ''}" placeholder="Nhập giá" title="Nhập đơn giá gốc; phụ thu màu được cộng tự động" aria-label="Đơn giá thủ công cho ${p.code || item.code || productName}" style="width: 100px; text-align: right;" ${disabledAttr}>`
       : `<div class="invoice-unit-price-cell"><span class="invoice-market-unit-price">${formatNumber(item.price || item.unitPrice || 0)}</span> <small class="currency-sub">đ</small></div>`;
 
     // Paint-specific behavior is active only through the tenant extension.
@@ -621,7 +671,7 @@ export function renderInvoiceTable() {
     const item = state.invoiceItems[idx];
     const manualPriceInput = row?.querySelector('.item-manual-price');
     if (manualPriceInput) {
-      manualPriceInput.value = formatNumber(item.unitPrice ?? item.listPrice ?? item.price ?? 0);
+      manualPriceInput.value = item.manualPriceEntered ? formatNumber(item.unitPrice) : '';
     }
     const marketPrice = row?.querySelector('.invoice-market-unit-price');
     if (marketPrice) marketPrice.innerText = formatNumber(item.price || 0);
@@ -690,11 +740,32 @@ export function renderInvoiceTable() {
     input.addEventListener('change', (e) => {
       const row = e.target.closest('tr');
       const idx = parseInt(row.getAttribute('data-index'));
-      const value = parseInt(String(e.target.value || '').replace(/\D/g, ''), 10) || 0;
-      const price = Math.max(0, value);
       const item = state.invoiceItems[idx];
-      item.unitPrice = price;
-      item.listPrice = price;
+      const rawValue = String(e.target.value || '').trim();
+      const digits = rawValue.replace(/\D/g, '');
+      const validInput = rawValue === '' || (/^[\d.,\s]+$/.test(rawValue) && digits !== '');
+      if (!validInput) {
+        showToast('Đơn giá nhập tay phải là số tiền không âm.', 'warning');
+        item.manualPriceEntered = false;
+        item.price = null;
+        item.unitPrice = null;
+        item.listPrice = null;
+        e.target.value = '';
+      } else if (rawValue === '') {
+        item.manualPriceEntered = false;
+        item.price = null;
+        item.unitPrice = null;
+        item.listPrice = null;
+      } else {
+        const price = Number(digits);
+        item.manualPriceEntered = Number.isSafeInteger(price) && price >= 0;
+        item.unitPrice = item.manualPriceEntered ? price : null;
+        item.listPrice = item.unitPrice;
+        if (!item.manualPriceEntered) {
+          showToast('Đơn giá vượt quá giới hạn hợp lệ.', 'warning');
+          e.target.value = '';
+        }
+      }
       item.discountPercent = 0;
       item.priceSource = 'manual_override';
       item.priceListId = null;
@@ -931,7 +1002,7 @@ export function calculateInvoiceTotals() {
   const summaryTextEl = document.getElementById('invoice-table-summary-text');
   if (summaryTextEl) {
     const totalPkg = state.invoiceItems.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0);
-    summaryTextEl.innerHTML = `Đang có <strong>${state.invoiceItems.length}</strong> loại sản phẩm trong đơn (<strong>${totalPkg}</strong> kiện / đơn vị đóng gói)`;
+    summaryTextEl.innerHTML = `Đang có <strong>${state.invoiceItems.length}</strong> mặt hàng trong đơn (<strong>${totalPkg}</strong> đơn vị bán)`;
   }
 }
 
@@ -957,7 +1028,11 @@ export async function addProductToInvoice() {
   }
 
   if (!family) {
-    showToast(`Không tìm thấy sản phẩm phù hợp với "${query}".`, 'danger');
+    if (hasRestrictedInvoiceProductMatch(query)) {
+      showToast('Kết quả phù hợp bị giới hạn theo thương hiệu được gán cho khách hàng.', 'warning');
+    } else {
+      showToast(`Không tìm thấy sản phẩm phù hợp với "${query}".`, 'danger');
+    }
     return;
   }
   openVariantPicker(family, matchedVariantId);
@@ -970,7 +1045,10 @@ export function compileActiveOrder(customerOverride = null) {
   }
   const missingPriceItem = state.invoiceItems.find(item => {
     const unitPrice = item.unitPrice ?? item.price;
-    return item.priceSource === 'missing' || !Number.isFinite(Number(unitPrice)) || Number(unitPrice) < 0;
+    return item.priceSource === 'missing'
+      || (isManualInvoicePriceMode() && item.priceSource === 'manual_override' && item.manualPriceEntered !== true)
+      || !Number.isFinite(Number(unitPrice))
+      || Number(unitPrice) < 0;
   });
   if (missingPriceItem) {
     showToast(`Sản phẩm "${missingPriceItem.product?.code || ''}" chưa có giá hợp lệ. Không thể chốt đơn.`, 'danger');
@@ -981,7 +1059,7 @@ export function compileActiveOrder(customerOverride = null) {
   let phone = 'N/A';
   let address = 'N/A';
   let custId = null;
-  let agencyBrand = 'Nano10*';
+  let agencyBrand = '';
   let customerManagerId = '';
   
   if (customerOverride) {
@@ -1097,7 +1175,7 @@ export function compileActiveOrder(customerOverride = null) {
 
   // Đóng gói các dòng hoá đơn để lưu cùng với thuộc tính doanh thu Multi-Company
   const itemsToSave = state.invoiceItems.map(item => {
-    const productBrand = item.brand || (item.product && item.product.brand) || 'Nano10*';
+    const productBrand = item.brand || (item.product && item.product.brand) || '';
     const revAttrs = getRevenueAttributes(productBrand, agencyBrand, companyId, state.brands);
     const variantSnapshot = buildVariantSnapshot(item.product);
     const snapshot = {
@@ -1180,6 +1258,7 @@ export function compileActiveOrder(customerOverride = null) {
     priceListOverride: shouldRequestAuthoritativePriceListOverride(),
     priceListNameSnapshot: state.pricelists.find(priceList => priceList.id === pricelistId)?.name || '',
     priceSelectedBy: state.currentUser ? state.currentUser.username : 'admin',
+    issuerProfileSnapshot: state.businessCapabilities?.settings?.branding?.invoice_issuers?.[String(companyId)] || null,
     customerManagerId,
     createdBy: state.currentUser ? state.currentUser.username : 'admin'
   };
@@ -1273,22 +1352,22 @@ export async function saveActiveOrder(status = 'settled') {
         }
         const qProvinceSelect = document.getElementById('quick-cust-province');
         const qProvince = qProvinceSelect ? qProvinceSelect.value : '';
-        if (!qProvince) {
+        if (isCustomerFieldRequired('province') && !qProvince) {
           showToast('Vui lòng chọn Tỉnh/Thành phố cho khách hàng mới!', 'danger');
           return null;
         }
 
         const qCode = generateUniqueCustomerCode(qProvince);
         const qAddress = document.getElementById('quick-cust-address').value.trim();
-        const qAssignedBrand = document.getElementById('quick-cust-assigned-brand').value;
-        if (!qAssignedBrand) {
-          showToast('Vui lòng chọn nhãn đại lý độc quyền!', 'warning');
+        const qAssignedBrand = document.getElementById('quick-cust-assigned-brand').value || 'Tất cả';
+        if (isCustomerFieldRequired('assigned_brand') && qAssignedBrand === 'Tất cả') {
+          showToast('Workspace này yêu cầu gán thương hiệu cho khách hàng.', 'warning');
           return null;
         }
 
         const qManagerSelect = document.getElementById('quick-cust-manager');
         const qManager = qManagerSelect ? qManagerSelect.value : '';
-        if (!qManager) {
+        if (!qManager && state.currentUser?.role === 'sale') {
           showToast('Vui lòng chọn nhân viên quản lý cho khách hàng mới!', 'danger');
           return null;
         }
@@ -1307,7 +1386,7 @@ export async function saveActiveOrder(status = 'settled') {
           totalTransaction: 0,
           notes: 'Thêm nhanh từ màn hình lên đơn',
           pricelistId: qPricelistId,
-          managedBy: qManager
+          managedBy: qManager || state.currentUser?.username || ''
         };
 
         const custSaved = await dbCreateQuickCustomer(newCustomer);
@@ -1459,6 +1538,7 @@ export async function saveActiveOrder(status = 'settled') {
 export function resetInvoiceCustomer() {
   state.activeCustomerId = '';
   state.activeCustomerBrand = 'Tất cả';
+  state.activeCustomerBrandId = '';
   
   const idInput = document.getElementById('invoice-customer-id');
   if (idInput) idInput.value = '';
@@ -1503,6 +1583,7 @@ export function resetInvoiceCustomer() {
 export function prepareInvoiceCustomerReselection(searchValue = '', shouldFocus = true) {
   state.activeCustomerId = '';
   state.activeCustomerBrand = 'Tất cả';
+  state.activeCustomerBrandId = '';
 
   const idInput = document.getElementById('invoice-customer-id');
   if (idInput) idInput.value = '';
@@ -1553,7 +1634,7 @@ export function resetInvoiceBuilder() {
   
   if (saveBtn) {
     saveBtn.style.display = 'inline-flex';
-    saveBtn.innerHTML = `<i data-lucide="check-square"></i> Thanh toán & Chốt đơn`;
+    saveBtn.innerHTML = `<i data-lucide="check-square"></i> Chốt đơn (ghi công nợ)`;
     saveBtn.removeAttribute('data-edit-order-id');
     saveBtn.removeAttribute('data-amend-order-id');
   }
@@ -1585,12 +1666,11 @@ export function enableQuickCustomerMode() {
   
   const quickBrandSelect = document.getElementById('quick-cust-assigned-brand');
   if (quickBrandSelect) {
-    const isLegacyTenant = state.saasContext?.organizationId === '00000000-0000-4000-8000-000000000001';
     const brands = state.brands && state.brands.length > 0
       ? state.brands.map(b => b.name)
-      : (isLegacyTenant ? ['Nano10*', 'Hatacco nano', 'mutsutec', 'tdkaw', 'cova', 'festivanano'] : []);
+      : [];
     quickBrandSelect.innerHTML = `
-      <option value="Tất cả">Chọn thương hiệu</option>
+      <option value="Tất cả">Tất cả thương hiệu</option>
       ${brands.map(b => `<option value="${b}">${b}</option>`).join('')}
     `;
     quickBrandSelect.value = state.activeCustomerBrand || 'Tất cả';
@@ -1629,6 +1709,7 @@ export function submitQuickCustomerModal() {
   state.isQuickCustomerMode = true;
   state.activeCustomerId = '';
   state.activeCustomerBrand = qBrand;
+  state.activeCustomerBrandId = getBrandById(qBrand)?.id || '';
   
   // Update customer search display
   const searchInput = document.getElementById('invoice-customer-search');
@@ -1693,32 +1774,17 @@ export function disableQuickCustomerMode() {
 }
 
 export function handleQuickCustomerBrandChange(newBrand) {
-  if (newBrand && newBrand !== 'Tất cả') {
-    const invalidItems = state.invoiceItems.filter(item => {
-      const pBrandLower = (item.brand || '').toLowerCase().replace(/\s+/g, '');
-      const isFestiva = pBrandLower === 'festivanano' || pBrandLower === 'festiva';
-      if (isFestiva) return false;
-      return item.brand !== newBrand;
-    });
-    if (invalidItems.length > 0) {
-      const ok = confirm(`Khách hàng mới này được chỉ định thương hiệu "${newBrand}". Chọn thương hiệu này sẽ loại bỏ ${invalidItems.length} sản phẩm khác thương hiệu hiện có trong đơn hàng. Bạn có đồng ý không?`);
-      if (!ok) {
-        const quickBrandSelect = document.getElementById('quick-cust-assigned-brand');
-        if (quickBrandSelect) {
-          quickBrandSelect.value = state.activeCustomerBrand;
-          makeSelectSearchable('quick-cust-assigned-brand', 'Chọn thương hiệu', false);
-        }
-        return;
-      } else {
-        state.invoiceItems = state.invoiceItems.filter(item => {
-          const pBrandLower = (item.brand || '').toLowerCase().replace(/\s+/g, '');
-          const isFestiva = pBrandLower === 'festivanano' || pBrandLower === 'festiva';
-          return isFestiva || item.brand === newBrand;
-        });
-      }
+  const newBrandId = getBrandById(newBrand)?.id || '';
+  if (!filterInvoiceItemsToAssignedBrand(newBrandId, newBrand, 'Khách hàng mới')) {
+    const quickBrandSelect = document.getElementById('quick-cust-assigned-brand');
+    if (quickBrandSelect) {
+      quickBrandSelect.value = state.activeCustomerBrand;
+      makeSelectSearchable('quick-cust-assigned-brand', 'Chọn thương hiệu', false);
     }
+    return;
   }
   state.activeCustomerBrand = newBrand;
+  state.activeCustomerBrandId = newBrandId;
   
   // For quick customer, they have no preset brandDiscounts, so brand discounts default to 0.
   state.invoiceItems.forEach(item => {
@@ -1820,35 +1886,26 @@ export async function renderAndPrintOrder(order, type = 'retail') {
   const notesEl = document.getElementById('print-invoice-notes');
   if (notesEl) notesEl.innerText = combinedNotes || 'N/A';
   
-  // Điền nhãn sơn và cập nhật thông tin nhà phân phối / công ty tương ứng
+  // Resolve issuer data from the order snapshot first, then workspace settings.
+  // Product brand remains descriptive metadata and never selects the issuer.
   const firstItem = order.items[0];
   let brandName = 'N/A';
   if (firstItem) {
     brandName = firstItem.brand || (firstItem.product && firstItem.product.brand) || 'N/A';
   }
-  // 1. Tìm cấu hình hãng sơn tương ứng trong danh sách state.brands
-  let brandConfig = state.brands ? state.brands.find(b => b.name.toLowerCase() === brandName.toLowerCase()) : null;
-  if (!brandConfig && state.brands) {
-    brandConfig = state.brands.find(b => brandName.toLowerCase().includes(b.name.toLowerCase()) || b.name.toLowerCase().includes(brandName.toLowerCase()));
-  }
-
-  // Cấu hình mặc định (fallback) nếu không tìm thấy thương hiệu trong bảng dữ liệu
-  const isLegacyCompatibilityTenant = state.saasContext?.organizationId === '00000000-0000-4000-8000-000000000001';
-  const defaultBrandConfig = isLegacyCompatibilityTenant ? {
-    name: brandName,
-    companyName: 'CÔNG TY CỔ PHẦN ABS JAPAN',
-    logoFilename: 'absjapan.png',
-    hotline: '088.603.7878 - 0961.030.923',
-    cskh: '0868.055.866',
-    email: 'nhamaysonnano@gmail.com',
-    addressMain: 'Tiên Kha - Phúc Thịnh - Hà Nội',
-    addressFactory: 'TDP Cầu Giao - P.Phúc Thuận - T.Thái Nguyên',
-    addressBusiness: '228 Hoàng Hữu Nam - P.Long Bình - Hồ Chí Minh',
-    invoiceWarehouseText: 'Xuất Tại kho số 03 Chi nhánh Thái Nguyên',
-    salesPhone: ''
-  } : {
-    name: brandName || 'Thương hiệu',
-    companyName: state.saasContext?.organizationName || 'DOANH NGHIỆP',
+  const issuerSnapshot = order.issuerProfileSnapshot || order.issuer_profile_snapshot || null;
+  const companyId = String(order.companyId || order.company_id || '').trim();
+  const issuerSettings = state.businessCapabilities?.settings?.branding?.invoice_issuers || {};
+  const configuredIssuer = issuerSettings[companyId] || null;
+  const legacyIssuer = isLegacyPaintWorkspace()
+    ? (state.brands || []).find(brand => String(brand.companyId || '') === companyId)
+    : null;
+  const profile = issuerSnapshot || configuredIssuer || legacyIssuer || {};
+  const isLegacyCompatibilityTenant = isLegacyPaintWorkspace();
+  const defaultIssuer = {
+    companyName: isLegacyCompatibilityTenant
+      ? (getCompanyName(companyId, state.companies) || state.saasContext?.organizationName || 'DOANH NGHIỆP')
+      : (state.saasContext?.organizationName || 'DOANH NGHIỆP'),
     logoFilename: '',
     hotline: '',
     cskh: '',
@@ -1856,15 +1913,30 @@ export async function renderAndPrintOrder(order, type = 'retail') {
     addressMain: '',
     addressFactory: '',
     addressBusiness: '',
-    invoiceWarehouseText: 'Xuất tại kho',
-    salesPhone: ''
+    invoiceWarehouseText: '',
   };
 
-  const config = brandConfig || defaultBrandConfig;
-  const logoSrc = config.logoFilename;
+  const config = {
+    name: brandName,
+    companyName: profile.legal_name || profile.companyName || profile.company_name || defaultIssuer.companyName,
+    logoFilename: profile.logo_url || profile.logoFilename || profile.logo_filename || defaultIssuer.logoFilename,
+    hotline: profile.hotline || defaultIssuer.hotline,
+    cskh: profile.customer_service_phone || profile.cskh || defaultIssuer.cskh,
+    email: profile.email || defaultIssuer.email,
+    addressMain: profile.address || profile.address_main || profile.addressMain || defaultIssuer.addressMain,
+    addressFactory: profile.factory_address || profile.address_factory || profile.addressFactory || defaultIssuer.addressFactory,
+    addressBusiness: profile.business_address || profile.address_business || profile.addressBusiness || defaultIssuer.addressBusiness,
+    invoiceWarehouseText: profile.invoice_warehouse_text || profile.invoiceWarehouseText || defaultIssuer.invoiceWarehouseText,
+    salesPhone: profile.sales_phone || profile.salesPhone || defaultIssuer.salesPhone
+  };
+  const logoSrc = String(config.logoFilename || '').trim();
 
   let logoPromise = Promise.resolve();
   if (printLogoImg) {
+    if (!logoSrc) {
+      printLogoImg.style.display = 'none';
+      if (printLogoSvg) printLogoSvg.style.display = 'block';
+    } else {
     logoPromise = new Promise((resolve) => {
       let resolved = false;
       const done = () => {
@@ -1898,6 +1970,7 @@ export async function renderAndPrintOrder(order, type = 'retail') {
       // Giới hạn thời gian tối đa 800ms để in luôn nếu mạng quá chậm
       setTimeout(done, 800);
     });
+    }
   }
 
   await logoPromise;
@@ -1905,15 +1978,23 @@ export async function renderAndPrintOrder(order, type = 'retail') {
   // Điền các trường thông tin chi tiết của công ty lên hóa đơn
   const companyAddressMainEl = document.getElementById('print-company-address-main');
   if (companyAddressMainEl) companyAddressMainEl.innerText = config.addressMain;
+  const setCompanyLineVisibility = (id, value) => {
+    const row = document.getElementById(id);
+    if (row) row.style.display = String(value || '').trim() ? '' : 'none';
+  };
+  setCompanyLineVisibility('print-company-address-main-row', config.addressMain);
 
   const companyAddressFactoryEl = document.getElementById('print-company-address-factory');
   if (companyAddressFactoryEl) companyAddressFactoryEl.innerText = config.addressFactory;
+  setCompanyLineVisibility('print-company-address-factory-row', config.addressFactory);
 
   const companyCskhEl = document.getElementById('print-company-cskh');
   if (companyCskhEl) companyCskhEl.innerText = config.cskh;
+  setCompanyLineVisibility('print-company-cskh-row', config.cskh);
 
   const companyEmailEl = document.getElementById('print-company-email');
   if (companyEmailEl) companyEmailEl.innerText = config.email;
+  setCompanyLineVisibility('print-company-email-row', config.email);
 
   const companyLargeEl = document.getElementById('print-company-name-large');
   if (companyLargeEl) {
@@ -1927,6 +2008,7 @@ export async function renderAndPrintOrder(order, type = 'retail') {
 
   const hotlineEl = document.getElementById('print-company-hotline');
   if (hotlineEl) hotlineEl.innerText = config.hotline;
+  setCompanyLineVisibility('print-company-hotline-row', config.hotline);
 
   const sellerHotlineEl = document.getElementById('print-seller-hotline');
   if (sellerHotlineEl) sellerHotlineEl.innerText = config.hotline;
@@ -1962,9 +2044,10 @@ export async function renderAndPrintOrder(order, type = 'retail') {
   if (creatorEl) creatorEl.innerText = creatorName || 'admin';
   if (salesPhoneEl) salesPhoneEl.innerText = config.salesPhone || config.hotline || 'N/A';
   if (salesPhoneGroupEl) salesPhoneGroupEl.style.display = type === 'warehouse' ? '' : 'none';
-  if (warehouseTextEl) warehouseTextEl.innerText = config.invoiceWarehouseText || 'Xuất Tại kho số 03 Chi nhánh Thái Nguyên';
+  const warehouseText = String(config.invoiceWarehouseText || '').trim();
+  if (warehouseTextEl) warehouseTextEl.innerText = warehouseText;
   if (warehouseRowEl) {
-    warehouseRowEl.style.display = type === 'retail' ? 'none' : '';
+    warehouseRowEl.style.display = type === 'retail' || !warehouseText ? 'none' : '';
     if (type === 'processing') warehouseRowEl.style.display = 'none';
   }
   if (processingReasonRowEl) processingReasonRowEl.style.display = type === 'processing' ? '' : 'none';
@@ -2457,7 +2540,10 @@ export function setupInvoiceCreator() {
       const matches = searchProductFamilies(getInvoiceProductFamilies(), query).slice(0, 30);
 
       if (matches.length === 0) {
-        suggestionsList.innerHTML = `<li class="suggestion-item" style="color: var(--text-muted); cursor: default;">Không tìm thấy sản phẩm</li>`;
+        const restrictedMatch = hasRestrictedInvoiceProductMatch(query);
+        suggestionsList.innerHTML = `<li class="suggestion-item" style="color: var(--text-muted); cursor: default;">${restrictedMatch
+          ? 'Kết quả phù hợp bị giới hạn theo thương hiệu được gán cho khách hàng.'
+          : 'Không tìm thấy sản phẩm'}</li>`;
       } else {
         suggestionsList.innerHTML = matches.map(family => {
           const matchedVariant = family.variants.find(variant => variant.id === family.matchedVariantId);
@@ -2693,12 +2779,14 @@ function setupInvoiceCustomerSearch() {
 
   clearBtn?.addEventListener('click', () => prepareInvoiceCustomerReselection());
 
-  // Lắng nghe sự kiện để tìm kiếm gợi ý khách hàng giống như tìm sản phẩm
-  const suggestions = document.createElement('ul');
+  // Keep the autocomplete outside the input wrapper: that wrapper clips its
+  // contents for the rounded search-field treatment.
+  const searchGroup = document.getElementById('invoice-customer-search-group') || custSearchInput.parentNode;
+  const suggestions = document.getElementById('invoice-customer-suggestions') || document.createElement('ul');
   suggestions.className = 'suggestions-list';
   suggestions.id = 'invoice-customer-suggestions';
   suggestions.style.display = 'none';
-  custSearchInput.parentNode.appendChild(suggestions);
+  if (suggestions.parentNode !== searchGroup) searchGroup.appendChild(suggestions);
 
   custSearchInput.addEventListener('input', () => {
     if (state.isQuickCustomerMode) return; // Không cần gợi ý ở chế độ khách lẻ
@@ -2758,8 +2846,15 @@ function setupInvoiceCustomerSearch() {
 }
 
 async function selectInvoiceCustomer(customer) {
+  const assignedBrandName = customer.assignedBrand || customer.assigned_brand || 'Tất cả';
+  const assignedBrandId = String(customer.assignedBrandId || customer.assigned_brand_id
+    || getBrandById(assignedBrandName)?.id || '').trim();
+  if (isSalesBrandRestrictionEnabled(state.businessCapabilities)
+      && !filterInvoiceItemsToAssignedBrand(assignedBrandId, assignedBrandName, `Khách hàng "${customer.name}"`)) return false;
+
   state.activeCustomerId = customer.id;
-  state.activeCustomerBrand = customer.assignedBrand;
+  state.activeCustomerBrand = assignedBrandName;
+  state.activeCustomerBrandId = assignedBrandId;
 
   const assignedReference = customer.pricelistId || customer.defaultPriceListId || '';
   let applicablePricing = getApplicablePriceList(
@@ -2871,6 +2966,14 @@ document.addEventListener('loadDraftOrder', (e) => {
     renderInvoiceTable();
     return;
   }
+
+  state.invoiceItems.forEach(item => {
+    if (item.priceSource === 'manual_override' && item.manualPriceEntered === undefined) {
+      const price = item.unitPrice ?? item.listPrice ?? item.price;
+      item.manualPriceEntered = price !== null && price !== undefined
+        && Number.isFinite(Number(price)) && Number(price) >= 0;
+    }
+  });
 
   // Editable drafts/copies/amendments must be recalculated from the currently
   // applicable database price list. Otherwise the lines and source badge keep

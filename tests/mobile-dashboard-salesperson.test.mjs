@@ -2,20 +2,14 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
-const mobileRoot = new URL('../../mobile-app/', import.meta.url);
-const service = readFileSync(new URL('src/services/dashboard.ts', mobileRoot), 'utf8');
-const screen = readFileSync(new URL('src/screens/HomeScreen.tsx', mobileRoot), 'utf8');
-const types = readFileSync(new URL('src/types/dashboard.ts', mobileRoot), 'utf8');
+const migration = readFileSync(new URL('../migrations/0085_mobile_admin_read_models.sql', import.meta.url), 'utf8');
 
-test('mobile dashboard maps salesperson revenue from the authenticated RPC', () => {
-  assert.match(service, /raw\.by_salesperson/);
-  assert.match(service, /rpc\('rpc_mobile_admin_dashboard'/);
-  assert.doesNotMatch(service, /from\('profiles'\)/);
-  assert.match(service, /bySalesperson: normalizeBreakdown\(raw\.by_salesperson\)/);
-  assert.match(types, /bySalesperson: DashboardBreakdown\[\]/);
-});
-
-test('mobile Admin dashboard renders the salesperson revenue chart', () => {
-  assert.match(screen, /title="Nhân viên kinh doanh"/);
-  assert.match(screen, /RankedBars data=\{dashboard\.bySalesperson\}/);
+test('mobile admin dashboard RPC exposes salesperson revenue to authenticated users', () => {
+  const functionBody = migration.match(/CREATE OR REPLACE FUNCTION public\.rpc_mobile_admin_dashboard\([\s\S]*?AS \$\$[\s\S]*?\$\$;/i)?.[0] || '';
+  assert.ok(functionBody, 'the mobile dashboard RPC must be defined in this repository');
+  assert.match(functionBody, /'by_salesperson'/);
+  assert.match(functionBody, /SECURITY DEFINER/i);
+  assert.match(functionBody, /actor\.role <> 'admin'/);
+  assert.match(migration, /GRANT EXECUTE ON FUNCTION public\.rpc_mobile_admin_dashboard\(jsonb\) TO authenticated/i);
+  assert.match(migration, /REVOKE ALL ON FUNCTION public\.rpc_mobile_admin_dashboard\(jsonb\) FROM PUBLIC, anon/i);
 });

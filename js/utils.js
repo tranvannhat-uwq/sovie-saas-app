@@ -82,28 +82,79 @@ export function getNormalizedBrandName(brandStr) {
   return String(brandStr).trim();
 }
 
-// Kiểm tra xem nhãn sơn có phải là FESTIVAL (nhãn dùng chung) hay không
-export function isFestivalBrand(brandName) {
-  if (!brandName) return false;
-  const b = String(brandName).trim().toLowerCase();
-  return b.includes('festiv');
+// Compatibility name for older callers. Shared status comes from workspace
+// brand configuration; it is never inferred from a particular brand name.
+export function isFestivalBrand(brandName, brandsList = state.brands) {
+  return isSharedBrand(brandName, brandsList);
 }
 
-// Kiểm tra xem nhãn sơn có phải là nhãn dùng chung (không chọn công ty quản lý riêng) hay không
+// Determine shared-brand behavior from the configured brand record.
 export function isSharedBrand(brandName, brandsList = []) {
   if (!brandName) return false;
-  if (isFestivalBrand(brandName)) return true;
   if (Array.isArray(brandsList) && brandsList.length > 0) {
-    const found = brandsList.find(b => b.name && b.name.toLowerCase() === String(brandName).trim().toLowerCase());
-    if (found && (!found.companyId || found.companyId === '' || found.companyName === 'Dùng chung')) {
-      return true;
-    }
+    const normalized = String(brandName).trim().toLocaleLowerCase();
+    const found = brandsList.find(brand =>
+      String(brand?.name || '').trim().toLocaleLowerCase() === normalized
+      || String(brand?.id || '').trim().toLocaleLowerCase() === normalized
+    );
+    if (!found) return false;
+    const companyId = String(found.companyId || found.company_id || '').trim().toLowerCase();
+    const companyName = String(found.companyName || found.company_name || '').trim().toLocaleLowerCase();
+    return found.isShared === true || found.is_shared === true
+      || !companyId || ['shared', 'all'].includes(companyId)
+      || companyName === 'dùng chung';
   }
   return false;
 }
 
 // --- BỘ GIẢI ÁNH XẠ CHÍNH (FOREIGN KEY LOOKUP RESOLVERS) ---
 import { state } from './state.js';
+
+const LEGACY_PAINT_ORGANIZATION_ID = '00000000-0000-4000-8000-000000000001';
+const LEGACY_BRAND_COMPANY_IDS = Object.freeze({
+  nano10mb: 'ABS_NORTH',
+  nano10mn: 'ABS_SOUTH',
+  covanano: 'ABS_NORTH',
+  mutsutec: 'ABS_NORTH',
+  tdkaw: 'ABS_NORTH',
+  festivanano: 'EMP_USA',
+  hatacconano: 'EMP_USA'
+});
+const LEGACY_COMPANY_IDS = new Set(['ABS_NORTH', 'ABS_SOUTH', 'EMP_USA']);
+
+export function isLegacyPaintWorkspace() {
+  return String(state.saasContext?.organizationId || '') === LEGACY_PAINT_ORGANIZATION_ID;
+}
+
+export function resolveWorkspaceCompanyId(companyId, organizationId = state.saasContext?.organizationId) {
+  const value = String(companyId || '').trim();
+  const activeOrganizationId = String(organizationId || '').trim();
+  if (activeOrganizationId === LEGACY_PAINT_ORGANIZATION_ID) return value || 'ABS_NORTH';
+  if (activeOrganizationId && (!value || value.toLowerCase() === 'main' || LEGACY_COMPANY_IDS.has(value.toUpperCase()))) {
+    return activeOrganizationId;
+  }
+  return value;
+}
+
+export function getDefaultCompanyId(user = state.currentUser) {
+  const assignedCompany = user?.companyId || user?.company_id;
+  if (assignedCompany) return resolveWorkspaceCompanyId(assignedCompany);
+
+  const organizationId = state.saasContext?.organizationId;
+  if (organizationId) {
+    return resolveWorkspaceCompanyId('', organizationId);
+  }
+
+  const companies = state.companies || [];
+  const configuredDefault = companies.find(company => company?.isDefault === true || company?.is_default === true);
+  if (configuredDefault?.id) return String(configuredDefault.id);
+  if (companies.length === 1 && companies[0]?.id) return String(companies[0].id);
+
+  // Without an authenticated workspace or an explicit company assignment,
+  // leave the company unset. Callers can ask for setup instead of assigning
+  // business records to a tenant-specific default.
+  return isLegacyPaintWorkspace() ? 'ABS_NORTH' : '';
+}
 
 export function getBrandId(brandInput, brandsList = state.brands) {
   if (!brandInput || brandInput === 'Tất cả') return 'all';
@@ -132,11 +183,13 @@ export function getBrandById(brandId, brandsList = state.brands) {
 
   // Old imports used several variants for the same stable brand key. The brand
   // name may later change, but its ID still lets those products follow the rename.
-  const legacyKeys = ['tdkaw', 'cova', 'festiva', 'hatacco', 'mutsutec', 'nano10'];
-  const legacyKey = legacyKeys.find(key => normalizedInput.includes(key));
-  if (legacyKey) {
-    found = list.find(b => normalizeBrandKey(b?.id).includes(legacyKey));
-    if (found) return found;
+  if (isLegacyPaintWorkspace()) {
+    const legacyKeys = ['tdkaw', 'cova', 'festiva', 'hatacco', 'mutsutec', 'nano10'];
+    const legacyKey = legacyKeys.find(key => normalizedInput.includes(key));
+    if (legacyKey) {
+      found = list.find(b => normalizeBrandKey(b?.id).includes(legacyKey));
+      if (found) return found;
+    }
   }
 
   const aliasMap = {
@@ -156,7 +209,7 @@ export function getBrandById(brandId, brandsList = state.brands) {
   };
 
   const norm = str.toLowerCase();
-  if (aliasMap[norm]) {
+  if (isLegacyPaintWorkspace() && aliasMap[norm]) {
     const canonicalName = aliasMap[norm];
     found = list.find(b => b.name && b.name.toLowerCase() === canonicalName.toLowerCase());
   }
@@ -171,29 +224,30 @@ export function getBrandName(brandId, fallback = '', brandsList = state.brands) 
 }
 
 export function normalizeCompanyId(companyIdOrName, brandName = '') {
-  if (!companyIdOrName && !brandName) return 'ABS_NORTH';
+  if (!companyIdOrName && brandName) return getCompanyIdByBrand(brandName);
+  if (!companyIdOrName) return getDefaultCompanyId();
 
   const str = String(companyIdOrName || '').trim().toLowerCase();
+  const organizationId = String(state.saasContext?.organizationId || '').trim();
+  if (!isLegacyPaintWorkspace() && organizationId && LEGACY_COMPANY_IDS.has(str.toUpperCase())) {
+    return organizationId;
+  }
+  const companies = state.companies || [];
+  const configuredCompany = companies.find(company =>
+    [company?.id, company?.code, company?.name]
+      .some(value => String(value || '').trim().toLowerCase() === str)
+  );
+  if (configuredCompany?.id) return String(configuredCompany.id);
 
-  if (str === 'abs_north' || str.includes('miền bắc') || str.includes('north') || str.includes('bắc')) {
-    return 'ABS_NORTH';
-  }
-  if (str === 'abs_south' || str.includes('miền nam') || str.includes('south') || str.includes('nam')) {
-    return 'ABS_SOUTH';
-  }
-  if (str === 'emp_usa' || str.includes('emp')) {
-    return 'EMP_USA';
+  if (isLegacyPaintWorkspace()) {
+    if (str === 'abs_north' || str.includes('miền bắc') || str.includes('north') || str.includes('bắc')) return 'ABS_NORTH';
+    if (str === 'abs_south' || str.includes('miền nam') || str.includes('south') || str.includes('nam')) return 'ABS_SOUTH';
+    if (str === 'emp_usa' || str.includes('emp')) return 'EMP_USA';
+    if (str.includes('abs') || str.includes('ctyabs') || str.includes('cova')) return 'ABS_NORTH';
   }
 
-  if (brandName) {
-    return getCompanyIdByBrand(brandName);
-  }
-
-  if (str.includes('abs') || str.includes('ctyabs') || str.includes('cova')) {
-    return 'ABS_NORTH';
-  }
-
-  return 'ABS_NORTH';
+  if (brandName) return getCompanyIdByBrand(brandName);
+  return String(companyIdOrName).trim();
 }
 
 export function getCompanyById(companyId, companiesList = state.companies) {
@@ -218,14 +272,16 @@ export function getCompanyName(companyId, companiesList = state.companies) {
     return state.saasContext.organizationName;
   }
 
-  if (normId === 'ABS_NORTH') return 'Công ty Cổ phần ABS JAPAN (Miền Bắc)';
-  if (normId === 'ABS_SOUTH') return 'Công ty Cổ phần ABS JAPAN - Chi nhánh Miền Nam';
-  if (normId === 'EMP_USA') return 'Công ty Cổ phần EMP Hoa Kỳ';
+  if (isLegacyPaintWorkspace()) {
+    if (normId === 'ABS_NORTH') return 'Công ty Cổ phần ABS JAPAN (Miền Bắc)';
+    if (normId === 'ABS_SOUTH') return 'Công ty Cổ phần ABS JAPAN - Chi nhánh Miền Nam';
+    if (normId === 'EMP_USA') return 'Công ty Cổ phần EMP Hoa Kỳ';
+  }
   return companyId;
 }
 
 export function getCanonicalBrandName(brandStr, brandsList = state.brands) {
-  if (!brandStr) return brandsList?.[0]?.name || '';
+  if (!brandStr) return '';
   const rawStr = brandStr.toString().trim();
   const cleanName = rawStr.toLowerCase().replace(/[^a-z0-9]/g, '');
   const linkedBrand = getBrandById(rawStr, brandsList);
@@ -239,52 +295,50 @@ export function getCanonicalBrandName(brandStr, brandsList = state.brands) {
   });
   if (foundB) return foundB.name;
 
-  if (cleanName.includes('nano10mn') || cleanName.includes('10mn')) return 'NANO10 MN';
-  if (cleanName.includes('nano10mb') || cleanName.includes('10mb') || cleanName.includes('nano10')) return 'NANO10 MB';
-  if (cleanName.includes('cova')) return 'COVA NANO';
-  if (cleanName.includes('mutsutec')) return 'MUTSUTEC NANO';
-  if (cleanName.includes('tdkaw')) return 'TDKAW NANO';
-  if (cleanName.includes('festiva') || cleanName.includes('festival')) return 'FESTIVA NANO';
-  if (cleanName.includes('hatacco')) return 'HATACCO NANO';
+  if (isLegacyPaintWorkspace()) {
+    if (cleanName.includes('nano10mn') || cleanName.includes('10mn')) return 'NANO10 MN';
+    if (cleanName.includes('nano10mb') || cleanName.includes('10mb') || cleanName.includes('nano10')) return 'NANO10 MB';
+    if (cleanName.includes('cova')) return 'COVA NANO';
+    if (cleanName.includes('mutsutec')) return 'MUTSUTEC NANO';
+    if (cleanName.includes('tdkaw')) return 'TDKAW NANO';
+    if (cleanName.includes('festiva') || cleanName.includes('festival')) return 'FESTIVA NANO';
+    if (cleanName.includes('hatacco')) return 'HATACCO NANO';
+  }
 
   return rawStr;
 }
 
 export function getCompanyIdByBrand(brandName, brandsList = state.brands) {
-  if (!brandName) return 'ABS_NORTH';
-  const rawStr = brandName.toString().trim().toLowerCase();
-  const cleanName = rawStr.replace(/[^a-z0-9]/g, '');
+  if (!brandName) return getDefaultCompanyId();
+  const rawStr = String(brandName).trim();
+  const normalized = rawStr.toLowerCase().replace(/[^a-z0-9]/g, '');
+  const foundBrand = (brandsList || []).find(brand =>
+    String(brand?.id || '').trim() === rawStr
+    || String(brand?.name || '').trim().toLowerCase() === rawStr.toLowerCase()
+  );
 
-  // 1. Direct search in state.brands
-  const foundB = (brandsList || []).find(b => {
-    if (!b || !b.name) return false;
-    const bRaw = b.name.toString().trim().toLowerCase();
-    const bClean = bRaw.replace(/[^a-z0-9]/g, '');
-    return bRaw === rawStr || bClean === cleanName || cleanName.includes(bClean) || bClean.includes(cleanName);
-  });
-
-  if (foundB) {
-    if (foundB.companyId && foundB.companyId !== 'shared' && foundB.companyId !== 'all') {
-      return foundB.companyId;
-    }
-    if (foundB.companyName) {
-      const cName = foundB.companyName.toLowerCase();
-      if (cName.includes('miền nam') || cName.includes('mn') || cName.includes('south')) return 'ABS_SOUTH';
-      if (cName.includes('emp')) return 'EMP_USA';
-      if (cName.includes('abs')) return 'ABS_NORTH';
-    }
+  if (foundBrand?.companyId && !['shared', 'all'].includes(String(foundBrand.companyId).toLowerCase())) {
+    return resolveWorkspaceCompanyId(foundBrand.companyId);
+  }
+  if (foundBrand?.companyName) {
+    const companyName = String(foundBrand.companyName).trim().toLowerCase();
+    const matchedCompany = (state.companies || []).find(company =>
+      String(company?.name || '').trim().toLowerCase() === companyName
+    );
+    if (matchedCompany?.id) return String(matchedCompany.id);
   }
 
-  // 2. Precise rule-based mapping matching database schema
-  if (cleanName.includes('nano10mn') || cleanName.includes('10mn')) return 'ABS_SOUTH';
-  if (cleanName.includes('nano10mb') || cleanName.includes('10mb') || cleanName.includes('nano10')) return 'ABS_NORTH';
-  if (cleanName.includes('cova')) return 'ABS_NORTH';
-  if (cleanName.includes('mutsutec')) return 'ABS_NORTH';
-  if (cleanName.includes('tdkaw')) return 'ABS_NORTH';
-  if (cleanName.includes('festiva') || cleanName.includes('festival')) return 'EMP_USA';
-  if (cleanName.includes('hatacco')) return 'EMP_USA';
+  if (isLegacyPaintWorkspace()) {
+    for (const [legacyBrand, companyId] of Object.entries(LEGACY_BRAND_COMPANY_IDS)) {
+      if (normalized === legacyBrand) return companyId;
+    }
+    // Earlier imports sometimes stored the brand and regional suffix in one
+    // text value; retain that compatibility only for the known legacy tenant.
+    if (normalized.includes('nano10mn') || normalized.includes('10mn')) return 'ABS_SOUTH';
+    if (normalized.includes('nano10mb') || normalized.includes('10mb')) return 'ABS_NORTH';
+  }
 
-  return 'ABS_NORTH';
+  return getDefaultCompanyId();
 }
 
 export function getCustomerById(customerId, customersList = state.customers) {
@@ -376,17 +430,19 @@ export function getCompanyNameById(companyId, companiesList = state.companies) {
 
 // Lấy ID công ty của nhân viên hiện tại
 export function getUserCompanyId(user) {
-  if (!user) return state.saasContext?.organizationId || 'main';
-  return user.companyId || user.company_id || state.saasContext?.organizationId || 'main';
+  return getDefaultCompanyId(user);
 }
 
 // Xác định các thuộc tính doanh thu cho một dòng sản phẩm đơn hàng
 export function getRevenueAttributes(itemBrand, customerAgencyBrand, orderCompanyId, brandsList = state.brands) {
-  const productBrand = itemBrand || (brandsList?.[0]?.name || '');
+  const productBrand = String(itemBrand || '').trim();
   const agencyBrand = (customerAgencyBrand && customerAgencyBrand !== 'Tất cả') ? customerAgencyBrand : productBrand;
-  const revenueBrand = (isFestivalBrand(productBrand) || isSharedBrand(productBrand, brandsList)) ? agencyBrand : productBrand;
-
-  let revenueCompany = getCompanyIdByBrand(revenueBrand, brandsList) || orderCompanyId || state.saasContext?.organizationId || 'main';
+  const sharedBrand = isSharedBrand(productBrand, brandsList);
+  const revenueBrand = sharedBrand ? agencyBrand : productBrand;
+  const legacyTenant = state.saasContext?.organizationId === LEGACY_PAINT_ORGANIZATION_ID;
+  const legacyCompany = legacyTenant ? getCompanyIdByBrand(revenueBrand, brandsList) : '';
+  const transactionCompany = String(orderCompanyId || '').trim();
+  const revenueCompany = transactionCompany || legacyCompany || getDefaultCompanyId();
 
   return {
     productBrand,
@@ -453,7 +509,7 @@ export function showToast(message, type = 'success') {
 }
 
 // Cập nhật giao diện trạng thái đồng bộ cơ sở dữ liệu
-export function updateDbStatusUI(status, message = '') {
+export function updateDbStatusUI(status, message = '', details = '') {
   const badge = document.getElementById('db-status-badge');
   if (!badge) return;
   badge.className = 'db-status-badge'; // reset
@@ -468,7 +524,7 @@ export function updateDbStatusUI(status, message = '') {
     badge.innerHTML = `<i data-lucide="cloud" style="width:12px;height:12px;"></i> ${message || 'Đám mây (Supabase)'}`;
   } else if (status === 'cloud_degraded') {
     badge.classList.add('status-cloud-degraded');
-    badge.title = 'Kết nối Cloud đang hoạt động nhưng một hoặc nhiều luồng đọc dữ liệu bị lỗi.';
+    badge.title = details || 'Kết nối Cloud đang hoạt động nhưng một hoặc nhiều luồng đọc dữ liệu bị lỗi.';
     badge.innerHTML = `<i data-lucide="cloud-alert" style="width:12px;height:12px;"></i> ${message || 'Cloud đã nối • Lỗi đọc dữ liệu'}`;
   } else if (status === 'connecting') {
     badge.classList.add('status-connecting');

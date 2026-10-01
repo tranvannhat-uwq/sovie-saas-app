@@ -699,6 +699,18 @@ async function initApp() {
     openWorkspaceOnboarding({ required: true });
   } else {
     showLoginGate();
+    if (new URLSearchParams(window.location.search).get('workspace_created') === '1') {
+      const loginScreen = document.getElementById('login-screen');
+      const notice = document.getElementById('login-maintenance-notice');
+      if (loginScreen) loginScreen.style.display = 'flex';
+      if (notice) {
+        notice.textContent = 'Workspace đã được tạo. Hãy đăng nhập lại trên tên miền mới để vào đúng doanh nghiệp.';
+        notice.style.display = 'block';
+      }
+      const cleanUrl = new URL(window.location.href);
+      cleanUrl.searchParams.delete('workspace_created');
+      history.replaceState(null, '', `${cleanUrl.pathname}${cleanUrl.search}${cleanUrl.hash}`);
+    }
   }
 
   populatePricelistsDropdowns();

@@ -7,7 +7,8 @@ import { collectAllPages } from '../domain/pagination.js';
 import { resolvePurchaseSupplierDetails } from '../domain/purchase-supplier.js';
 import { getCustomerDebtPostingDate, mergeCustomerDebtHistory } from '../domain/customer-debt.js';
 import { loadAuthorizedPricingCache, saveAuthorizedPricingCache } from './pricing-cache.js';
-import { resolveActiveSaasContext } from '../domain/saas-context.js';
+import { applyLoginDomainContext, resolveActiveSaasContext } from '../domain/saas-context.js';
+import { LOGIN_ERROR, loginErrorMessage } from '../domain/auth-profile.js';
 import { resolveBusinessCapabilities } from '../domain/business-capabilities.js';
 import { resolveCatalogContext } from '../domain/generic-catalog.js';
 import { normalizeIndustryKey, normalizePlatformCustomerPayload } from '../domain/tenant-provisioning.js';
@@ -188,11 +189,33 @@ export async function loadSaasContext({ allowMissingOrganization = false } = {})
   }
   const { error: invitationError } = await supabaseClient.rpc('rpc_accept_my_organization_invitations');
   if (invitationError) throw invitationError;
+  const hostname = String(globalThis.location?.hostname || '').trim().toLowerCase().replace(/\.+$/, '');
+  const { data: domainBinding, error: domainBindingError } = await supabaseClient.rpc(
+    'rpc_bind_login_to_workspace_domain',
+    { p_hostname: hostname }
+  );
+  if (domainBindingError) throw domainBindingError;
+  if (domainBinding?.allowed !== true) {
+    const domainError = new Error(loginErrorMessage(LOGIN_ERROR.WORKSPACE_DOMAIN_MISMATCH));
+    domainError.loginCode = LOGIN_ERROR.WORKSPACE_DOMAIN_MISMATCH;
+    throw domainError;
+  }
+  if (domainBinding.platformOnly === true) {
+    clearTenantStorageContext();
+    return null;
+  }
   const { data, error } = await supabaseClient.rpc('rpc_my_saas_context');
   if (error) throw error;
-  const organizations = Array.isArray(data?.organizations) ? data.organizations : [];
+  const domainBoundContext = applyLoginDomainContext(data, domainBinding);
+  if (!domainBoundContext.ok) {
+    const domainError = new Error(loginErrorMessage(LOGIN_ERROR.WORKSPACE_DOMAIN_MISMATCH));
+    domainError.loginCode = LOGIN_ERROR.WORKSPACE_DOMAIN_MISMATCH;
+    throw domainError;
+  }
+  const contextData = domainBoundContext.payload;
+  const organizations = Array.isArray(contextData?.organizations) ? contextData.organizations : [];
   const activeOrganizationId = String(
-    data?.activeOrganizationId || data?.active_organization_id || ''
+    contextData?.activeOrganizationId || contextData?.active_organization_id || ''
   ).trim();
   if (allowMissingOrganization && (
     !activeOrganizationId
@@ -201,7 +224,7 @@ export async function loadSaasContext({ allowMissingOrganization = false } = {})
     clearTenantStorageContext();
     return null;
   }
-  const context = resolveActiveSaasContext(data);
+  const context = resolveActiveSaasContext(contextData);
   const [capabilityResponse, catalogResponse, subscriptionAccessResponse, planUsageResponse, billingSummaryResponse] = await Promise.all([
     supabaseClient.rpc('rpc_my_business_capabilities'),
     supabaseClient.rpc('rpc_my_catalog_context'),

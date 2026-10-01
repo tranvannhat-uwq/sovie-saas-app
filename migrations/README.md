@@ -658,3 +658,10 @@ attribution to use the transaction's company; brand-based company attribution
 is retained only in the legacy paint workspace's client compatibility path.
 Apply after `0104` and run generic-catalog, issuer-print, order-pricing, and
 tenant-boundary checks before rollout.
+
+Migration `0106` binds the selected workspace to the exact active hostname with
+active SSL during login and session recovery. Tenant members without membership
+in that workspace are rejected, and the context returned to the browser contains
+only the workspace mapped to the current hostname. Users without a workspace
+can still enter onboarding; platform staff keep their separate platform access.
+Apply after `0105` and run the login-domain integration checks before rollout.

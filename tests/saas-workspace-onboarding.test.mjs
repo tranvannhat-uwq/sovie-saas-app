@@ -10,6 +10,7 @@ const sql = fs.readFileSync(
 );
 const service = fs.readFileSync(path.join(root, 'js', 'services', 'supabase.js'), 'utf8');
 const workspaceUi = fs.readFileSync(path.join(root, 'js', 'components', 'workspaces.js'), 'utf8');
+const main = fs.readFileSync(path.join(root, 'js', 'main.js'), 'utf8');
 const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
 
 test('first workspace requires Auth profile but not a prior membership', () => {
@@ -37,7 +38,7 @@ test('slug validation rejects reserved, malformed and duplicate hostnames', () =
 test('new users may onboard while invalid existing tenant roles still fail closed', () => {
   assert.match(service, /loadSaasContext\(\{ allowMissingOrganization = false \} = \{\}\)/);
   assert.match(service, /if \(allowMissingOrganization &&/);
-  assert.match(service, /const context = resolveActiveSaasContext\(data\)/);
+  assert.match(service, /const context = resolveActiveSaasContext\(contextData\)/);
   assert.match(workspaceUi, /openWorkspaceOnboarding\(\{ required = false \} = \{\}\)/);
 });
 
@@ -45,6 +46,11 @@ test('workspace onboarding remains available without company selection in the ac
   assert.match(service, /rpc_validate_organization_slug/);
   assert.match(service, /rpc_create_organization/);
   assert.match(service, /rpc_set_default_organization/);
+  assert.match(workspaceUi, /createdOrganization\?\.slug/);
+  assert.match(workspaceUi, /window\.location\.assign\(targetUrl\.toString\(\)\)/);
+  assert.match(workspaceUi, /targetUrl\.hostname = createdHostname/);
+  assert.match(workspaceUi, /searchParams\.set\('workspace_created', '1'\)/);
+  assert.match(main, /workspace_created/);
   assert.match(workspaceUi, /window\.location\.reload\(\)/);
   for (const id of [
     'workspace-current-name',

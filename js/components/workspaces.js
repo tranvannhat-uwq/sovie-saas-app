@@ -506,13 +506,25 @@ export function setupWorkspaceManagement() {
     if (!await validateSlugInput()) return;
     if (submitButton) submitButton.disabled = true;
     try {
-      await createSaasOrganization({
+      const createdOrganization = await createSaasOrganization({
         name: document.getElementById('workspace-name')?.value,
         slug: document.getElementById('workspace-slug')?.value,
         businessType: document.getElementById('workspace-business-type')?.value,
         industryKey: document.getElementById('workspace-industry')?.value
       });
       showToast('Workspace đã được tạo. Đang khởi tạo dữ liệu doanh nghiệp...', 'success');
+      const createdHostname = createdOrganization?.slug
+        ? `${String(createdOrganization.slug).toLowerCase()}.sovie.vn`
+        : '';
+      if (createdHostname && window.location.hostname.toLowerCase() !== createdHostname) {
+        const targetUrl = new URL(window.location.href);
+        targetUrl.protocol = 'https:';
+        targetUrl.hostname = createdHostname;
+        targetUrl.port = '';
+        targetUrl.searchParams.set('workspace_created', '1');
+        window.location.assign(targetUrl.toString());
+        return;
+      }
       window.location.reload();
     } catch (error) {
       showToast(error?.message || 'Không thể tạo workspace.', 'danger');

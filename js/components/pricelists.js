@@ -759,6 +759,51 @@ export function exportPriceMatrixExcel() {
   showToast(`Đã xuất ${products.length} SKU và ${lists.length} bảng giá đang chọn.`);
 }
 
+export function downloadPriceMatrixTemplate() {
+  if (!canManagePriceLists()) {
+    rejectPriceListMutation();
+    return;
+  }
+
+  const lists = sortPriceLists(
+    (state.pricelists || []).filter(priceList =>
+      priceList.isActive !== false && state.selectedPriceListIds.includes(priceList.id)
+    )
+  );
+  if (!lists.length) {
+    showToast('Hãy chọn ít nhất một bảng giá để tạo file mẫu.', 'warning');
+    return;
+  }
+
+  const products = getFilteredMatrixProducts();
+  const headers = [...PRICE_MATRIX_FIXED_HEADERS, ...lists.map(priceListExcelHeader)];
+  const rows = [
+    headers,
+    ...products.map(product => [...matrixProductCells(product), ...lists.map(() => '')])
+  ];
+  const workbook = XLSX.utils.book_new();
+  const matrixSheet = XLSX.utils.aoa_to_sheet(rows);
+  matrixSheet['!cols'] = [
+    { wch: 18 }, { wch: 44 }, { wch: 22 }, { wch: 24 }, ...lists.map(() => ({ wch: 28 }))
+  ];
+  matrixSheet['!autofilter'] = {
+    ref: `A1:${XLSX.utils.encode_col(headers.length - 1)}${Math.max(1, products.length + 1)}`
+  };
+  XLSX.utils.book_append_sheet(workbook, matrixSheet, 'Nhap Gia');
+  XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet([
+    ['HƯỚNG DẪN NHẬP BẢNG GIÁ'],
+    ['1. Điền giá vào sheet "Nhap Gia"; không sửa Mã SKU hoặc tiêu đề bảng giá.'],
+    ['2. Giữ ô trống nếu không muốn thay đổi giá hiện tại.'],
+    ['3. Nhập XOA để xóa giá riêng và quay lại giá kế thừa.'],
+    ['4. Giá phải là số nguyên không âm. Giá 0 sẽ cần xác nhận khi nhập.'],
+    ['5. Giữ nguyên phần ID trong dấu [] ở tiêu đề để hệ thống nhận diện bảng giá.']
+  ]), 'Huong Dan');
+
+  const stamp = new Date().toISOString().slice(0, 10);
+  XLSX.writeFile(workbook, `Mau_Ma_Tran_Bang_Gia_${stamp}.xlsx`);
+  showToast(`Đã tải file mẫu gồm ${products.length} SKU và ${lists.length} bảng giá.`);
+}
+
 function findPriceListFromExcelHeader(header, lists) {
   const raw = String(header || '').trim();
   const idMatch = raw.match(/\[([^\]]+)\]\s*$/);
@@ -1030,6 +1075,7 @@ export function setupPricelistManagement() {
   });
   document.getElementById('btn-save-price-matrix')?.addEventListener('click', savePriceMatrix);
   document.getElementById('btn-export-pricelist-excel')?.addEventListener('click', exportPriceMatrixExcel);
+  document.getElementById('btn-download-pricelist-template')?.addEventListener('click', downloadPriceMatrixTemplate);
   const priceExcelInput = document.getElementById('pricelist-excel-file-input');
   document.getElementById('btn-import-pricelist-excel')?.addEventListener('click', () => priceExcelInput?.click());
   priceExcelInput?.addEventListener('change', async () => {

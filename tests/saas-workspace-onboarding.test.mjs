@@ -46,20 +46,19 @@ test('workspace onboarding remains available without company selection in the ac
   assert.match(service, /rpc_validate_organization_slug/);
   assert.match(service, /rpc_create_organization/);
   assert.match(service, /rpc_set_default_organization/);
-  assert.match(workspaceUi, /createdOrganization\?\.slug/);
-  assert.match(workspaceUi, /window\.location\.assign\(targetUrl\.toString\(\)\)/);
-  assert.match(workspaceUi, /targetUrl\.hostname = createdHostname/);
-  assert.match(workspaceUi, /searchParams\.set\('workspace_created', '1'\)/);
-  assert.match(main, /workspace_created/);
+  assert.doesNotMatch(workspaceUi, /createdHostname|targetUrl\.hostname|workspace_created/);
+  assert.doesNotMatch(main, /workspace_created/);
   assert.match(workspaceUi, /window\.location\.reload\(\)/);
+  assert.match(workspaceUi, /switchSaasOrganization\(organizationId\)/);
   for (const id of [
     'workspace-current-name',
-    'workspace-current-domain',
+    'workspace-current-code',
+    'workspace-select',
     'workspace-plan-usage',
     'workspace-onboarding-modal',
     'workspace-onboarding-form'
   ]) {
     assert.match(html, new RegExp(`id="${id}"`));
   }
-  assert.doesNotMatch(html, /id="(?:workspace-select|btn-switch-workspace|btn-create-workspace)"/);
+  assert.match(html, /Mã workspace/);
 });

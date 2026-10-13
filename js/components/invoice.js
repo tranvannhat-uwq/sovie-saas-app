@@ -1,6 +1,6 @@
 import { state } from '../state.js';
 import { showToast, formatCurrency, formatNumber, formatPhoneNumber, safeCreateIcons, formatDateTime, calculateColorMarkedUpPrice, isSameUser, getProvinceNameByCode, PROVINCES, makeSelectSearchable, docSoTienBangChu, getUserCompanyId, getRevenueAttributes, getBrandName, getBrandById, getCompanyName, getCustomerName, getUserById, getUserDisplayName, getPricelistName, isLegacyPaintWorkspace } from '../utils.js';
-import { dbSaveOrder, dbCreateQuickCustomer, dbConfirmOrder, dbAmendOrder, dbFetchOrderDebtSnapshot, dbLoadCustomerAssignedPricing, dbRefreshCustomerFinancialState, dbRefreshOrderById, cacheOrdersLocally, isCloudActive } from '../services/supabase.js';
+import { dbSaveOrder, dbCreateImportedInvoiceDraft, dbLoadOrdersForHistoryRange, dbCreateQuickCustomer, dbConfirmOrder, dbAmendOrder, dbFetchOrderDebtSnapshot, dbLoadCustomerAssignedPricing, dbRefreshCustomerFinancialState, dbRefreshOrderById, cacheOrdersLocally, isCloudActive } from '../services/supabase.js';
 import { renderAll, switchTab } from '../main.js';
 import { tenantStorage } from '../services/tenant-storage.js';
 import { populatePricelistsDropdowns } from './pricelists.js';
@@ -9,12 +9,13 @@ import { addCashbookTransaction } from './so_quy.js';
 import { getApplicablePriceList, resolveCustomerProductPrice, normalizePriceListType, PRICE_LIST_TYPES, filterPriceListsForUser, canUserViewPriceList, canUserUsePriceListForCustomer, isDealerPrivatePriceList, isUsableResolvedPrice, shouldOverrideWithGlobalCustomerPriceList } from '../domain/pricing.js';
 import { normalizeCustomerPhone } from '../domain/customer-query.js';
 import { isPrintOnlyPriceList, requiresOrderSaveApproval, supportsInvoiceLineDiscount } from '../domain/invoice-discount.js';
-import { buildProductFamilies, buildVariantSnapshot, isCatalogVariant, searchProductFamilies, shouldAutoSelectVariant, variantSpecification } from '../domain/product-catalog.js';
+import { buildProductFamilies, buildVariantSnapshot, isCatalogVariant, normalizeCatalogText, searchProductFamilies, shouldAutoSelectVariant, variantSpecification } from '../domain/product-catalog.js';
 import { chargeCustomerDebt, getOrderDebtSnapshot, getOrderOutstandingAmount } from '../domain/customer-debt.js';
 import { getOrderDisplayCode } from '../domain/order-display.js';
 import { canAdjustOrderBusinessDate, currentBusinessDateInputValue, parseOrderBusinessDateInput } from '../domain/order-business-date.js';
 import { reorderOrderItems } from '../domain/order-edit.js';
 import { catalogAdjustmentPercent, isCatalogExtensionEnabled } from '../domain/generic-catalog.js';
+import { buildInvoiceImportFingerprint, buildInvoiceImportIdentity, findInvoiceImportProductMatches, parseInvoiceImportRows, stableInvoiceImportUuid } from '../domain/invoice-excel-import.js';
 import { isSalesBrandRestrictionEnabled } from '../domain/business-capabilities.js';
 import { itemMatchesAssignedBrand, partitionItemsByAssignedBrand } from '../domain/order-brand-policy.js';
 
@@ -22,8 +23,127 @@ let currentOrderToPrint = null;
 let lastFinalizedOrder = null;
 let isSavingOrder = false;
 let selectedProductFamilyKey = '';
+let importedInvoiceVatDetails = null;
+let pendingInvoiceExcelImport = null;
 const ORDER_IDEMPOTENCY_STORAGE_KEY = 'billing_pending_order_idempotency_key';
 const ORDER_PENDING_ID_STORAGE_KEY = 'billing_pending_order_id';
+
+function readInvoiceVatDetails(subtotal = 0, discountAmount = 0) {
+  const enabled = Boolean(document.getElementById('invoice-vat-enabled')?.checked);
+  const buyerName = enabled ? (document.getElementById('invoice-vat-buyer-name')?.value.trim() || '') : '';
+  const buyerTaxCode = enabled ? (document.getElementById('invoice-vat-buyer-tax-code')?.value.trim() || '') : '';
+  const buyerAddress = enabled ? (document.getElementById('invoice-vat-buyer-address')?.value.trim() || '') : '';
+  const buyerEmail = enabled ? (document.getElementById('invoice-vat-buyer-email')?.value.trim() || '') : '';
+  const rateInput = document.getElementById('invoice-vat-rate')?.value;
+  const rate = rateInput === '' || rateInput == null ? null : Number(rateInput);
+  const priceMode = document.getElementById('invoice-vat-price-mode')?.value === 'inclusive'
+    ? 'inclusive'
+    : 'exclusive';
+  const taxableAmount = Math.max(0, Math.round(Number(subtotal || 0) - Number(discountAmount || 0)));
+  const validRate = Number.isFinite(rate) && rate >= 0 && rate <= 100;
+
+  if (enabled && importedInvoiceVatDetails
+      && Number(importedInvoiceVatDetails.rate) === rate
+      && importedInvoiceVatDetails.priceMode === priceMode
+      && Number(importedInvoiceVatDetails.taxBaseAmount) === taxableAmount) {
+    const currentLineTaxBases = (state.invoiceItems || []).map(item => Math.max(0, Math.round(
+      Number(item.quantity || 0) * Number(item.price ?? item.unitPrice ?? 0)
+      * (1 - Number(item.discountPercent || 0) / 100)
+    )));
+    const originalLineTaxBases = importedInvoiceVatDetails.lineTaxBases || [];
+    const lineBasesMatch = currentLineTaxBases.length === originalLineTaxBases.length
+      && currentLineTaxBases.every((amount, index) => amount === Number(originalLineTaxBases[index]));
+    if (lineBasesMatch) {
+      return {
+        ...importedInvoiceVatDetails,
+        buyerName,
+        buyerTaxCode,
+        buyerAddress,
+        buyerEmail,
+        taxAmount: Number(importedInvoiceVatDetails.taxAmount || 0),
+        totalWithVat: priceMode === 'exclusive'
+          ? taxableAmount + Number(importedInvoiceVatDetails.taxAmount || 0)
+          : taxableAmount
+      };
+    }
+  }
+
+  const taxBaseAmount = enabled && priceMode === 'inclusive' && validRate && rate > 0
+    ? Math.round(taxableAmount / (1 + rate / 100))
+    : taxableAmount;
+  const taxAmount = !enabled || !validRate
+    ? 0
+    : (priceMode === 'inclusive'
+      ? taxableAmount - taxBaseAmount
+      : Math.round(taxableAmount * rate / 100));
+
+  return {
+    ...(importedInvoiceVatDetails ? {
+      sourceInvoiceNumber: importedInvoiceVatDetails.sourceInvoiceNumber,
+      sourceInvoiceDate: importedInvoiceVatDetails.sourceInvoiceDate,
+      sourceBuyerCode: importedInvoiceVatDetails.sourceBuyerCode,
+      sourceCurrency: importedInvoiceVatDetails.sourceCurrency,
+      sourceFingerprint: importedInvoiceVatDetails.sourceFingerprint,
+      issuerName: importedInvoiceVatDetails.issuerName,
+      issuerTaxCode: importedInvoiceVatDetails.issuerTaxCode,
+      sourceLines: importedInvoiceVatDetails.sourceLines
+    } : {}),
+    enabled,
+    buyerName,
+    buyerTaxCode,
+    buyerAddress,
+    buyerEmail,
+    rate: enabled && validRate ? rate : 0,
+    priceMode,
+    taxBaseAmount: enabled ? taxBaseAmount : 0,
+    taxAmount: enabled ? taxAmount : 0,
+    totalWithVat: enabled
+      ? (priceMode === 'exclusive' ? taxableAmount + taxAmount : taxableAmount)
+      : 0
+  };
+}
+
+function renderInvoiceVatTotals(details) {
+  const taxBaseEl = document.getElementById('invoice-vat-tax-base');
+  const taxAmountEl = document.getElementById('invoice-vat-tax-amount');
+  const totalEl = document.getElementById('invoice-vat-total');
+  if (taxBaseEl) taxBaseEl.innerText = formatCurrency(details.taxBaseAmount || 0);
+  if (taxAmountEl) taxAmountEl.innerText = formatCurrency(details.taxAmount || 0);
+  if (totalEl) totalEl.innerText = formatCurrency(details.totalWithVat || 0);
+}
+
+function setInvoiceVatFields(details = {}, isReadOnly = false) {
+  const enabled = Boolean(details.enabled);
+  importedInvoiceVatDetails = enabled && details.roundingMode === 'line'
+    ? { ...details }
+    : null;
+  const toggle = document.getElementById('invoice-vat-enabled');
+  const fields = document.getElementById('invoice-vat-fields');
+  if (toggle) {
+    toggle.checked = enabled;
+    toggle.disabled = isReadOnly;
+  }
+  if (fields) fields.style.display = enabled ? '' : 'none';
+  const values = {
+    'invoice-vat-buyer-name': details.buyerName || details.buyer_name || '',
+    'invoice-vat-buyer-tax-code': details.buyerTaxCode || details.buyer_tax_code || '',
+    'invoice-vat-buyer-address': details.buyerAddress || details.buyer_address || '',
+    'invoice-vat-buyer-email': details.buyerEmail || details.buyer_email || '',
+    'invoice-vat-rate': details.rate ?? details.vatRate ?? details.vat_rate ?? '',
+    'invoice-vat-price-mode': details.priceMode || details.price_mode || 'exclusive'
+  };
+  Object.entries(values).forEach(([id, value]) => {
+    const input = document.getElementById(id);
+    if (!input) return;
+    input.value = value;
+    input.disabled = isReadOnly;
+  });
+}
+
+export function applyInvoiceVatDetailsToBuilder(details = {}, isReadOnly = false) {
+  setInvoiceVatFields(details, isReadOnly);
+  renderInvoiceVatTotals(readInvoiceVatDetails());
+}
 
 function abbreviateSalesPosition(position = '') {
   const raw = String(position || '').trim();
@@ -332,6 +452,422 @@ function hasRestrictedInvoiceProductMatch(query) {
 function closeVariantPicker() {
   document.getElementById('invoice-variant-modal')?.classList.remove('active');
   document.body.classList.remove('invoice-variant-open');
+}
+
+function escapeInvoiceImportHtml(value) {
+  return String(value ?? '').replace(/[&<>\"']/g, character => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[character]));
+}
+
+function importProductCode(product) {
+  return String(product?.variantCode || product?.code || '').trim();
+}
+
+function invoiceImportCandidates(item) {
+  const products = (state.products || []).filter(product => product?.isActive !== false && product?.id);
+  const exact = findInvoiceImportProductMatches(item, products);
+  const exactIds = new Set(exact.map(product => String(product.id)));
+  const codeNeedle = normalizeCatalogText(item.code);
+  const nameNeedle = normalizeCatalogText(item.name);
+  const fuzzy = products.filter(product => {
+    if (exactIds.has(String(product.id))) return false;
+    const code = normalizeCatalogText(importProductCode(product));
+    const name = normalizeCatalogText(product.name);
+    return (codeNeedle && (code.startsWith(codeNeedle) || codeNeedle.startsWith(code)))
+      || (nameNeedle && (name === nameNeedle || name.includes(nameNeedle) || nameNeedle.includes(name)));
+  }).sort((left, right) => {
+    const leftExactName = normalizeCatalogText(left.name) === nameNeedle ? 0 : 1;
+    const rightExactName = normalizeCatalogText(right.name) === nameNeedle ? 0 : 1;
+    return leftExactName - rightExactName
+      || importProductCode(left).localeCompare(importProductCode(right), 'vi');
+  });
+  return [...exact, ...fuzzy].filter((product, index, list) =>
+    list.findIndex(candidate => String(candidate.id) === String(product.id)) === index
+  ).slice(0, 15);
+}
+
+function invoiceImportOptionLabel(product) {
+  const code = importProductCode(product);
+  const details = [product.name, product.unitName || product.unit || '', product.brandName || product.brand || '']
+    .filter(Boolean).join(' · ');
+  return [code, details].filter(Boolean).join(' — ');
+}
+
+function ensureInvoiceExcelImportModal() {
+  let modal = document.getElementById('invoice-excel-import-preview-modal');
+  if (modal) return modal;
+  modal = document.createElement('div');
+  modal.id = 'invoice-excel-import-preview-modal';
+  modal.className = 'modal-overlay invoice-excel-import-modal';
+  modal.setAttribute('role', 'dialog');
+  modal.setAttribute('aria-modal', 'true');
+  modal.setAttribute('aria-labelledby', 'invoice-excel-import-title');
+  modal.innerHTML = `
+    <div class="modal-content invoice-excel-import-dialog">
+      <div class="modal-header">
+        <div><h3 class="modal-title" id="invoice-excel-import-title">Kiểm tra hóa đơn Excel</h3><small class="invoice-excel-import-filename"></small></div>
+        <button type="button" class="modal-close" data-invoice-import-close aria-label="Đóng">×</button>
+      </div>
+      <div class="modal-body invoice-excel-import-body">
+        <div class="invoice-excel-import-notice"><strong>Lưu thành đơn nháp.</strong> Chưa ghi doanh số, thu tiền hoặc công nợ cho đến khi kế toán mở và xác nhận từng hóa đơn.</div>
+        <div class="invoice-excel-import-summary" aria-live="polite"></div>
+        <div class="invoice-excel-import-groups"></div>
+        <div class="invoice-excel-import-results" aria-live="polite"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-invoice-import-close>Đóng</button>
+        <button type="button" class="btn btn-primary" data-invoice-import-save disabled>Lưu đơn nháp đã chọn</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+  return modal;
+}
+
+function invoiceImportGroupReady(group, mappings) {
+  if (!group || group.issues.length) return false;
+  return group.items.every(item => Boolean(mappings.get(item.sourceRowNumber)));
+}
+
+function invoiceImportCustomerCandidates(group) {
+  const taxCode = invoiceImportTaxCodeKey(group.buyerTaxCode);
+  const sourceCode = normalizeCatalogText(group.buyerCode);
+  const sourceName = normalizeCatalogText(group.buyerCompany || group.buyerName);
+  return (state.customers || []).filter(customer => customer?.isActive !== false && customer?.status !== 'inactive')
+    .map(customer => {
+      const customerTaxCode = invoiceImportTaxCodeKey(customer.taxCode || customer.tax_code || customer.taxId || customer.tax_id);
+      const customerCode = normalizeCatalogText(customer.code || customer.customerCode || customer.customer_code);
+      const customerName = normalizeCatalogText(customer.name);
+      const taxMatch = Boolean(taxCode && customerTaxCode === taxCode);
+      const codeMatch = Boolean(sourceCode && customerCode === sourceCode);
+      const nameMatch = Boolean(sourceName && customerName && (customerName === sourceName
+        || customerName.includes(sourceName) || sourceName.includes(customerName)));
+      return { customer, score: taxMatch ? 0 : codeMatch ? 1 : nameMatch ? 2 : 99 };
+    })
+    .filter(entry => entry.score < 99)
+    .sort((left, right) => left.score - right.score
+      || String(left.customer.name || '').localeCompare(String(right.customer.name || ''), 'vi'))
+    .slice(0, 15)
+    .map(entry => entry.customer);
+}
+
+function renderInvoiceExcelImportPreview() {
+  const modal = ensureInvoiceExcelImportModal();
+  const pending = pendingInvoiceExcelImport;
+  if (!pending) return;
+  modal.querySelector('.invoice-excel-import-filename').textContent = pending.fileName;
+  const groupHost = modal.querySelector('.invoice-excel-import-groups');
+  groupHost.innerHTML = pending.parsed.groups.map((group, index) => {
+    const ready = invoiceImportGroupReady(group, pending.mappings);
+    const selected = pending.selected.has(index);
+    const issueList = group.issues.length
+      ? `<ul class="invoice-import-issues">${group.issues.map(issue => `<li>${escapeInvoiceImportHtml(issue)}</li>`).join('')}</ul>`
+      : '';
+    const warningList = group.warnings.length
+      ? `<ul class="invoice-import-warnings">${group.warnings.map(warning => `<li>${escapeInvoiceImportHtml(warning)}</li>`).join('')}</ul>`
+      : '';
+    const rows = group.items.map(item => {
+      const selectedId = pending.mappings.get(item.sourceRowNumber) || '';
+      const candidates = invoiceImportCandidates(item);
+      const options = [`<option value="">— Chọn SKU khớp mã nguồn ${escapeInvoiceImportHtml(item.code)} —</option>`, ...candidates.map(product =>
+        `<option value="${escapeInvoiceImportHtml(product.id)}" ${String(product.id) === String(selectedId) ? 'selected' : ''}>${escapeInvoiceImportHtml(invoiceImportOptionLabel(product))}</option>`
+      )].join('');
+      return `<tr>
+        <td>${item.sourceRowNumber}</td><td>${escapeInvoiceImportHtml(item.code)}<small>${escapeInvoiceImportHtml(item.name)}</small></td>
+        <td>${escapeInvoiceImportHtml(item.quantity)} ${escapeInvoiceImportHtml(item.unit)}</td>
+        <td>${formatCurrency(item.unitPrice)}</td><td>${formatCurrency(item.lineAmount)}</td><td>${formatCurrency(item.taxAmount)}</td>
+        <td><select class="form-control invoice-import-product-select" data-source-row="${item.sourceRowNumber}" aria-label="Mã sản phẩm cho dòng ${item.sourceRowNumber}">${options}</select></td>
+      </tr>`;
+    }).join('');
+    const customerId = pending.customerMappings.get(index) || '';
+    const customerOptions = invoiceImportCustomerCandidates(group).map(customer => {
+      const customerCode = customer.code || customer.customerCode || customer.customer_code || '';
+      const customerTaxCode = customer.taxCode || customer.tax_code || customer.taxId || customer.tax_id || '';
+      const label = [customer.name, customerCode ? `Mã ${customerCode}` : '', customerTaxCode ? `MST ${customerTaxCode}` : '']
+        .filter(Boolean).join(' · ');
+      return `<option value="${escapeInvoiceImportHtml(customer.id)}" ${String(customer.id) === String(customerId) ? 'selected' : ''}>${escapeInvoiceImportHtml(label)}</option>`;
+    }).join('');
+    const blockingSummary = !group.issues.length && !ready
+      ? '<p class="invoice-import-mapping-needed">Chọn đúng SKU cho từng dòng trước khi lưu.</p>'
+      : '';
+    return `<details class="invoice-import-group" open>
+      <summary>
+        <label><input type="checkbox" class="invoice-import-group-checkbox" data-group-index="${index}" ${selected ? 'checked' : ''} ${!ready ? 'disabled' : ''}> Chọn</label>
+        <strong>Hóa đơn ${escapeInvoiceImportHtml(group.invoiceNumber || 'thiếu mã')}</strong>
+        <span>${escapeInvoiceImportHtml(group.date?.slice(0, 10) || 'Thiếu ngày')}</span>
+        <span>${group.items.length} dòng</span><span>Tổng ${formatCurrency(group.totalWithTax)}</span>
+        <span class="invoice-import-group-state ${ready ? 'is-ready' : 'is-blocked'}">${ready ? 'Sẵn sàng' : group.issues.length ? 'Có lỗi' : 'Chưa khớp SKU'}</span>
+      </summary>
+      <div class="invoice-import-group-content">
+        ${group.buyerCompany || group.buyerName ? `<p><strong>Người mua trên file:</strong> ${escapeInvoiceImportHtml(group.buyerCompany || group.buyerName)}${group.buyerCode ? ` · Mã nguồn ${escapeInvoiceImportHtml(group.buyerCode)}` : ''}${group.buyerTaxCode ? ` · MST ${escapeInvoiceImportHtml(group.buyerTaxCode)}` : ''}</p>` : '<p>File không có thông tin người mua; hóa đơn nháp sẽ để khách hàng chưa khớp.</p>'}
+        <div class="invoice-import-customer-map"><label for="invoice-import-customer-${index}">Liên kết khách hàng trong hệ thống</label><select class="form-control invoice-import-customer-select" id="invoice-import-customer-${index}" data-group-index="${index}"><option value="">Không liên kết — giữ thông tin người mua từ file</option>${customerOptions}</select><small>Chỉ tự chọn khi mã số thuế khớp duy nhất; có thể chọn thủ công từ danh sách gợi ý.</small></div>
+        <p><strong>Giá trị hàng:</strong> ${formatCurrency(group.netAmount)} · <strong>VAT ${group.rate}%:</strong> ${formatCurrency(group.taxAmount)} · <strong>Tổng:</strong> ${formatCurrency(group.totalWithTax)} (làm tròn thuế theo từng dòng)</p>
+        ${issueList}${warningList}${blockingSummary}
+        <div class="invoice-import-table-wrap"><table><thead><tr><th>Dòng</th><th>Mã / hàng trên file</th><th>SL</th><th>Đơn giá</th><th>Thành tiền</th><th>VAT</th><th>SKU trong danh mục</th></tr></thead><tbody>${rows}</tbody></table></div>
+      </div>
+    </details>`;
+  }).join('');
+  const selectedCount = pending.selected.size;
+  const readyCount = pending.parsed.groups.filter((group, index) => invoiceImportGroupReady(group, pending.mappings) && pending.selected.has(index)).length;
+  modal.querySelector('.invoice-excel-import-summary').textContent = `${pending.parsed.dataRowCount} dòng dữ liệu · ${pending.parsed.groups.length} hóa đơn · ${readyCount}/${selectedCount} hóa đơn đã chọn sẵn sàng. Hãy rà soát người mua, mã hàng và thuế trước khi lưu.`;
+  const saveButton = modal.querySelector('[data-invoice-import-save]');
+  saveButton.disabled = pending.saving || readyCount === 0 || readyCount !== selectedCount;
+  saveButton.textContent = pending.saving ? 'Đang lưu đơn nháp…' : `Lưu ${readyCount} đơn nháp đã chọn`;
+  safeCreateIcons();
+}
+
+async function sha256Hex(value) {
+  const bytes = new TextEncoder().encode(String(value));
+  const digest = await globalThis.crypto.subtle.digest('SHA-256', bytes);
+  return [...new Uint8Array(digest)].map(byte => byte.toString(16).padStart(2, '0')).join('');
+}
+
+function invoiceImportTaxCodeKey(value) {
+  return String(value || '').trim().replace(/[\s.-]/g, '').toLocaleUpperCase('vi');
+}
+
+function invoiceImportCustomerIdsByTaxCode(group) {
+  const taxCode = invoiceImportTaxCodeKey(group.buyerTaxCode);
+  if (!taxCode) return [];
+  return (state.customers || []).filter(customer => {
+    const candidate = invoiceImportTaxCodeKey(customer.taxCode || customer.tax_code || customer.taxId || customer.tax_id);
+    return candidate && candidate === taxCode && customer.isActive !== false && customer.status !== 'inactive';
+  });
+}
+
+function buildImportedInvoiceDraft(group, productByRow, stableId, fingerprint, marker, customerId = null) {
+  const date = group.date;
+  const items = group.items.map((sourceItem, index) => {
+    const product = productByRow.get(sourceItem.sourceRowNumber);
+    const productId = getProductId(product);
+    const productBrand = product.brand || product.brandName || '';
+    const revenue = getRevenueAttributes(productBrand, '', getUserCompanyId(state.currentUser), state.brands);
+    return {
+      id: `${stableId}-item-${index + 1}`,
+      productId,
+      productGroupId: product.productGroupId || product.baseProductId || null,
+      variantId: productId,
+      variantCode: importProductCode(product),
+      baseCode: product.baseCode || product.code || '',
+      productCode: importProductCode(product),
+      productName: product.name || sourceItem.name,
+      brand: productBrand,
+      brandId: product.brandId || null,
+      package: product.packagingName || product.packageType || '',
+      packagingName: product.packagingName || product.packageType || '',
+      unitName: sourceItem.unit || product.unitName || product.unit || '',
+      quantity: sourceItem.quantity,
+      discountType: 'percent',
+      discountValue: 0,
+      discountPercent: 0,
+      price: sourceItem.unitPrice,
+      unitPrice: sourceItem.unitPrice,
+      listPrice: sourceItem.unitPrice,
+      finalUnitPrice: sourceItem.unitPrice,
+      priceListId: null,
+      priceListNameSnapshot: 'Giá nguồn Excel, chờ kế toán xác nhận',
+      priceSource: 'manual_override',
+      manualPriceEntered: true,
+      notes: [`Nguồn Excel dòng ${sourceItem.sourceRowNumber}: ${sourceItem.code} — ${sourceItem.name}${sourceItem.unit ? ` (${sourceItem.unit})` : ''}`, sourceItem.notes].filter(Boolean).join(' · '),
+      productBrand: revenue.productBrand,
+      agencyBrand: revenue.agencyBrand,
+      revenueBrand: revenue.revenueBrand,
+      revenueCompany: revenue.revenueCompany
+    };
+  });
+  const netAmount = group.netAmount;
+  const taxAmount = group.taxAmount;
+  const customerName = group.buyerCompany || group.buyerName || 'Khách hàng vãng lai';
+  const sourceMarker = marker;
+  const details = {
+    enabled: true,
+    buyerName: group.buyerCompany || group.buyerName || '',
+    buyerTaxCode: group.buyerTaxCode || '',
+    buyerAddress: group.buyerAddress || '',
+    buyerEmail: group.buyerEmail || '',
+    issuerName: group.issuerName || '',
+    issuerTaxCode: group.issuerTaxCode || '',
+    sourceInvoiceNumber: group.invoiceNumber,
+    sourceInvoiceDate: date.slice(0, 10),
+    sourceBuyerCode: group.buyerCode || '',
+    sourceCurrency: group.currency,
+    sourceFingerprint: fingerprint,
+    rate: group.rate,
+    priceMode: 'exclusive',
+    roundingMode: 'line',
+    taxBaseAmount: netAmount,
+    taxAmount,
+    totalWithVat: netAmount + taxAmount,
+    lineTaxBases: group.lineTaxBases,
+    lineTaxAmounts: group.lineTaxAmounts,
+    sourceLines: group.items.map(item => ({
+      row: item.sourceRowNumber,
+      rowNumber: item.rowNumber,
+      code: item.code,
+      name: item.name,
+      unit: item.unit,
+      quantity: item.quantity,
+      unitPrice: item.unitPrice,
+      lineAmount: item.lineAmount,
+      taxRate: item.taxRate,
+      taxAmount: item.taxAmount,
+      lineType: item.lineType,
+      notes: item.notes
+    }))
+  };
+  const noteParts = [
+    `Nguồn Excel · Hóa đơn ${group.invoiceNumber} · Ngày ${date.slice(0, 10)}`,
+    group.paymentMethod ? `Hình thức thanh toán ghi trên file: ${group.paymentMethod} (chưa xác nhận đã thu)` : '',
+    sourceMarker,
+    group.items.map(item => item.notes).filter(Boolean).join(' | ')
+  ].filter(Boolean);
+  return {
+    id: `EXL-${stableId}`,
+    idempotencyKey: stableId,
+    customerId: customerId || null,
+    customerName,
+    notes: noteParts.join('\n'),
+    items,
+    date,
+    totalMarket: netAmount,
+    totalDiscount: 0,
+    subtotal: netAmount,
+    discountValue: 0,
+    discountType: 'amount',
+    discountAmount: 0,
+    otherFeeValue: group.rate,
+    otherFeeType: 'percent',
+    otherFeeAmount: taxAmount,
+    shippingFeeValue: 0,
+    shippingFeeAmount: 0,
+    totalPayable: netAmount + taxAmount,
+    paidAmount: 0,
+    amountDue: netAmount + taxAmount,
+    pricelistId: 'retail',
+    companyId: getUserCompanyId(state.currentUser) || state.saasContext?.organizationId || 'main',
+    priceListNameSnapshot: 'Giá nguồn Excel',
+    priceSelectedBy: state.currentUser?.username || 'accounting',
+    status: 'draft',
+    vatDetails: details
+  };
+}
+
+async function saveSelectedInvoiceImportDrafts(modal) {
+  const pending = pendingInvoiceExcelImport;
+  if (!pending || pending.saving) return;
+  const selectedIndexes = [...pending.selected].sort((left, right) => left - right);
+  if (!selectedIndexes.length || selectedIndexes.some(index => !invoiceImportGroupReady(pending.parsed.groups[index], pending.mappings))) {
+    showToast('Hãy chọn SKU cho mọi dòng và xử lý lỗi trước khi lưu.', 'warning');
+    return;
+  }
+  pending.saving = true;
+  modal.querySelector('.invoice-excel-import-results').textContent = 'Đang lưu từng hóa đơn nháp…';
+  renderInvoiceExcelImportPreview();
+  const outcomes = [];
+  for (const index of selectedIndexes) {
+    const group = pending.parsed.groups[index];
+    try {
+      const productByRow = new Map(group.items.map(item => [
+        item.sourceRowNumber,
+        state.products.find(product => String(product.id) === String(pending.mappings.get(item.sourceRowNumber)))
+      ]));
+      if ([...productByRow.values()].some(product => !product || product.isActive === false)) {
+        outcomes.push({ group, label: 'Lỗi: mã SKU đã đổi hoặc ngừng áp dụng.' });
+        continue;
+      }
+      const selectedCustomerId = pending.customerMappings.get(index) || '';
+      if (selectedCustomerId && !invoiceImportCustomerCandidates(group)
+        .some(customer => String(customer.id) === String(selectedCustomerId))) {
+        outcomes.push({ group, label: 'Lỗi: khách hàng đã đổi hoặc ngừng áp dụng.' });
+        continue;
+      }
+      const invoiceIdentity = buildInvoiceImportIdentity(group,
+        state.saasContext?.organizationId || getUserCompanyId(state.currentUser) || 'workspace');
+      const sourceUuid = stableInvoiceImportUuid(await sha256Hex(invoiceIdentity));
+      const contentFingerprint = await sha256Hex(buildInvoiceImportFingerprint(group));
+      const marker = `[excel-import:${sourceUuid}:${contentFingerprint}]`;
+      const order = buildImportedInvoiceDraft(group, productByRow, sourceUuid, contentFingerprint, marker, selectedCustomerId);
+      const result = await dbCreateImportedInvoiceDraft(order, marker);
+      if (result?.status === 'created') {
+        pending.selected.delete(index);
+        outcomes.push({ group, label: `Đã lưu nháp (${order.id}).` });
+      } else if (result?.status === 'duplicate') {
+        pending.selected.delete(index);
+        outcomes.push({ group, label: `Đã có bản nháp trùng (${result.id}).` });
+      } else if (result?.status === 'conflict') {
+        outcomes.push({ group, label: `Xung đột mã chứng từ (${result.id}); nội dung khác bản đã nhập.` });
+      } else {
+        outcomes.push({ group, label: 'Chưa lưu được; dữ liệu vẫn có thể thử lại.' });
+      }
+    } catch (error) {
+      console.error('Invoice Excel draft import failed:', error);
+      outcomes.push({ group, label: 'Lỗi khi xử lý chứng từ; dữ liệu vẫn có thể thử lại.' });
+    }
+  }
+  pending.saving = false;
+  const createdCount = outcomes.filter(item => item.label.startsWith('Đã lưu nháp')).length;
+  const duplicateCount = outcomes.filter(item => item.label.startsWith('Đã có bản nháp')).length;
+  const successes = createdCount + duplicateCount;
+  modal.querySelector('.invoice-excel-import-results').innerHTML = `<strong>Kết quả lưu:</strong><ul>${outcomes.map(outcome => `<li>Hóa đơn ${escapeInvoiceImportHtml(outcome.group.invoiceNumber)}: ${escapeInvoiceImportHtml(outcome.label)}</li>`).join('')}</ul>`;
+  if (successes) {
+    const dates = selectedIndexes.map(index => pending.parsed.groups[index].date).filter(Boolean).sort();
+    const start = dates[0];
+    const last = dates.at(-1);
+    const lastDate = new Date(`${last.slice(0, 10)}T12:00:00.000Z`);
+    lastDate.setUTCDate(lastDate.getUTCDate() + 1);
+    const historyLoaded = await dbLoadOrdersForHistoryRange(start, lastDate.toISOString());
+    const resultMessage = [
+      createdCount ? `đã lưu mới ${createdCount}` : '',
+      duplicateCount ? `đã nhận diện ${duplicateCount} bản nháp đã có` : ''
+    ].filter(Boolean).join(', ');
+    showToast(historyLoaded
+      ? `Đã xử lý: ${resultMessage}; chưa phát sinh doanh số hoặc công nợ.`
+      : `Đã ghi nhận: ${resultMessage}, nhưng chưa tải lại được lịch sử. Hãy thử làm mới lịch sử sau.`,
+    historyLoaded ? 'success' : 'warning');
+    switchTab('history-panel');
+    renderAll();
+  }
+  renderInvoiceExcelImportPreview();
+  if (successes && pending.selected.size === 0) modal.classList.remove('active');
+}
+
+function bindInvoiceExcelImportModal() {
+  const modal = ensureInvoiceExcelImportModal();
+  if (modal.dataset.bound === 'true') return modal;
+  modal.dataset.bound = 'true';
+  const close = () => {
+    if (pendingInvoiceExcelImport?.saving) return;
+    modal.classList.remove('active');
+  };
+  modal.querySelectorAll('[data-invoice-import-close]').forEach(button => button.addEventListener('click', close));
+  modal.addEventListener('click', event => { if (event.target === modal) close(); });
+  modal.addEventListener('change', event => {
+    if (!pendingInvoiceExcelImport) return;
+    const sourceRow = Number(event.target.dataset.sourceRow);
+    if (Number.isInteger(sourceRow) && event.target.matches('.invoice-import-product-select')) {
+      if (event.target.value) pendingInvoiceExcelImport.mappings.set(sourceRow, event.target.value);
+      else pendingInvoiceExcelImport.mappings.delete(sourceRow);
+      pendingInvoiceExcelImport.parsed.groups.forEach((group, index) => {
+        if (!invoiceImportGroupReady(group, pendingInvoiceExcelImport.mappings)) pendingInvoiceExcelImport.selected.delete(index);
+      });
+      renderInvoiceExcelImportPreview();
+      return;
+    }
+    const groupIndex = Number(event.target.dataset.groupIndex);
+    if (Number.isInteger(groupIndex) && event.target.matches('.invoice-import-customer-select')) {
+      if (event.target.value) pendingInvoiceExcelImport.customerMappings.set(groupIndex, event.target.value);
+      else pendingInvoiceExcelImport.customerMappings.delete(groupIndex);
+      renderInvoiceExcelImportPreview();
+      return;
+    }
+    if (Number.isInteger(groupIndex) && event.target.matches('.invoice-import-group-checkbox')) {
+      if (event.target.checked) pendingInvoiceExcelImport.selected.add(groupIndex);
+      else pendingInvoiceExcelImport.selected.delete(groupIndex);
+      renderInvoiceExcelImportPreview();
+    }
+  });
+  modal.querySelector('[data-invoice-import-save]')?.addEventListener('click', () => saveSelectedInvoiceImportDrafts(modal));
+  return modal;
 }
 
 function addVariantToInvoice(variant) {
@@ -958,8 +1494,13 @@ export function calculateInvoiceTotals() {
   const shippingFeeData = parseDiscountOrFeeInput('invoice-shipping-fee-value', null);
   const shippingFeeAmount = Math.max(0, shippingFeeData.value || 0);
 
-  // Tiền cước khách nhờ thanh toán được cộng vào số còn phải thu.
-  const orderTotal = Math.max(0, subtotal - discountAmount);
+  const vatDetails = readInvoiceVatDetails(subtotal, discountAmount);
+  const vatAddedToPrice = vatDetails.enabled && vatDetails.priceMode === 'exclusive'
+    ? vatDetails.taxAmount
+    : 0;
+
+  // VAT được cộng vào tiền hàng khi giá chưa gồm thuế; thu khác/phí giao hàng tính riêng.
+  const orderTotal = Math.max(0, subtotal - discountAmount + vatAddedToPrice);
   const amountDue = Math.max(0, orderTotal + shippingFeeAmount);
 
   // Cập nhật lên UI với đúng ID trong index.html
@@ -969,6 +1510,8 @@ export function calculateInvoiceTotals() {
   const subtotalEl = document.getElementById('summary-subtotal');
   const discActualEl = document.getElementById('summary-discount-actual');
   const shippingFeeActualEl = document.getElementById('summary-shipping-fee-actual');
+  const vatSummaryRow = document.getElementById('summary-vat-row');
+  const vatSummaryAmount = document.getElementById('summary-vat-amount');
   const payableEl = document.getElementById('summary-final-total');
   const savingBadge = document.getElementById('summary-saving-badge');
   const crossedMarket = document.getElementById('summary-final-market-crossed');
@@ -979,7 +1522,14 @@ export function calculateInvoiceTotals() {
   if (subtotalEl) subtotalEl.innerText = formatCurrency(subtotal);
   if (discActualEl) discActualEl.innerText = `-${formatCurrency(discountAmount)}`;
   if (shippingFeeActualEl) shippingFeeActualEl.innerText = `+${formatCurrency(shippingFeeAmount)}`;
+  if (vatSummaryRow) vatSummaryRow.hidden = !vatDetails.enabled;
+  if (vatSummaryAmount) {
+    vatSummaryAmount.innerText = vatDetails.priceMode === 'inclusive'
+      ? `${formatCurrency(vatDetails.taxAmount)} (đã gồm)`
+      : `+${formatCurrency(vatDetails.taxAmount)}`;
+  }
   if (payableEl) payableEl.innerText = formatCurrency(amountDue);
+  renderInvoiceVatTotals(vatDetails);
 
   const totalCombinedDiscount = totalDiscount + discountAmount;
   if (savingBadge && crossedMarket) {
@@ -990,7 +1540,7 @@ export function calculateInvoiceTotals() {
       else savingBadge.innerText = `Khách tiết kiệm được ${savingPercent}% (${formatCurrency(totalCombinedDiscount)})`;
       savingBadge.style.display = 'inline-flex';
       
-      const crossedTotal = Math.round(amountDue + discountAmount);
+      const crossedTotal = Math.round(amountDue + discountAmount - vatAddedToPrice);
       crossedMarket.innerText = formatCurrency(crossedTotal);
       crossedMarket.style.display = 'inline';
     } else {
@@ -1133,8 +1683,30 @@ export function compileActiveOrder(customerOverride = null) {
 
   const shippingFeeData = parseDiscountOrFeeInput('invoice-shipping-fee-value', null);
   const shippingFeeAmount = Math.max(0, shippingFeeData.value || 0);
-
-  const totalPayable = Math.max(0, subtotal - discountAmount);
+  const vatDetails = readInvoiceVatDetails(subtotal, discountAmount);
+  if (vatDetails.enabled) {
+    if (!vatDetails.buyerName) {
+      showToast('Vui lòng nhập tên đơn vị hoặc người mua trên hóa đơn VAT.', 'warning');
+      document.getElementById('invoice-vat-buyer-name')?.focus();
+      return null;
+    }
+    const rateInput = document.getElementById('invoice-vat-rate')?.value;
+    if (rateInput === '' || !Number.isFinite(Number(rateInput)) || Number(rateInput) < 0 || Number(rateInput) > 100) {
+      showToast('Vui lòng nhập thuế suất VAT từ 0 đến 100%.', 'warning');
+      document.getElementById('invoice-vat-rate')?.focus();
+      return null;
+    }
+    const buyerEmailInput = document.getElementById('invoice-vat-buyer-email');
+    if (buyerEmailInput?.value.trim() && !buyerEmailInput.validity.valid) {
+      showToast('Email nhận hóa đơn chưa đúng định dạng.', 'warning');
+      buyerEmailInput.focus();
+      return null;
+    }
+  }
+  const vatAddedToPrice = vatDetails.enabled && vatDetails.priceMode === 'exclusive'
+    ? vatDetails.taxAmount
+    : 0;
+  const totalPayable = Math.max(0, subtotal - discountAmount + vatAddedToPrice);
   const paidAmount = 0;
   const amountDue = Math.max(0, totalPayable + shippingFeeAmount);
 
@@ -1246,9 +1818,9 @@ export function compileActiveOrder(customerOverride = null) {
     discountValue: discData.value,
     discountType: discData.type,
     discountAmount: discountAmount,
-    otherFeeValue: 0,
-    otherFeeType: 'amount',
-    otherFeeAmount: 0,
+    otherFeeValue: vatDetails.enabled && vatDetails.priceMode === 'exclusive' ? vatDetails.rate : 0,
+    otherFeeType: vatDetails.enabled && vatDetails.priceMode === 'exclusive' ? 'percent' : 'amount',
+    otherFeeAmount: vatAddedToPrice,
     shippingFeeValue: shippingFeeAmount,
     shippingFeeAmount,
     paidAmount,
@@ -1259,6 +1831,7 @@ export function compileActiveOrder(customerOverride = null) {
     priceListNameSnapshot: state.pricelists.find(priceList => priceList.id === pricelistId)?.name || '',
     priceSelectedBy: state.currentUser ? state.currentUser.username : 'admin',
     issuerProfileSnapshot: state.businessCapabilities?.settings?.branding?.invoice_issuers?.[String(companyId)] || null,
+    vatDetails: vatDetails.enabled ? vatDetails : null,
     customerManagerId,
     createdBy: state.currentUser ? state.currentUser.username : 'admin'
   };
@@ -1617,6 +2190,10 @@ export function resetInvoiceBuilder() {
   clearPendingOrderIdempotencyKey();
   state.invoiceItems = [];
   document.getElementById('invoice-notes').value = '';
+  setInvoiceVatFields({}, false);
+  renderInvoiceVatTotals({ taxBaseAmount: 0, taxAmount: 0, totalWithVat: 0 });
+  const vatSummaryRow = document.getElementById('summary-vat-row');
+  if (vatSummaryRow) vatSummaryRow.hidden = true;
   const productSearch = document.getElementById('invoice-product-search');
   if (productSearch) {
     productSearch.value = '';
@@ -1807,6 +2384,8 @@ export async function renderAndPrintOrder(order, type = 'retail') {
   const orderDebtSnapshot = type === 'agent' && order?.status === 'settled' && order?.customerId
     ? await dbFetchOrderDebtSnapshot(order.id, order.customerId)
     : null;
+  const vatDetails = order.vatDetails || order.vat_details || {};
+  const hasVatInvoice = Boolean(vatDetails.enabled) && type !== 'warehouse' && type !== 'processing';
   // Cập nhật tiêu đề hóa đơn và kích thước logo theo loại bản in
   const titleEl = document.querySelector('#print-invoice-template h1');
   const printLogoImg = document.querySelector('.print-logo-container img');
@@ -1821,6 +2400,9 @@ export async function renderAndPrintOrder(order, type = 'retail') {
     if (type === 'warehouse' || type === 'processing') {
       titleEl.innerText = 'PHIẾU XUẤT KHO';
       titleEl.style.fontSize = '17.6pt'; // Giảm 20% từ 22pt
+    } else if (hasVatInvoice) {
+      titleEl.innerText = 'HÓA ĐƠN GIÁ TRỊ GIA TĂNG';
+      titleEl.style.fontSize = '19pt';
     } else if (type === 'retail') {
       titleEl.innerText = 'HÓA ĐƠN';
       titleEl.style.fontSize = '22pt';
@@ -1919,6 +2501,7 @@ export async function renderAndPrintOrder(order, type = 'retail') {
   const config = {
     name: brandName,
     companyName: profile.legal_name || profile.companyName || profile.company_name || defaultIssuer.companyName,
+    taxCode: profile.tax_code || profile.taxCode || '',
     logoFilename: profile.logo_url || profile.logoFilename || profile.logo_filename || defaultIssuer.logoFilename,
     hotline: profile.hotline || defaultIssuer.hotline,
     cskh: profile.customer_service_phone || profile.cskh || defaultIssuer.cskh,
@@ -2000,8 +2583,14 @@ export async function renderAndPrintOrder(order, type = 'retail') {
   if (companyLargeEl) {
     companyLargeEl.innerText = config.companyName;
     companyLargeEl.style.display = type === 'retail' ? 'none' : '';
+    if (hasVatInvoice) companyLargeEl.style.display = '';
     if (type === 'processing') companyLargeEl.style.display = 'none';
   }
+
+  const issuerTaxCodeEl = document.getElementById('print-issuer-tax-code');
+  const issuerTaxCodeRow = document.getElementById('print-issuer-tax-code-row');
+  if (issuerTaxCodeEl) issuerTaxCodeEl.innerText = config.taxCode;
+  if (issuerTaxCodeRow) issuerTaxCodeRow.style.display = hasVatInvoice && config.taxCode ? '' : 'none';
 
   const sellerNameEl = document.getElementById('print-seller-name');
   if (sellerNameEl) sellerNameEl.innerText = config.companyName;
@@ -2098,6 +2687,28 @@ export async function renderAndPrintOrder(order, type = 'retail') {
     if (phoneEl) phoneEl.innerText = 'N/A';
     if (groupEl) groupEl.innerText = 'N/A';
   }
+
+  const printVatBuyer = {
+    'print-vat-buyer-name': vatDetails.buyerName || vatDetails.buyer_name || '',
+    'print-vat-buyer-tax-code': vatDetails.buyerTaxCode || vatDetails.buyer_tax_code || '',
+    'print-vat-buyer-address': vatDetails.buyerAddress || vatDetails.buyer_address || '',
+    'print-vat-buyer-email': vatDetails.buyerEmail || vatDetails.buyer_email || ''
+  };
+  Object.entries(printVatBuyer).forEach(([id, value]) => {
+    const element = document.getElementById(id);
+    if (element) element.innerText = value;
+  });
+  const printVatBuyerRow = document.getElementById('print-vat-buyer-row');
+  if (printVatBuyerRow) printVatBuyerRow.style.display = hasVatInvoice ? '' : 'none';
+  [
+    ['print-vat-buyer-name-row', printVatBuyer['print-vat-buyer-name']],
+    ['print-vat-buyer-tax-code-row', printVatBuyer['print-vat-buyer-tax-code']],
+    ['print-vat-buyer-address-row', printVatBuyer['print-vat-buyer-address']],
+    ['print-vat-buyer-email-row', printVatBuyer['print-vat-buyer-email']]
+  ].forEach(([id, value]) => {
+    const row = document.getElementById(id);
+    if (row) row.style.display = hasVatInvoice && String(value || '').trim() ? '' : 'none';
+  });
 
   const table = document.getElementById('print-invoice-table');
   
@@ -2278,8 +2889,18 @@ export async function renderAndPrintOrder(order, type = 'retail') {
 
     const printSubtotal = order.subtotal !== undefined ? order.subtotal : (isRetail ? sumSubTotal - order.totalDiscount : sumSubTotal);
     const printDiscount = order.discountAmount || 0;
-    const printOtherFee = order.otherFeeAmount || 0;
+    const printOtherFee = hasVatInvoice ? 0 : (order.otherFeeAmount || 0);
     const printShippingFee = order.shippingFeeAmount || order.shippingFeeValue || 0;
+    const printVatRows = hasVatInvoice ? `
+        <tr>
+          <td colspan="${summaryLabelColspan}" style="font-weight: bold; text-align: left; padding: 4px 8px;">Giá trị tính VAT sau chiết khấu</td>
+          <td style="text-align: right; font-weight: bold; padding: 4px 8px;">${formatNumber(vatDetails.taxBaseAmount || 0)}</td>
+        </tr>
+        <tr>
+          <td colspan="${summaryLabelColspan}" style="font-weight: bold; text-align: left; padding: 4px 8px;">Thuế suất VAT (${Number(vatDetails.rate || 0)}%)${vatDetails.priceMode === 'inclusive' ? ' — đã nằm trong giá' : ''}</td>
+          <td style="text-align: right; font-weight: bold; padding: 4px 8px;">${formatNumber(vatDetails.taxAmount || 0)}</td>
+        </tr>
+      ` : '';
 
     table.innerHTML = `
       <thead>
@@ -2305,6 +2926,8 @@ export async function renderAndPrintOrder(order, type = 'retail') {
           <td colspan="${summaryLabelColspan}" style="font-weight: bold; text-align: left; padding: 4px 8px;">Chiết khấu bán hàng${order.discountType === 'percent' && order.discountValue > 0 ? ` (${order.discountValue}%)` : ''}</td>
           <td style="text-align: right; font-weight: bold; padding: 4px 8px;">-${formatNumber(printDiscount)}</td>
         </tr>
+
+        ${printVatRows}
         
         ${printOtherFee > 0 ? `
         <tr>
@@ -2672,19 +3295,54 @@ export function setupInvoiceCreator() {
       const file = e.target.files?.[0];
       if (!file) return;
       try {
+        if (!['admin', 'accounting'].includes(state.currentUser?.role)) {
+          showToast('Chỉ Admin hoặc Kế toán được nhập hóa đơn Excel.', 'danger');
+          return;
+        }
+        if (!isCloudActive) {
+          showToast('Cần kết nối Cloud để lưu các hóa đơn nhập thành đơn nháp.', 'warning');
+          return;
+        }
         if (!globalThis.XLSX) {
           showToast('Thư viện Excel đang tải, vui lòng thử lại sau giây lát.', 'warning');
           return;
         }
         const data = await file.arrayBuffer();
         const workbook = XLSX.read(data, { type: 'array' });
-        const sheet = workbook.Sheets[workbook.SheetNames[0]];
-        const rows = XLSX.utils.sheet_to_json(sheet);
-        if (!rows || rows.length === 0) {
-          showToast('File Excel không có dữ liệu.', 'warning');
+        const usableSheets = (workbook.SheetNames || []).map(name => ({
+          name,
+          rows: XLSX.utils.sheet_to_json(workbook.Sheets[name], { header: 1, defval: null, raw: true, blankrows: true })
+        })).filter(sheet => sheet.rows.some(row => Array.isArray(row) && row.some(value => value !== null && String(value).trim() !== '')));
+        if (usableSheets.length !== 1) {
+          showToast(usableSheets.length ? 'File có nhiều sheet chứa dữ liệu. Hãy giữ lại một sheet hóa đơn để tránh nhập nhầm.' : 'File Excel không có dữ liệu.', 'warning');
           return;
         }
-        showToast(`Đã nạp file Excel "${file.name}" thành công (${rows.length} dòng).`, 'success');
+        const parsed = parseInvoiceImportRows(usableSheets[0].rows);
+        if (parsed.error) {
+          showToast(`Không nhận diện được bảng hóa đơn: ${parsed.error}`, 'warning');
+          return;
+        }
+        if (!parsed.dataRowCount || !parsed.groups.length) {
+          showToast('File Excel không có dòng hóa đơn để xem trước.', 'warning');
+          return;
+        }
+        const mappings = new Map();
+        parsed.groups.forEach(group => group.items.forEach(item => {
+          const matches = findInvoiceImportProductMatches(item, state.products || []);
+          if (matches.length === 1) mappings.set(item.sourceRowNumber, matches[0].id);
+        }));
+        const customerMappings = new Map();
+        parsed.groups.forEach((group, index) => {
+          const matches = invoiceImportCustomerIdsByTaxCode(group);
+          if (matches.length === 1) customerMappings.set(index, matches[0].id);
+        });
+        const selected = new Set(parsed.groups
+          .map((group, index) => invoiceImportGroupReady(group, mappings) ? index : -1)
+          .filter(index => index >= 0));
+        pendingInvoiceExcelImport = { parsed, mappings, customerMappings, selected, fileName: file.name, saving: false };
+        const modal = bindInvoiceExcelImportModal();
+        modal.classList.add('active');
+        renderInvoiceExcelImportPreview();
       } catch (err) {
         showToast('Lỗi khi đọc file Excel: ' + (err.message || err), 'danger');
       } finally {
@@ -2715,6 +3373,45 @@ export function setupInvoiceCreator() {
       if (shippingFeeValInput.value.trim() === '') shippingFeeValInput.value = '0';
       calculateInvoiceTotals();
     });
+  }
+
+  const vatToggle = document.getElementById('invoice-vat-enabled');
+  const vatFields = document.getElementById('invoice-vat-fields');
+  const vatRateInput = document.getElementById('invoice-vat-rate');
+  const vatPriceMode = document.getElementById('invoice-vat-price-mode');
+  if (vatToggle && vatFields && !vatToggle.dataset.bound) {
+    vatToggle.dataset.bound = 'true';
+    vatToggle.addEventListener('change', () => {
+      vatFields.style.display = vatToggle.checked ? '' : 'none';
+      if (vatToggle.checked) {
+        const selectedCustomer = state.customers.find(customer => String(customer.id) === String(state.activeCustomerId));
+        const quickName = state.isQuickCustomerMode
+          ? document.getElementById('quick-cust-name')?.value.trim()
+          : '';
+        const buyerNameInput = document.getElementById('invoice-vat-buyer-name');
+        const buyerAddressInput = document.getElementById('invoice-vat-buyer-address');
+        if (buyerNameInput && !buyerNameInput.value.trim()) {
+          buyerNameInput.value = selectedCustomer?.name
+            || quickName
+            || document.getElementById('invoice-customer-search')?.value.trim()
+            || '';
+        }
+        if (buyerAddressInput && !buyerAddressInput.value.trim()) {
+          buyerAddressInput.value = selectedCustomer?.address
+            || (state.isQuickCustomerMode ? document.getElementById('quick-cust-address')?.value.trim() : '')
+            || '';
+        }
+      }
+      calculateInvoiceTotals();
+    });
+  }
+  if (vatRateInput && !vatRateInput.dataset.bound) {
+    vatRateInput.dataset.bound = 'true';
+    vatRateInput.addEventListener('input', calculateInvoiceTotals);
+  }
+  if (vatPriceMode && !vatPriceMode.dataset.bound) {
+    vatPriceMode.dataset.bound = 'true';
+    vatPriceMode.addEventListener('change', calculateInvoiceTotals);
   }
 
   // Sự kiện tìm kiếm khách hàng trong invoice panel

@@ -44,15 +44,18 @@ async function verifyIndexAssets() {
 
   for (const versionedReference of references) {
     const reference = stripQueryAndHash(versionedReference);
-    const target = resolve(projectRoot, reference);
+    // A leading slash in HTML points to the deployed site's root, not the
+    // filesystem drive root (for example, /js/app.js -> <project>/js/app.js).
+    const projectReference = reference.startsWith('/') ? reference.slice(1) : reference;
+    const target = resolve(projectRoot, projectReference);
     assertInsideProject(target, `index.html reference ${reference}`);
     await assertExists(target, `index.html reference ${reference}`);
 
-    if (!reference.startsWith('js/') && !publicFiles.includes(reference)) {
+    if (!projectReference.startsWith('js/') && !publicFiles.includes(projectReference)) {
       throw new Error(`Local asset ${reference} is referenced by index.html but is not included in scripts/project-files.mjs.`);
     }
 
-    if (immutablePublicFiles.includes(reference) && !/[?&]v=[^&#]+/i.test(versionedReference)) {
+    if (immutablePublicFiles.includes(projectReference) && !/[?&]v=[^&#]+/i.test(versionedReference)) {
       throw new Error(`Immutable local asset ${reference} must include a non-empty version query (?v=...).`);
     }
   }

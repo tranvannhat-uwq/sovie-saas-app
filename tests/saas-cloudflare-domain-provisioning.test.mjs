@@ -5,6 +5,7 @@ import test from 'node:test';
 import {fileURLToPath} from 'node:url';
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const migration=fs.readFileSync(path.join(root,'migrations','0074_cloudflare_ssl_provisioning.sql'),'utf8');
+const pauseMigration=fs.readFileSync(path.join(root,'migrations','0108_centralized_login_and_pause_custom_domains.sql'),'utf8');
 const edge=fs.readFileSync(path.join(root,'supabase','functions','provision-custom-domain','index.ts'),'utf8');
 const integration=fs.readFileSync(path.join(root,'migrations','tests','saas_cloudflare_ssl_provisioning_integration.sql'),'utf8');
 const service=fs.readFileSync(path.join(root,'js','services','supabase.js'),'utf8');
@@ -25,7 +26,7 @@ test('only service role records provider readiness and both statuses must be act
   assert.match(migration,/TO service_role/);
   assert.match(integration,/both_active_statuses_activate_custom_domain/);
 });
-test('Edge adapter is fail-closed and uses the official custom-hostnames API',()=>{
+test('legacy Edge adapter remains isolated while customer SSL jobs are paused',()=>{
   assert.match(edge,/CLOUDFLARE_API_TOKEN/);
   assert.match(edge,/CLOUDFLARE_ZONE_ID/);
   assert.match(edge,/CLOUDFLARE_ORIGIN_HOSTNAME/);
@@ -33,6 +34,7 @@ test('Edge adapter is fail-closed and uses the official custom-hostnames API',()
   assert.match(edge,/api\.cloudflare\.com\/client\/v4\/zones\/\$\{zoneId\}\/custom_hostnames/);
   assert.match(edge,/ssl:\{method:'http',type:'dv'/);
   assert.match(edge,/rpc_finish_domain_ssl_provisioning/);
-  assert.match(service,/functions\.invoke\('provision-custom-domain'/);
-  assert.match(workspaces,/domain-ssl-btn/);
+  assert.match(pauseMigration,/public\.rpc_begin_domain_ssl_provisioning\(uuid\)/);
+  assert.doesNotMatch(service,/functions\.invoke\('provision-custom-domain'/);
+  assert.doesNotMatch(workspaces,/domain-ssl-btn/);
 });

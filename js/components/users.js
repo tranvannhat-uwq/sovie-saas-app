@@ -6,6 +6,7 @@ import { renderAll, switchTab } from '../main.js';
 import { populateManagedByDropdown } from './customers.js';
 import { openWorkspaceOnboarding, renderWorkspaceSwitcher, renderSubscriptionAccessNotice } from './workspaces.js';
 import { clearPlatformAdminState, hydratePlatformAdmin } from './platform-admin.js';
+import { canonicalAppUrl } from '../domain/app-origin.js';
 import {
   LOGIN_ERROR,
   classifySupabaseError,
@@ -290,11 +291,8 @@ export async function requestPasswordReset() {
   const button = document.getElementById('btn-forgot-password');
   if (button) button.disabled = true;
   try {
-    const redirectUrl = new URL(window.location.origin);
-    redirectUrl.pathname = window.location.pathname || '/';
-    redirectUrl.searchParams.set('type', 'recovery');
     const { error } = await supabaseClient.auth.resetPasswordForEmail(email, {
-      redirectTo: redirectUrl.toString()
+      redirectTo: canonicalAppUrl('/', { type: 'recovery' })
     });
     if (error) throw error;
     showToast('Nếu email tồn tại, SoVie đã gửi liên kết đặt lại mật khẩu. Hãy kiểm tra cả thư rác.', 'success');
@@ -1040,7 +1038,7 @@ export function applyUserPermissions(user) {
       .col-delete-prod { display: none !important; }
       .delete-order-btn { display: none !important; }
       #btn-clear-history { display: none !important; }
-      #btn-open-add-pricelist-modal, #btn-import-pricelist-excel, #btn-save-price-matrix { display: none !important; }
+      #btn-open-add-pricelist-modal, #btn-import-pricelist-excel, #btn-download-pricelist-template, #btn-save-price-matrix { display: none !important; }
       #btn-open-add-brand-modal, .edit-brand-btn, .delete-brand-btn { display: none !important; }
       #brands-panel th:last-child, #brands-panel td:last-child { display: none !important; }
       #dash-btn-add-product { display: none !important; }

@@ -36,9 +36,18 @@ export function isOrderInHistoryWindow(order, startIso, endExclusiveIso) {
 
 export function mapOrderHistoryRow(order = {}) {
   const totalPayable = parseFloat(order.total_payable ?? order.totalPayable ?? 0);
-  const paidAmount = parseFloat(
-    order.paid_amount ?? order.paidAmount ?? order.other_fee_amount ?? order.otherFeeAmount ?? 0
-  );
+  let vatDetails = order.vat_details || order.vatDetails || null;
+  if (typeof vatDetails === 'string') {
+    try { vatDetails = JSON.parse(vatDetails); }
+    catch (_error) { vatDetails = null; }
+  }
+  let issuerProfileSnapshot = order.issuer_profile_snapshot || order.issuerProfileSnapshot || null;
+  if (typeof issuerProfileSnapshot === 'string') {
+    try { issuerProfileSnapshot = JSON.parse(issuerProfileSnapshot); }
+    catch (_error) { issuerProfileSnapshot = null; }
+  }
+  const paidAmount = parseFloat(order.paid_amount ?? order.paidAmount
+    ?? (vatDetails?.enabled ? 0 : (order.other_fee_amount ?? order.otherFeeAmount ?? 0)));
   const shippingFeeAmount = parseFloat(order.shipping_fee_amount ?? order.shippingFeeAmount ?? 0);
 
   return {
@@ -60,6 +69,8 @@ export function mapOrderHistoryRow(order = {}) {
     discountType: order.discount_type || order.discountType || 'amount',
     discountAmount: parseFloat(order.discount_amount ?? order.discountAmount ?? 0),
     otherFeeAmount: parseFloat(order.other_fee_amount ?? order.otherFeeAmount ?? 0),
+    vatDetails,
+    issuerProfileSnapshot,
     shippingFeeValue: parseFloat(order.shipping_fee_value ?? order.shippingFeeValue ?? 0),
     shippingFeeAmount,
     totalPayable,

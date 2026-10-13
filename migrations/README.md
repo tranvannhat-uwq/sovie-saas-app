@@ -111,6 +111,9 @@ Run these files in order on a staging clone first:
 103. `0103_workspace_sales_policy_and_neutral_defaults.sql`
 104. `0104_authoritative_catalog_order_policy.sql`
 105. `0105_optional_workspace_brands_and_invoice_issuer.sql`
+106. `0106_workspace_domain_login_binding.sql`
+107. `0107_order_vat_invoice_details.sql`
+108. `0108_centralized_login_and_pause_custom_domains.sql`
 
 Every file is additive and records its version in `public.schema_migrations`.
 Apply each version once; the migration table is the source of truth for the
@@ -122,6 +125,12 @@ staging project with `npm run db:apply-trial-activation`; the script asks for a
 staging-only connection URI and password interactively, checks the project ref,
 reloads PostgREST's schema and verifies the deployed function before reporting
 success.
+
+Migration `0108` centralizes workspace access at `sovie.vn` and pauses customer
+custom-domain management. It preserves existing domain rows, revokes customer
+execution of domain-binding/provisioning RPCs, and sets custom-domain plan
+limits to zero. Apply it after deploying the frontend that redirects all other
+hosts to `sovie.vn` and resolves the active workspace from account membership.
 
 The clean-database target is a clean **Supabase** project (the chain depends on
 `auth.users` and `auth.uid()`), not generic PostgreSQL. Migration `0001` stops
@@ -664,4 +673,12 @@ active SSL during login and session recovery. Tenant members without membership
 in that workspace are rejected, and the context returned to the browser contains
 only the workspace mapped to the current hostname. Users without a workspace
 can still enter onboarding; platform staff keep their separate platform access.
-Apply after `0105` and run the login-domain integration checks before rollout.
+
+Migration `0107` adds a JSON VAT invoice snapshot to drafts and confirmed orders.
+It wraps the existing authoritative order confirmation so the buyer identity,
+selected rate, VAT breakdown, and VAT-inclusive/exclusive mode are stored in the
+same transaction as the confirmed order. It also verifies imported VAT rounded
+per line against each confirmed, accounting-approved manual price, then records
+the exact source tax sum in the order total. Apply after `0106` before deploying
+the VAT-enabled web client. Run the login-domain and order-pricing integration
+checks on staging before rollout.

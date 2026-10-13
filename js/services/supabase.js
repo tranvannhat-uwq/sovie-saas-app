@@ -7,8 +7,7 @@ import { collectAllPages } from '../domain/pagination.js';
 import { resolvePurchaseSupplierDetails } from '../domain/purchase-supplier.js';
 import { getCustomerDebtPostingDate, mergeCustomerDebtHistory } from '../domain/customer-debt.js';
 import { loadAuthorizedPricingCache, saveAuthorizedPricingCache } from './pricing-cache.js';
-import { applyLoginDomainContext, resolveActiveSaasContext } from '../domain/saas-context.js';
-import { LOGIN_ERROR, loginErrorMessage } from '../domain/auth-profile.js';
+import { resolveActiveSaasContext } from '../domain/saas-context.js';
 import { resolveBusinessCapabilities } from '../domain/business-capabilities.js';
 import { resolveCatalogContext } from '../domain/generic-catalog.js';
 import { normalizeIndustryKey, normalizePlatformCustomerPayload } from '../domain/tenant-provisioning.js';
@@ -189,30 +188,9 @@ export async function loadSaasContext({ allowMissingOrganization = false } = {})
   }
   const { error: invitationError } = await supabaseClient.rpc('rpc_accept_my_organization_invitations');
   if (invitationError) throw invitationError;
-  const hostname = String(globalThis.location?.hostname || '').trim().toLowerCase().replace(/\.+$/, '');
-  const { data: domainBinding, error: domainBindingError } = await supabaseClient.rpc(
-    'rpc_bind_login_to_workspace_domain',
-    { p_hostname: hostname }
-  );
-  if (domainBindingError) throw domainBindingError;
-  if (domainBinding?.allowed !== true) {
-    const domainError = new Error(loginErrorMessage(LOGIN_ERROR.WORKSPACE_DOMAIN_MISMATCH));
-    domainError.loginCode = LOGIN_ERROR.WORKSPACE_DOMAIN_MISMATCH;
-    throw domainError;
-  }
-  if (domainBinding.platformOnly === true) {
-    clearTenantStorageContext();
-    return null;
-  }
   const { data, error } = await supabaseClient.rpc('rpc_my_saas_context');
   if (error) throw error;
-  const domainBoundContext = applyLoginDomainContext(data, domainBinding);
-  if (!domainBoundContext.ok) {
-    const domainError = new Error(loginErrorMessage(LOGIN_ERROR.WORKSPACE_DOMAIN_MISMATCH));
-    domainError.loginCode = LOGIN_ERROR.WORKSPACE_DOMAIN_MISMATCH;
-    throw domainError;
-  }
-  const contextData = domainBoundContext.payload;
+  const contextData = data || {};
   const organizations = Array.isArray(contextData?.organizations) ? contextData.organizations : [];
   const activeOrganizationId = String(
     contextData?.activeOrganizationId || contextData?.active_organization_id || ''
@@ -254,7 +232,7 @@ export async function loadSaasContext({ allowMissingOrganization = false } = {})
 
 export async function validateSaasOrganizationSlug(slug) {
   if (!isCloudActive || !supabaseClient) {
-    throw new Error('Cần kết nối Supabase để kiểm tra tên miền doanh nghiệp.');
+    throw new Error('Cần kết nối Supabase để kiểm tra mã workspace.');
   }
   const { data, error } = await supabaseClient.rpc('rpc_validate_organization_slug', {
     p_slug: String(slug || '').trim().toLowerCase()
@@ -299,7 +277,7 @@ export async function updatePlatformPlan(payload = {}) {
     branches: Number(payload.branches),
     warehouses: Number(payload.warehouses),
     monthly_orders: Number(payload.monthlyOrders),
-    custom_domains: Number(payload.customDomains)
+    custom_domains: 0
   };
   const { data, error } = await supabaseClient.rpc('rpc_platform_update_plan', {
     p_plan_id: String(payload.planId || '').trim().toLowerCase(),
@@ -406,62 +384,6 @@ export async function transferSaasOrganizationOwnership(targetAuthUserId) {
   }
   const { data, error } = await supabaseClient.rpc('rpc_transfer_organization_ownership', {
     p_target_auth_user_id: targetAuthUserId
-  });
-  if (error) throw error;
-  return data;
-}
-
-export async function requestSaasCustomDomain(hostname) {
-  if (!isCloudActive || !supabaseClient) throw new Error('Cần kết nối Supabase để đăng ký tên miền.');
-  const { data, error } = await supabaseClient.rpc('rpc_request_custom_domain', {
-    p_hostname: String(hostname || '').trim().toLowerCase()
-  });
-  if (error) throw error;
-  return data;
-}
-
-export async function getSaasCustomDomainVerification(domainId) {
-  if (!isCloudActive || !supabaseClient) throw new Error('Cần kết nối Supabase để đọc xác minh tên miền.');
-  const { data, error } = await supabaseClient.rpc('rpc_my_custom_domain_verification', {
-    p_domain_id: domainId
-  });
-  if (error) throw error;
-  return data;
-}
-
-export async function verifySaasCustomDomainDns(domainId) {
-  if (!isCloudActive || !supabaseClient) throw new Error('Cần kết nối Supabase để kiểm tra DNS.');
-  const { data, error } = await supabaseClient.functions.invoke('verify-custom-domain', {
-    body: { domainId }
-  });
-  if (error) throw error;
-  if (data?.error) throw new Error(data.error);
-  return data;
-}
-
-export async function provisionSaasCustomDomain(domainId) {
-  if (!isCloudActive || !supabaseClient) throw new Error('Cần kết nối Supabase để cấp SSL.');
-  const { data, error } = await supabaseClient.functions.invoke('provision-custom-domain', {
-    body: { domainId }
-  });
-  if (error) throw error;
-  if (data?.error) throw new Error(data.error);
-  return data;
-}
-
-export async function setPrimarySaasCustomDomain(domainId) {
-  if (!isCloudActive || !supabaseClient) throw new Error('Cần kết nối Supabase để đổi tên miền chính.');
-  const { data, error } = await supabaseClient.rpc('rpc_set_primary_custom_domain', {
-    p_domain_id: domainId
-  });
-  if (error) throw error;
-  return data;
-}
-
-export async function disableSaasCustomDomain(domainId) {
-  if (!isCloudActive || !supabaseClient) throw new Error('Cần kết nối Supabase để vô hiệu hóa tên miền.');
-  const { data, error } = await supabaseClient.rpc('rpc_disable_custom_domain', {
-    p_domain_id: domainId
   });
   if (error) throw error;
   return data;
@@ -1404,6 +1326,11 @@ function mapOrderRowForState(order, isDraft = false) {
     try { issuerProfileSnapshot = JSON.parse(issuerProfileSnapshot); }
     catch (_error) { issuerProfileSnapshot = null; }
   }
+  let vatDetails = order.vat_details || order.vatDetails || null;
+  if (typeof vatDetails === 'string') {
+    try { vatDetails = JSON.parse(vatDetails); }
+    catch (_error) { vatDetails = null; }
+  }
   return {
     id: order.id,
     customerId: order.customer_id || null,
@@ -1426,7 +1353,9 @@ function mapOrderRowForState(order, isDraft = false) {
     totalPayable: parseFloat(order.total_payable || 0),
     returnedAmount: parseFloat(order.returned_amount || 0),
     netRevenue: parseFloat(order.net_revenue || order.total_payable || 0),
-    paidAmount: parseFloat(order.paid_amount !== undefined ? order.paid_amount : (order.other_fee_amount || 0)),
+    paidAmount: parseFloat(order.paid_amount !== undefined
+      ? order.paid_amount
+      : (vatDetails?.enabled ? 0 : (order.other_fee_amount || 0))),
     amountDue: Math.max(
       0,
       parseFloat(order.total_payable || 0)
@@ -1439,6 +1368,7 @@ function mapOrderRowForState(order, isDraft = false) {
     customerManagerId: order.customer_manager_id || order.customerManagerId || '',
     companyId: resolveWorkspaceCompanyId(order.company_id || order.companyId),
     issuerProfileSnapshot,
+    vatDetails,
     status: isDraft ? 'draft' : (order.status || 'settled')
   };
 }
@@ -3946,6 +3876,7 @@ export async function dbSaveOrder(order) {
         company_id: order.companyId || state.currentUser?.companyId || state.saasContext?.organizationId || 'main',
         notes: order.notes,
         items: order.items,
+        vat_details: order.vatDetails || null,
         total_market: order.totalMarket || 0,
         total_discount: order.totalDiscount || 0,
         subtotal: order.subtotal !== undefined ? order.subtotal : order.totalPayable,
@@ -4044,6 +3975,99 @@ export async function dbSaveOrder(order) {
     }
   }
   return rejectUnavailableCloudWrite('Đơn hàng');
+}
+
+export async function dbCreateImportedInvoiceDraft(order, sourceMarker) {
+  if (!['admin', 'accounting'].includes(state.currentUser?.role)) {
+    showToast('Chỉ Admin hoặc Kế toán được nhập hóa đơn Excel.', 'danger');
+    return false;
+  }
+  if (!isCloudActive || !supabaseClient) {
+    showToast('Nhập hóa đơn Excel cần kết nối Cloud để lưu đơn nháp.', 'danger');
+    return false;
+  }
+  if (order?.status !== 'draft' || !order.id || !order.idempotencyKey || !sourceMarker) {
+    showToast('Dữ liệu nhập không hợp lệ. Hãy đọc file và thử lại.', 'danger');
+    return false;
+  }
+
+  const findExisting = async () => {
+    const draftResult = await supabaseClient
+      .from(tableDraftOrdersName)
+      .select('id,notes')
+      .eq('id', order.id)
+      .maybeSingle();
+    if (draftResult.error) throw draftResult.error;
+    if (draftResult.data) return draftResult.data;
+
+    const authenticatedUserId = state.currentUser?.authUserId;
+    if (!authenticatedUserId) return null;
+    const orderResult = await supabaseClient
+      .from(tableOrdersName)
+      .select('id,notes')
+      .eq('created_by', authenticatedUserId)
+      .eq('idempotency_key', order.idempotencyKey)
+      .maybeSingle();
+    if (orderResult.error) throw orderResult.error;
+    return orderResult.data || null;
+  };
+
+  const classifyExisting = row => row?.notes?.includes(sourceMarker)
+    ? { status: 'duplicate', id: row.id }
+    : { status: 'conflict', id: row.id };
+
+  try {
+    const existing = await findExisting();
+    if (existing) return classifyExisting(existing);
+
+    const createdAt = order.date || new Date().toISOString();
+    const row = {
+      id: order.id,
+      idempotency_key: order.idempotencyKey,
+      customer_id: order.customerId || null,
+      customer_name: order.customerName || 'Khách hàng vãng lai',
+      company_id: order.companyId || state.currentUser?.companyId || state.saasContext?.organizationId || 'main',
+      notes: order.notes || '',
+      items: order.items,
+      vat_details: order.vatDetails || null,
+      total_market: Number(order.totalMarket || 0),
+      total_discount: 0,
+      subtotal: Number(order.subtotal || 0),
+      discount_value: 0,
+      discount_type: 'amount',
+      discount_amount: 0,
+      other_fee_value: Number(order.otherFeeValue || 0),
+      other_fee_type: order.otherFeeType || 'amount',
+      other_fee_amount: Number(order.otherFeeAmount || 0),
+      shipping_fee_value: 0,
+      shipping_fee_amount: 0,
+      total_payable: Number(order.totalPayable || 0),
+      status: 'draft',
+      created_by: state.currentUser?.authUserId || null,
+      created_at: createdAt,
+      pricelist_id: 'retail'
+    };
+
+    let { error } = await supabaseClient.from(tableDraftOrdersName).insert(row);
+    if (error && /idempotency_key|schema cache|column/i.test(error.message || '')) {
+      delete row.idempotency_key;
+      ({ error } = await supabaseClient.from(tableDraftOrdersName).insert(row));
+    }
+    if (!error) return { status: 'created', id: order.id };
+
+    if (error.code === '23505' || /duplicate key|already exists/i.test(error.message || '')) {
+      const racedRow = await findExisting();
+      if (racedRow) return classifyExisting(racedRow);
+    }
+    if (/vat_details|column/i.test(error.message || '')) {
+      throw new Error('Database chưa có cột lưu thông tin VAT. Cần áp dụng migration 0107 trên staging trước khi nhập.');
+    }
+    throw error;
+  } catch (error) {
+    console.error('Create imported invoice draft failed:', error);
+    showToast(`Không lưu được đơn nháp hóa đơn Excel: ${error.message || 'Lỗi kết nối Cloud.'}`, 'danger');
+    return false;
+  }
 }
 
 export async function dbDeleteOrder(id, status = null) {
@@ -4993,6 +5017,7 @@ function buildOrderCommand(order) {
     customerName: order.customerName || '',
     date: order.date || new Date().toISOString(),
     notes: order.notes || '',
+    vatDetails: order.vatDetails || null,
     pricelistId: order.pricelistId || null,
     priceListOverride: order.priceListOverride === true,
     manualPriceConfirmed: order.manualPriceConfirmed === true,
@@ -5109,6 +5134,7 @@ export async function dbConfirmOrder(order) {
         customerName: order.customerName || '',
         date: order.date || new Date().toISOString(),
         notes: order.notes || '',
+        vatDetails: order.vatDetails || null,
         pricelistId: order.pricelistId || null,
         priceListOverride: order.priceListOverride === true,
         manualPriceConfirmed: order.manualPriceConfirmed === true,

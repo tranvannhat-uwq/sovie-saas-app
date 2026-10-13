@@ -3,7 +3,7 @@ import { showToast, formatCurrency, formatNumber, safeCreateIcons, formatDateTim
 import { dbDeleteOrder, dbDeleteAllOrders, dbRecordSalesReturn, dbCancelSalesReturn, dbCancelOrder, dbRefreshCustomerFinancialState, dbUpdateOrderNotes, dbLoadOrdersForHistoryRange, cacheOrdersLocally, isCloudActive } from '../services/supabase.js';
 import { ensurePanelCloudData, renderAll } from '../main.js';
 import { tenantStorage } from '../services/tenant-storage.js';
-import { openPrintTypeModal, resetInvoiceBuilder, syncInvoiceBusinessDateControl } from './invoice.js';
+import { applyInvoiceVatDetailsToBuilder, openPrintTypeModal, resetInvoiceBuilder, syncInvoiceBusinessDateControl } from './invoice.js';
 import { openHistoryOrderExportModal } from './customers.js';
 import {
   getOrderFinancialBreakdown,
@@ -1743,6 +1743,9 @@ function loadDraftOrderIntoInvoice(order, isReadOnly = false, isCopy = false) {
   if (shippingFeeValInput) {
     shippingFeeValInput.value = formatNumber(order.shippingFeeValue || order.shippingFeeAmount || 0);
   }
+
+  const vatDetails = order.vatDetails || order.vat_details || {};
+  applyInvoiceVatDetailsToBuilder(vatDetails, isReadOnly);
   
   // Đổi tiêu đề và trạng thái nút chốt đơn trên giao diện lập hóa đơn
   const saveBtn = document.getElementById('btn-save-order');

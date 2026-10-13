@@ -2231,7 +2231,7 @@ select option {
 .workspace-onboarding-body { display: flex; flex-direction: column; gap: 1rem; }
 .workspace-onboarding-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.85rem; }
 .workspace-domain-input { display: flex; align-items: stretch; }
-.workspace-domain-input input { border-radius: 8px 0 0 8px; }
+.workspace-domain-input input { border-radius: 8px; }
 .workspace-domain-input span {
   display: flex;
   align-items: center;
@@ -5704,9 +5704,17 @@ textarea::placeholder,
 .purchase-entry-modal-content {
   width: min(920px, calc(100vw - 48px));
   max-width: min(920px, calc(100vw - 48px)) !important;
-  max-height: calc(100vh - 80px);
+  max-height: min(90vh, calc(100dvh - 2rem));
   display: flex;
   flex-direction: column;
+  overflow: hidden;
+}
+
+#purchase-entry-modal .purchase-entry-modal-content > #purchase-entry-form {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
   overflow: hidden;
 }
 
@@ -5725,6 +5733,8 @@ textarea::placeholder,
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 1rem;
+  flex: 1 1 auto;
+  min-height: 0;
   overflow-y: auto;
   padding-right: 0.75rem;
 }

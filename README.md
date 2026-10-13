@@ -29,8 +29,10 @@ Mã nguồn được sao chép từ hệ thống web hiện tại để giữ ng
 ### Mã nguồn và nơi triển khai website
 
 - Mã nguồn SaaS nằm trong repository `tranvannhat-uwq/sovie-saas-app`, nhánh `main`.
-- `sovie.vn` và các tên miền workspace như `test.sovie.vn` được phục vụ bởi
-  Cloudflare Worker `sovie-saas-staging`. Cấu hình được lưu trong `wrangler.jsonc`.
+- `sovie.vn` là địa chỉ đăng nhập và sử dụng duy nhất. Các subdomain workspace
+  và custom domain cũ được chuyển hướng về `https://sovie.vn`; mã workspace chỉ
+  dùng để nhận diện doanh nghiệp sau khi đăng nhập. Cloudflare Worker
+  `sovie-saas-staging` phục vụ website theo cấu hình `wrangler.jsonc`.
 - GitHub Pages có quy trình triển khai riêng, nhưng push GitHub **chưa tự cập nhật
   Worker**. Sau khi push, chạy lệnh sau trong `saas-app` bằng tài khoản Cloudflare
   đã đăng nhập:
@@ -40,12 +42,12 @@ npm run deploy
 ```
 
 - Lệnh này build thư mục `dist` rồi đưa tài nguyên tĩnh lên Worker đang phục vụ
-  tên miền. Sau đó kiểm tra nội dung thực tế tại `sovie.vn` và một tên miền workspace.
+  tên miền. Sau đó kiểm tra trang đăng nhập và chuyển workspace tại `sovie.vn`.
 - `product-billing-app` dùng repository `tranvannhat-uwq/phan-mem-hoa-don`
   và tên miền `chamsockhachhang.store`; không đổi custom domain hoặc `CNAME`
   của repository đó khi triển khai SaaS.
 
-- Chuỗi migration trong mã nguồn hiện có đến `0105`. Lần kiểm tra Cloud ngày 2026-09-30 xác nhận staging `mqxqswwssmemkimnolfu` đã chạy đến `0104`; `0105` mới được chuẩn bị trong repo và chưa áp dụng lên Cloud. Chi tiết và các bước nghiệm thu còn mở nằm trong [docs/SAAS_STAGING_READINESS.md](docs/SAAS_STAGING_READINESS.md).
+- Chuỗi migration trong mã nguồn hiện có đến `0108`. SQL Editor ghi nhận staging `mqxqswwssmemkimnolfu` đã áp dụng `0107`; cần áp dụng `0108_centralized_login_and_pause_custom_domains.sql` sau khi phát hành giao diện mới. Trong Supabase Auth, đặt Site URL là `https://sovie.vn` và Redirect URLs gồm `https://sovie.vn/**` (cộng địa chỉ localhost dùng khi phát triển).
 - Bản web SaaS được ghim vào Supabase staging clone `mqxqswwssmemkimnolfu`; cấu hình production không còn nằm trong `js/config.js`.
 - Dữ liệu hiện tại được giữ trong workspace tương thích `legacy-weblendon`.
 - 35 bảng nghiệp vụ và 39 RPC callable đã được cách ly tenant và kiểm thử trên staging; migrations `0063`–`0066` đã bật tạo/chuyển workspace, trial Starter, quota, quản trị membership, lời mời email và chuyển quyền Owner nguyên tử.

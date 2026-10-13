@@ -9902,6 +9902,127 @@ textarea:focus {
   cursor: pointer !important;
 }
 
+#invoice-panel .invoice-vat-card {
+  border: 1px solid #dbe4ef;
+  border-radius: 12px;
+  padding: 12px;
+  background: #f8fafc;
+}
+
+#invoice-panel .invoice-summary-vat-row[hidden] {
+  display: none !important;
+}
+
+#invoice-panel .invoice-vat-toggle {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  cursor: pointer;
+}
+
+#invoice-panel .invoice-vat-toggle input {
+  width: 17px;
+  height: 17px;
+  margin-top: 2px;
+  accent-color: #2563eb;
+}
+
+#invoice-panel .invoice-vat-toggle span {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+#invoice-panel .invoice-vat-toggle strong {
+  color: #0f172a;
+  font-size: 0.88rem;
+}
+
+#invoice-panel .invoice-vat-toggle small,
+#invoice-panel .invoice-vat-help {
+  color: #64748b;
+  font-size: 0.74rem;
+  line-height: 1.45;
+}
+
+#invoice-panel .invoice-vat-fields {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #e2e8f0;
+}
+
+#invoice-panel .invoice-vat-input-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
+}
+
+#invoice-panel .invoice-vat-input-grid .form-group {
+  min-width: 0;
+  margin: 0;
+}
+
+#invoice-panel .invoice-vat-input-grid label {
+  display: block;
+  margin-bottom: 4px;
+  color: #475569;
+  font-size: 0.73rem;
+  font-weight: 650;
+}
+
+#invoice-panel .invoice-vat-input-grid .form-control {
+  min-height: 34px;
+  padding: 6px 8px;
+  font-size: 0.78rem;
+}
+
+#invoice-panel .invoice-vat-wide-field {
+  grid-column: 1 / -1;
+}
+
+#invoice-panel .invoice-vat-totals {
+  display: grid;
+  gap: 5px;
+  margin-top: 10px;
+  padding: 9px 10px;
+  border-radius: 8px;
+  background: #fff;
+}
+
+#invoice-panel .invoice-vat-totals > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  color: #475569;
+  font-size: 0.76rem;
+}
+
+#invoice-panel .invoice-vat-totals strong {
+  color: #0f172a;
+  white-space: nowrap;
+}
+
+#invoice-panel .invoice-vat-totals > div:last-child {
+  padding-top: 5px;
+  border-top: 1px dashed #cbd5e1;
+  color: #0f172a;
+  font-weight: 750;
+}
+
+#invoice-panel .invoice-vat-help {
+  display: block;
+  margin-top: 7px;
+}
+
+@media (max-width: 540px) {
+  #invoice-panel .invoice-vat-input-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  #invoice-panel .invoice-vat-wide-field {
+    grid-column: auto;
+  }
+}
+
 #app-layout #invoice-panel .summary-adjustments-simple .adjustment-pill-input > .pill-unit-tag {
   background: #f8fafc !important;
 }
@@ -11891,6 +12012,101 @@ button.btn,
 .purchase-form-wide { grid-column: 1 / -1; }
 .purchase-entry-heading { display: flex; justify-content: space-between; align-items: center; }
 .purchase-entry-line-total { text-align: right; }
+
+/* Keep the purchase actions visible while the form content scrolls. */
+#app-layout #purchase-entry-modal .purchase-entry-modal-content {
+  max-height: min(90vh, calc(100dvh - 2rem));
+}
+
+#app-layout #purchase-entry-modal .purchase-entry-modal-content > #purchase-entry-form {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+#app-layout #purchase-entry-modal .purchase-entry-modal-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overscroll-behavior: contain;
+}
+
+#app-layout #purchase-entry-modal .purchase-entry-modal-content .modal-footer {
+  flex-shrink: 0;
+}
+
+.invoice-excel-import-modal { z-index: 1600; }
+.invoice-excel-import-dialog {
+  width: min(1180px, calc(100vw - 32px));
+  max-width: min(1180px, calc(100vw - 32px)) !important;
+  max-height: min(92vh, calc(100dvh - 24px));
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.invoice-excel-import-dialog > .modal-header,
+.invoice-excel-import-dialog > .modal-footer { flex: 0 0 auto; }
+.invoice-excel-import-body {
+  display: block;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+.invoice-excel-import-filename { display: block; color: #64748b; margin-top: .2rem; }
+.invoice-excel-import-notice {
+  margin-bottom: .85rem;
+  padding: .75rem 1rem;
+  border: 1px solid #bfdbfe;
+  border-radius: 10px;
+  background: #eff6ff;
+  color: #1e3a8a;
+}
+.invoice-excel-import-summary { margin-bottom: .75rem; color: #475569; }
+.invoice-import-group { margin: .75rem 0; border: 1px solid #dbe3ef; border-radius: 10px; background: #fff; }
+.invoice-import-group > summary {
+  display: flex;
+  align-items: center;
+  gap: .8rem;
+  flex-wrap: wrap;
+  padding: .75rem 1rem;
+  cursor: pointer;
+}
+.invoice-import-group > summary > label { display: inline-flex; align-items: center; gap: .35rem; }
+.invoice-import-group-state { font-size: .82rem; font-weight: 700; }
+.invoice-import-group-state.is-ready { color: #047857; }
+.invoice-import-group-state.is-blocked { color: #b45309; }
+.invoice-import-group-content { padding: 0 1rem 1rem; }
+.invoice-import-group-content > p { margin: .45rem 0; }
+.invoice-import-customer-map { display: grid; gap: .35rem; max-width: 720px; margin: .6rem 0; }
+.invoice-import-customer-map label { font-weight: 600; }
+.invoice-import-customer-map small { color: #64748b; }
+.invoice-import-table-wrap { overflow-x: auto; margin-top: .6rem; }
+.invoice-import-table-wrap table { width: 100%; min-width: 1050px; border-collapse: collapse; }
+.invoice-import-table-wrap th,
+.invoice-import-table-wrap td { padding: .45rem .55rem; border: 1px solid #e2e8f0; text-align: left; vertical-align: middle; }
+.invoice-import-table-wrap th { background: #f8fafc; white-space: nowrap; }
+.invoice-import-table-wrap td small { display: block; color: #64748b; }
+.invoice-import-product-select { min-width: 260px; }
+.invoice-import-issues,
+.invoice-import-warnings { margin: .5rem 0; padding: .65rem .75rem .65rem 2rem; border-radius: 8px; }
+.invoice-import-issues { color: #991b1b; background: #fef2f2; }
+.invoice-import-warnings { color: #92400e; background: #fffbeb; }
+.invoice-import-mapping-needed { color: #92400e; font-weight: 600; }
+.invoice-excel-import-results { margin-top: .75rem; }
+.invoice-excel-import-results ul { margin: .45rem 0 0; padding-left: 1.25rem; }
+
+@media (max-width: 640px) {
+  .invoice-excel-import-dialog {
+    width: calc(100vw - 16px);
+    max-width: calc(100vw - 16px) !important;
+    max-height: calc(100dvh - 16px);
+  }
+  .invoice-import-group > summary { align-items: flex-start; gap: .4rem .65rem; }
+  .invoice-excel-import-dialog > .modal-footer { flex-wrap: wrap; }
+}
 
 .purchase-template-detail {
   margin: .5rem 0;

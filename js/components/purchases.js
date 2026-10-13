@@ -110,11 +110,29 @@ function statusLabel(status) {
   return 'Hoàn thành';
 }
 
+function purchaseEntrySuggestions() {
+  const suggestions = new Map();
+  (state.purchases || []).forEach(purchase => {
+    if (!['completed', 'draft'].includes(String(purchase.status || 'completed'))) return;
+    (purchase.items || []).forEach(item => {
+      const code = String(item.code || '').trim();
+      if (!code) return;
+      const key = code.toLocaleLowerCase('vi');
+      if (!suggestions.has(key)) suggestions.set(key, {
+        code,
+        name: String(item.name || '').trim(),
+        unit: String(item.unit || '').trim()
+      });
+    });
+  });
+  return [...suggestions.values()].sort((left, right) => left.code.localeCompare(right.code, 'vi'));
+}
+
 function itemRow(item = {}) {
   return `
     <tr class="purchase-entry-item-row">
-      <td><input type="text" class="purchase-entry-code" value="${escapeHtml(item.code || '')}" required placeholder="Mã hàng/dịch vụ"></td>
-      <td><input type="text" class="purchase-entry-name" value="${escapeHtml(item.name || '')}" required placeholder="Tên hàng hóa/dịch vụ"></td>
+      <td><input type="text" class="purchase-entry-code" value="${escapeHtml(item.code || '')}" required list="purchase-entry-code-list" autocomplete="off" placeholder="Mã hàng/dịch vụ"></td>
+      <td><input type="text" class="purchase-entry-name" value="${escapeHtml(item.name || '')}" required list="purchase-entry-name-list" autocomplete="off" placeholder="Tên hàng hóa/dịch vụ"></td>
       <td><input type="text" class="purchase-entry-unit" value="${escapeHtml(item.unit || '')}" placeholder="ĐVT"></td>
       <td><input type="number" class="purchase-entry-qty" min="0.0001" step="any" value="${item.quantity || 1}" required></td>
       <td><input type="number" class="purchase-entry-price" min="0" step="1" value="${item.unitPrice || 0}" required></td>
@@ -169,9 +187,11 @@ function purchaseModal() {
                   <tbody id="purchase-entry-items-body">${itemRow()}</tbody>
                 </table>
               </div>
+              <datalist id="purchase-entry-code-list">${purchaseEntrySuggestions().map(item => `<option value="${escapeHtml(item.code)}" label="${escapeHtml([item.name, item.unit].filter(Boolean).join(' · '))}"></option>`).join('')}</datalist>
+              <datalist id="purchase-entry-name-list">${purchaseEntrySuggestions().filter(item => item.name).map(item => `<option value="${escapeHtml(item.name)}" label="${escapeHtml([item.code, item.unit].filter(Boolean).join(' · '))}"></option>`).join('')}</datalist>
               <div class="purchase-entry-total"><span>Tổng dự kiến</span><strong id="purchase-entry-total">0 ₫</strong></div>
               <div class="purchase-entry-total"><span>Còn phải trả dự kiến</span><strong id="purchase-entry-debt-total">0 ₫</strong></div>
-              <small>Database sẽ tự tính lại toàn bộ thành tiền và công nợ.</small>
+              <small>Chọn mã hoặc tên từng nhập để tự điền. Mã mới nhập trực tiếp sẽ có trong gợi ý sau khi lưu phiếu. Database sẽ tự tính lại toàn bộ thành tiền và công nợ.</small>
             </div>
             <div class="form-group purchase-form-wide"><label class="form-label">Ghi chú</label><textarea class="form-control" id="purchase-note-input" rows="2"></textarea></div>
           </div>
@@ -356,6 +376,23 @@ function attachEvents(panel) {
     panel.querySelector('#purchase-entry-items-body').insertAdjacentHTML('beforeend', itemRow()); updateTotals(panel);
   });
   panel.querySelector('#purchase-entry-items-body')?.addEventListener('input', () => updateTotals(panel));
+  panel.querySelector('#purchase-entry-items-body')?.addEventListener('change', event => {
+    const row = event.target.closest('.purchase-entry-item-row');
+    if (!row) return;
+    const codeInput = row.querySelector('.purchase-entry-code');
+    const nameInput = row.querySelector('.purchase-entry-name');
+    const changedValue = String(event.target.value || '').trim().toLocaleLowerCase('vi');
+    let matches = [];
+    if (event.target === codeInput) {
+      matches = purchaseEntrySuggestions().filter(item => item.code.toLocaleLowerCase('vi') === changedValue);
+    } else if (event.target === nameInput) {
+      matches = purchaseEntrySuggestions().filter(item => item.name.toLocaleLowerCase('vi') === changedValue);
+    }
+    if (matches.length !== 1) return;
+    codeInput.value = matches[0].code;
+    nameInput.value = matches[0].name;
+    row.querySelector('.purchase-entry-unit').value = matches[0].unit;
+  });
   panel.querySelector('#purchase-paid-input')?.addEventListener('input', () => updateTotals(panel));
   panel.querySelector('#purchase-entry-items-body')?.addEventListener('click', event => {
     const button = event.target.closest('.purchase-entry-remove-row'); if (!button) return;
@@ -364,24 +401,38 @@ function attachEvents(panel) {
   });
   panel.querySelector('#purchase-entry-form')?.addEventListener('submit', async event => {
     event.preventDefault();
-    const items = Array.from(panel.querySelectorAll('.purchase-entry-item-row')).map(row => ({
-      code: row.querySelector('.purchase-entry-code').value.trim(),
-      name: row.querySelector('.purchase-entry-name').value.trim(),
-      unit: row.querySelector('.purchase-entry-unit').value.trim(),
-      quantity: Number(row.querySelector('.purchase-entry-qty').value),
-      unitPrice: Number(row.querySelector('.purchase-entry-price').value)
-    }));
-    const submit = event.submitter; if (submit) submit.disabled = true;
-    const result = await dbCreatePurchase({
-      supplierId: panel.querySelector('#purchase-supplier-select').value,
-      invoiceNumber: panel.querySelector('#purchase-invoice-number').value.trim(),
-      purchaseDate: new Date(panel.querySelector('#purchase-date-input').value).toISOString(),
-      paidAmount: Number(panel.querySelector('#purchase-paid-input').value || 0),
-      paymentMethod: panel.querySelector('#purchase-payment-method').value,
-      notes: panel.querySelector('#purchase-note-input').value.trim(),
-      idempotencyKey: pendingPurchaseKey || newKey('purchase'), items
-    });
-    if (submit) submit.disabled = false;
+    const formButtons = Array.from(panel.querySelectorAll('#purchase-entry-form button'));
+    formButtons.forEach(button => { button.disabled = true; });
+    let result;
+    try {
+      const items = Array.from(panel.querySelectorAll('.purchase-entry-item-row')).map(row => ({
+        code: row.querySelector('.purchase-entry-code').value.trim(),
+        name: row.querySelector('.purchase-entry-name').value.trim(),
+        unit: row.querySelector('.purchase-entry-unit').value.trim(),
+        quantity: Number(row.querySelector('.purchase-entry-qty').value),
+        unitPrice: Number(row.querySelector('.purchase-entry-price').value)
+      }));
+      const purchaseDate = new Date(panel.querySelector('#purchase-date-input').value);
+      if (!Number.isFinite(purchaseDate.getTime())) {
+        showToast('Ngày mua chưa hợp lệ. Hãy kiểm tra ngày rồi lưu lại.', 'warning');
+        return;
+      }
+      result = await dbCreatePurchase({
+        supplierId: panel.querySelector('#purchase-supplier-select').value,
+        invoiceNumber: panel.querySelector('#purchase-invoice-number').value.trim(),
+        purchaseDate: purchaseDate.toISOString(),
+        paidAmount: Number(panel.querySelector('#purchase-paid-input').value || 0),
+        paymentMethod: panel.querySelector('#purchase-payment-method').value,
+        notes: panel.querySelector('#purchase-note-input').value.trim(),
+        idempotencyKey: pendingPurchaseKey || newKey('purchase'), items
+      });
+    } catch (error) {
+      console.error('Create purchase failed before a database response:', error);
+      showToast('Không lưu được phiếu mua. Dữ liệu vẫn còn trên màn hình; hãy kiểm tra ngày hoặc kết nối rồi thử lại.', 'danger');
+      return;
+    } finally {
+      formButtons.forEach(button => { button.disabled = false; });
+    }
     if (!result) return;
     pendingPurchaseKey = '';
     panel.dataset.activePurchaseId = result.purchase?.id || '';

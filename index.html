@@ -1,8 +1,9 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="vi" data-canonical-host="sovie.vn">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="/js/canonical-host.js"></script>
   <script>
     (function () {
       function isExternalOnboardingError(error) {
@@ -145,7 +146,7 @@
                 <span class="ref-dot-red"></span>
                 <span class="ref-dot-yellow"></span>
                 <span class="ref-dot-green"></span>
-                <span class="ref-window-url">workspace.sovie.vn/dashboard</span>
+                <span class="ref-window-url">sovie.vn/dashboard</span>
               </div>
               <div class="ref-window-status">
                 <span class="ref-live-pill"><span></span> Realtime Active</span>
@@ -766,8 +767,9 @@
             <div class="workspace-switcher">
               <div class="workspace-switcher-heading">
                 <i data-lucide="building-2"></i>
-                <div><strong id="workspace-current-name">Doanh nghiệp</strong><small id="workspace-current-domain"></small><small id="workspace-plan-usage"></small></div>
+                <div><strong id="workspace-current-name">Doanh nghiệp</strong><small id="workspace-current-code"></small><small id="workspace-plan-usage"></small></div>
               </div>
+              <select id="workspace-select" class="form-control" aria-label="Chọn workspace" style="display: none; margin: 0.5rem 1rem; width: calc(100% - 2rem);"></select>
             </div>
             <!-- Dropdown Nav Links -->
             <button class="dropdown-item dropdown-nav-link" data-target="brands-panel" data-brand-feature style="width: 100%; text-align: left; padding: 0.65rem 1rem; border: none; background: transparent; font-family: var(--font-sans); font-size: 0.85rem; color: var(--text-secondary); cursor: pointer; display: flex; align-items: center; gap: 0.5rem; font-weight: 600;">
@@ -874,7 +876,7 @@
             </div>
             <div class="table-container platform-table-container">
               <table class="data-table platform-accounts-table">
-                <thead><tr><th>Doanh nghiệp</th><th>Chủ tài khoản</th><th>Gói dịch vụ</th><th>Nhân sự</th><th>Tên miền</th><th>Khởi tạo</th></tr></thead>
+                <thead><tr><th>Doanh nghiệp</th><th>Chủ tài khoản</th><th>Gói dịch vụ</th><th>Nhân sự</th><th>Mã workspace</th><th>Khởi tạo</th></tr></thead>
                 <tbody id="platform-accounts-table-body"><tr><td colspan="6" class="platform-empty-state">Đang tải dữ liệu khách hàng...</td></tr></tbody>
               </table>
             </div>
@@ -893,9 +895,9 @@
           </div>
           <form id="platform-customer-form">
             <div class="modal-body platform-customer-form-grid">
-              <div class="platform-form-section platform-form-span-2"><strong>Thông tin doanh nghiệp</strong><small>Tạo workspace và tên miền con riêng trên sovie.vn.</small></div>
+              <div class="platform-form-section platform-form-span-2"><strong>Thông tin doanh nghiệp</strong><small>Tạo workspace; mọi tài khoản đăng nhập tập trung tại sovie.vn.</small></div>
               <div class="form-group"><label for="platform-customer-name">Tên doanh nghiệp *</label><input class="form-control" id="platform-customer-name" name="name" required minlength="2" maxlength="120" placeholder="Công ty TNHH Minh Anh"></div>
-              <div class="form-group"><label for="platform-customer-slug">Tên miền con *</label><div class="platform-slug-input"><input class="form-control" id="platform-customer-slug" name="slug" required minlength="3" maxlength="64" pattern="[a-z0-9][a-z0-9-]{1,62}[a-z0-9]" placeholder="minh-anh"><span>.sovie.vn</span></div><small id="platform-customer-slug-status" class="platform-field-status">Dùng chữ thường, số và dấu gạch ngang.</small></div>
+              <div class="form-group"><label for="platform-customer-slug">Mã workspace *</label><div class="platform-slug-input"><input class="form-control" id="platform-customer-slug" name="slug" required minlength="3" maxlength="64" pattern="[a-z0-9][a-z0-9-]{1,62}[a-z0-9]" placeholder="minh-anh"></div><small id="platform-customer-slug-status" class="platform-field-status">Mã nhận diện nội bộ, dùng chữ thường, số và dấu gạch ngang.</small></div>
               <div class="form-group"><label for="platform-customer-business-type">Mô hình kinh doanh</label><select class="form-control" id="platform-customer-business-type" name="businessType"><option value="general_trade">Thương mại tổng hợp</option><option value="retail">Bán lẻ</option><option value="wholesale">Bán buôn</option><option value="distribution">Phân phối</option><option value="services">Dịch vụ</option><option value="manufacturing">Sản xuất</option></select></div>
               <div class="form-group"><label for="platform-customer-industry">Ngành nghề *</label><select class="form-control" id="platform-customer-industry" name="industryKey" required><option value="general">Đa ngành / Tổng hợp</option><option value="retail">Bán lẻ</option><option value="food_beverage">Thực phẩm &amp; đồ uống</option><option value="fashion">Thời trang</option><option value="construction">Xây dựng &amp; vật liệu</option><option value="consulting">Tư vấn &amp; dịch vụ</option><option value="manufacturing">Sản xuất</option><option value="paint_distribution">Sơn &amp; phân phối</option></select></div>
               <div class="platform-form-section platform-form-span-2"><strong>Tài khoản Owner</strong><small>Owner nhận email thiết lập mật khẩu và chỉ thuộc workspace vừa tạo.</small></div>
@@ -953,7 +955,6 @@
                 <div class="form-group"><label for="platform-plan-branches">Chi nhánh</label><input class="form-control" id="platform-plan-branches" name="branches" type="number" min="1" required></div>
                 <div class="form-group"><label for="platform-plan-warehouses">Kho</label><input class="form-control" id="platform-plan-warehouses" name="warehouses" type="number" min="1" required></div>
                 <div class="form-group"><label for="platform-plan-orders">Đơn/tháng</label><input class="form-control" id="platform-plan-orders" name="monthlyOrders" type="number" min="1" required></div>
-                <div class="form-group"><label for="platform-plan-domains">Custom domain</label><input class="form-control" id="platform-plan-domains" name="customDomains" type="number" min="0" max="100" required></div>
                 <div class="form-group"><label for="platform-plan-sort-order">Thứ tự</label><input class="form-control" id="platform-plan-sort-order" name="sortOrder" type="number" min="0" max="10000" required></div>
               </div>
               <div class="platform-plan-switches platform-form-span-2">
@@ -1668,6 +1669,58 @@
                   </div>
                 </div>
               </div>
+
+              <div class="summary-row invoice-summary-vat-row" id="summary-vat-row" hidden>
+                <span class="label">VAT hàng hóa:</span>
+                <span class="value" id="summary-vat-amount">+0 ₫</span>
+              </div>
+
+              <section class="invoice-vat-card" aria-labelledby="invoice-vat-title">
+                <label class="invoice-vat-toggle" for="invoice-vat-enabled">
+                  <input type="checkbox" id="invoice-vat-enabled">
+                  <span>
+                    <strong id="invoice-vat-title">Thông tin hóa đơn VAT</strong>
+                    <small>Bổ sung bên mua, thuế suất và tiền thuế trên bản in</small>
+                  </span>
+                </label>
+                <div id="invoice-vat-fields" class="invoice-vat-fields" style="display: none;">
+                  <div class="invoice-vat-input-grid">
+                    <div class="form-group">
+                      <label for="invoice-vat-buyer-name">Tên đơn vị / người mua *</label>
+                      <input class="form-control" id="invoice-vat-buyer-name" maxlength="240" placeholder="Tên trên hóa đơn">
+                    </div>
+                    <div class="form-group">
+                      <label for="invoice-vat-buyer-tax-code">Mã số thuế</label>
+                      <input class="form-control" id="invoice-vat-buyer-tax-code" maxlength="40" placeholder="Mã số thuế bên mua">
+                    </div>
+                    <div class="form-group invoice-vat-wide-field">
+                      <label for="invoice-vat-buyer-address">Địa chỉ bên mua</label>
+                      <input class="form-control" id="invoice-vat-buyer-address" maxlength="500" placeholder="Địa chỉ đăng ký của bên mua">
+                    </div>
+                    <div class="form-group invoice-vat-wide-field">
+                      <label for="invoice-vat-buyer-email">Email nhận hóa đơn</label>
+                      <input class="form-control" id="invoice-vat-buyer-email" type="email" maxlength="240" placeholder="ten@congty.vn">
+                    </div>
+                    <div class="form-group">
+                      <label for="invoice-vat-rate">Thuế suất VAT (%) *</label>
+                      <input class="form-control" id="invoice-vat-rate" type="number" min="0" max="100" step="0.01" placeholder="Nhập theo mặt hàng">
+                    </div>
+                    <div class="form-group">
+                      <label for="invoice-vat-price-mode">Cách tính giá</label>
+                      <select class="form-control" id="invoice-vat-price-mode">
+                        <option value="exclusive">Giá chưa gồm VAT</option>
+                        <option value="inclusive">Giá đã gồm VAT</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div class="invoice-vat-totals" aria-live="polite">
+                    <div><span>Giá trị tính VAT</span><strong id="invoice-vat-tax-base">0 ₫</strong></div>
+                    <div><span>Tiền VAT</span><strong id="invoice-vat-tax-amount">0 ₫</strong></div>
+                    <div><span>Tổng hàng gồm VAT</span><strong id="invoice-vat-total">0 ₫</strong></div>
+                  </div>
+                  <small class="invoice-vat-help">Thu khác/phí giao hàng đang được tính riêng ngoài cơ sở VAT.</small>
+                </div>
+              </section>
 
               <!-- Khách tiết kiệm Badge -->
               <div class="saving-badge" id="summary-saving-badge" style="display: none;" aria-live="polite">
@@ -2450,6 +2503,9 @@
               <button class="btn btn-secondary btn-sm" id="btn-export-pricelist-excel">
                 <i data-lucide="file-down"></i> Xuất Excel
               </button>
+              <button class="btn btn-secondary btn-sm" id="btn-download-pricelist-template">
+                <i data-lucide="download"></i> Tải file mẫu
+              </button>
               <button class="btn btn-indigo btn-sm" id="btn-import-pricelist-excel">
                 <i data-lucide="file-up"></i> Nhập Excel
               </button>
@@ -2612,16 +2668,6 @@
             <label class="form-label" for="maintenance-message">Thông báo cho nhân viên</label>
             <textarea id="maintenance-message" class="form-control" rows="2" maxlength="240" style="width: 100%; resize: vertical;">Hệ thống đang bảo trì. Vui lòng quay lại sau.</textarea>
             <button type="button" class="btn btn-danger" id="btn-toggle-maintenance" style="margin-top: 0.85rem;">Bật chế độ bảo trì</button>
-          </div>
-          <div id="custom-domain-section" style="display: none; border: 1px solid var(--border-color); border-radius: 12px; padding: 1rem;">
-            <h2 class="panel-title" style="margin-bottom: 0.4rem;"><i data-lucide="globe-2"></i> Tên miền doanh nghiệp</h2>
-            <p style="color: var(--text-secondary); font-size: 0.82rem; line-height: 1.5;">Custom domain chỉ hoạt động sau khi xác minh bản ghi TXT và SSL. Subdomain sovie.vn luôn được giữ làm đường truy cập dự phòng.</p>
-            <div id="custom-domain-list" class="custom-domain-list"></div>
-            <form id="custom-domain-form" style="display: flex; gap: 0.5rem; margin-top: 0.8rem;">
-              <input id="custom-domain-hostname" class="form-control" type="text" placeholder="Ví dụ: app.doanhnghiep.vn" autocomplete="off" style="flex: 1;">
-              <button id="btn-request-custom-domain" class="btn btn-primary btn-sm" type="submit">Đăng ký</button>
-            </form>
-            <pre id="custom-domain-verification-output" style="display: none; margin-top: 0.8rem; padding: 0.8rem; white-space: pre-wrap; overflow-wrap: anywhere; border-radius: 8px; background: rgba(15,23,42,0.65); color: #bfdbfe; font-size: 0.76rem;"></pre>
           </div>
           <div id="billing-management-section" style="display: none; border: 1px solid var(--border-color); border-radius: 12px; padding: 1rem;">
             <h2 class="panel-title" style="margin-bottom: 0.4rem;"><i data-lucide="credit-card"></i> Gói dịch vụ & hóa đơn</h2>
@@ -3678,6 +3724,7 @@
     <!-- Phần tiêu đề hóa đơn dưới đường gạch ngang -->
     <div class="print-title-section" style="margin-top: 15px; margin-bottom: 25px; color: #000;">
       <div id="print-company-name-large" style="font-size: 13pt; font-weight: bold; text-transform: uppercase; margin-bottom: 5px;"></div>
+      <p id="print-issuer-tax-code-row" style="display: none; margin: 0 0 5px 0; font-size: 10.5pt;"><strong>Mã số thuế người bán:</strong> <span id="print-issuer-tax-code"></span></p>
       <h1 id="print-invoice-title-large" style="text-align: center; font-size: 22pt; font-weight: bold; margin: 15px 0 5px 0; text-transform: uppercase; color: #000;">HÓA ĐƠN BÁN HÀNG</h1>
       <!-- Mã hóa đơn và Ngày lập cùng hàng -->
       <div style="text-align: center; font-size: 12pt; line-height: 1.4; display: flex; justify-content: center; gap: 30px;">
@@ -3703,6 +3750,13 @@
         <span id="print-customer-manager" style="font-weight: bold;">NVKD: N/A</span>
       </div>
       <p style="display: none;">- <strong>Ghi chú:</strong> <span id="print-invoice-notes">N/A</span></p>
+      <div id="print-vat-buyer-row" style="display: none; margin-top: 4px; border-top: 1px dashed #555; padding-top: 4px;">
+        <p style="margin: 0;"><strong>Thông tin xuất hóa đơn VAT</strong></p>
+        <p id="print-vat-buyer-name-row" style="display: none; margin: 0;"><strong>Tên đơn vị / người mua:</strong> <span id="print-vat-buyer-name"></span></p>
+        <p id="print-vat-buyer-tax-code-row" style="display: none; margin: 0;"><strong>Mã số thuế:</strong> <span id="print-vat-buyer-tax-code"></span></p>
+        <p id="print-vat-buyer-address-row" style="display: none; margin: 0;"><strong>Địa chỉ:</strong> <span id="print-vat-buyer-address"></span></p>
+        <p id="print-vat-buyer-email-row" style="display: none; margin: 0;"><strong>Email nhận hóa đơn:</strong> <span id="print-vat-buyer-email"></span></p>
+      </div>
     </div>
 
     <table class="print-table" id="print-invoice-table">
@@ -4364,12 +4418,11 @@
             <input type="text" class="form-control" id="workspace-name" minlength="2" maxlength="120" placeholder="Ví dụ: Công ty Minh Anh" required>
           </div>
           <div class="form-group">
-            <label class="form-label" for="workspace-slug">Tên miền workspace</label>
+             <label class="form-label" for="workspace-slug">Mã workspace</label>
             <div class="workspace-domain-input">
               <input type="text" class="form-control" id="workspace-slug" minlength="3" maxlength="64" pattern="[a-z0-9][a-z0-9-]{1,62}[a-z0-9]" placeholder="minh-anh" required>
-              <span>.sovie.vn</span>
             </div>
-            <small id="workspace-slug-status" class="workspace-field-status"></small>
+             <small id="workspace-slug-status" class="workspace-field-status">Tất cả tài khoản đăng nhập tại sovie.vn.</small>
           </div>
           <div class="workspace-onboarding-grid">
             <div class="form-group">

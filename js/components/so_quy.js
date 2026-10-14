@@ -3,11 +3,12 @@ import { showToast, formatCurrency, safeCreateIcons, formatDateTime, removeVietn
 import { ensurePanelCloudData, renderAll } from '../main.js';
 import { dbSaveCashbookTransaction, dbSaveStartingBalances, dbRecordCustomerPayment, dbCancelCashbookEntry, dbSetCashbookStarred, dbAmendCashbookTransaction, dbReconcileLegacyCustomerReceipt, dbRefreshCustomerFinancialState, dbFetchCashbookTransactionById, dbLoadCashbookForRange, upsertCashbookTransactionSnapshot, getCloudReadHealth, isCloudActive } from '../services/supabase.js';
 import { tenantStorage } from '../services/tenant-storage.js';
-import { getCanonicalCashbookId, isEffectiveCashbookTransaction } from '../domain/cashbook.js';
+import { createCashbookIdempotencyIntent, getCanonicalCashbookId, isEffectiveCashbookTransaction } from '../domain/cashbook.js';
 
 // Seed transactions (empty to start clean)
 const seedTransactions = [];
 let pendingReceiptIdempotencyKey = '';
+let pendingPaymentIdempotencyIntent = null;
 let expandedCashbookTransactionId = '';
 let cashbookCurrentPage = 1;
 let cashbookPageSize = 20;
@@ -917,6 +918,7 @@ export function setupSoQuyPanel() {
   
   if (addChiBtn && paymentModal) {
     addChiBtn.addEventListener('click', () => {
+      pendingPaymentIdempotencyIntent = null;
       populatePaymentRecipientDatalist();
       // Set time default to now
       const now = new Date();
@@ -939,6 +941,7 @@ export function setupSoQuyPanel() {
   const hidePaymentModal = () => {
     if (paymentModal) paymentModal.classList.remove('active');
     if (paymentForm) paymentForm.reset();
+    pendingPaymentIdempotencyIntent = null;
   };
   
   if (closePaymentBtn) closePaymentBtn.addEventListener('click', hidePaymentModal);
@@ -998,6 +1001,12 @@ export function setupSoQuyPanel() {
         note,
         starred: false
       };
+
+      pendingPaymentIdempotencyIntent = createCashbookIdempotencyIntent(
+        pendingPaymentIdempotencyIntent,
+        newTx
+      );
+      newTx.idempotencyKey = pendingPaymentIdempotencyIntent.key;
       
       const savedToCloud = await dbSaveCashbookTransaction(newTx);
       if (!savedToCloud) {

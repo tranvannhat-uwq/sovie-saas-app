@@ -4301,7 +4301,10 @@ export async function dbSaveCashbookTransaction(tx) {
       if (tx.customerId) {
         throw new Error('Giao dịch công nợ phải dùng RPC nghiệp vụ riêng.');
       }
-      const idempotencyKey = String(tx.idempotencyKey || `cashbook:${tx.id || ''}`).trim();
+      const idempotencyKey = String(
+        tx.idempotencyKey || `cashbook:${globalThis.crypto.randomUUID()}`
+      ).trim();
+      tx.idempotencyKey = idempotencyKey;
       const { data, error } = await supabaseClient.rpc('rpc_create_cashbook_transaction', {
         p_input: {
           idempotencyKey,

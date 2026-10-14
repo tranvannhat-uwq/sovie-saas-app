@@ -1235,6 +1235,17 @@ export function renderHistoryOrders({ reuseFiltered = false } = {}) {
       } else {
         statusBadge = `<span class="status-badge status-completed"><i data-lucide="check-circle-2"></i> Đã chốt</span>`;
       }
+
+      const normalizedCardStatus = String(order.status || '').toLowerCase();
+      const historyCardStatus = ['cancelled', 'canceled'].includes(normalizedCardStatus)
+        ? 'cancelled'
+        : normalizedCardStatus === 'draft'
+          ? 'draft'
+          : normalizedCardStatus === 'partially_returned'
+            ? 'partially-returned'
+            : normalizedCardStatus === 'returned'
+              ? 'returned'
+              : 'settled';
         
       const creatorName = getUserDisplayName(order.createdBy, 'Không xác định', state.users);
 
@@ -1275,7 +1286,7 @@ export function renderHistoryOrders({ reuseFiltered = false } = {}) {
       }
 
       return `
-        <div class="glass-panel order-card history-order-card">
+        <div class="glass-panel order-card history-order-card" data-order-status="${historyCardStatus}">
           <label class="history-card-export-select" title="Chọn đơn để xuất Excel">
             <input type="checkbox" class="history-export-checkbox" data-id="${order.id}" ${selectedHistoryOrderIdsForExport.has(String(order.id)) ? 'checked' : ''}>
           </label>

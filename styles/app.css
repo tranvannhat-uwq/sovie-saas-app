@@ -12460,9 +12460,146 @@ button.btn,
 #app-layout .history-view-toggle-group svg { width: 15px; height: 15px; }
 #app-layout .history-refresh-btn { min-height: 36px !important; height: 36px !important; gap: 7px !important; }
 
+/* Give order history cards and their nested sections enough contrast to scan quickly. */
+#app-layout #history-summary-bar {
+  gap: 10px !important;
+  padding: 10px !important;
+  border: 1px solid #c8d5e3 !important;
+  border-radius: 15px !important;
+  background: linear-gradient(135deg, #e7eef6 0%, #f0f4f9 100%) !important;
+  box-shadow: 0 3px 12px rgba(30, 55, 80, .06) !important;
+}
+
+#app-layout #history-summary-bar .history-summary-item {
+  min-height: 68px !important;
+  justify-content: center !important;
+  gap: 4px !important;
+  padding: 8px 12px !important;
+  border: 1px solid #d2deea !important;
+  border-right: 1px solid #d2deea !important;
+  border-radius: 11px !important;
+  background: rgba(255, 255, 255, .82) !important;
+}
+
+#app-layout #history-summary-bar .history-summary-label { color: #52677f !important; }
+#app-layout #history-summary-bar .history-summary-meta {
+  padding: 10px 12px !important;
+  border: 1px dashed #bdccdc !important;
+  border-radius: 10px !important;
+  background: #e8eef5 !important;
+  color: #40546b !important;
+  text-align: center !important;
+}
+
+#app-layout #history-orders-container.history-grid:not(.details-mode) {
+  gap: 18px !important;
+  padding: 12px !important;
+  border: 1px solid #d2dce7 !important;
+  border-radius: 17px !important;
+  background: #e9eff6 !important;
+}
+
+#app-layout #history-orders-container .history-order-card {
+  border: 1px solid #c5d2df !important;
+  border-top: 4px solid #16a34a !important;
+  border-radius: 15px !important;
+  background: #fff !important;
+  box-shadow: 0 4px 14px rgba(24, 48, 72, .09) !important;
+  transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease !important;
+}
+
+#app-layout #history-orders-container .history-order-card[data-order-status="draft"] { border-top-color: #d97706 !important; }
+#app-layout #history-orders-container .history-order-card[data-order-status="partially-returned"] { border-top-color: #2563eb !important; }
+#app-layout #history-orders-container .history-order-card[data-order-status="returned"],
+#app-layout #history-orders-container .history-order-card[data-order-status="cancelled"] { border-top-color: #dc4c4c !important; }
+
+#app-layout #history-orders-container .history-order-card:hover {
+  border-color: #9eafc1 !important;
+  box-shadow: 0 9px 22px rgba(24, 48, 72, .14) !important;
+  transform: translateY(-2px) !important;
+}
+
+#app-layout #history-orders-container .history-card-meta {
+  margin-bottom: 11px !important;
+  padding: 10px !important;
+  border: 1px solid #d3deea !important;
+  border-bottom: 1px solid #d3deea !important;
+  border-radius: 10px !important;
+  background: #f1f5f9 !important;
+}
+
+#app-layout #history-orders-container .history-card-extra-meta {
+  padding: 8px 10px 10px !important;
+  border: 1px solid #d3deea !important;
+  border-bottom: 1px solid #d3deea !important;
+  border-radius: 0 0 9px 9px !important;
+  background: #f1f5f9 !important;
+}
+
+#app-layout #history-orders-container .history-card-meta svg,
+#app-layout #history-orders-container .history-card-extra-meta svg { color: #506984 !important; }
+
+#app-layout #history-orders-container .history-card-extra-disclosure,
+#app-layout #history-orders-container .history-card-items-disclosure {
+  border-color: #cbd8e5 !important;
+  background: #edf2f7 !important;
+}
+
+#app-layout #history-orders-container .history-card-extra-disclosure > summary,
+#app-layout #history-orders-container .history-card-items-disclosure > summary { color: #253b53 !important; }
+
+#app-layout #history-orders-container .history-card-extra-disclosure > summary:hover,
+#app-layout #history-orders-container .history-card-items-disclosure > summary:hover { background: #e3ebf4 !important; }
+
+#app-layout #history-orders-container .history-card-extra-disclosure[open] > summary,
+#app-layout #history-orders-container .history-card-items-disclosure[open] > summary {
+  border-bottom: 1px solid #d1dce8 !important;
+  background: #e4edf6 !important;
+}
+
+#app-layout #history-orders-container .history-card-items-disclosure > ul {
+  padding: 9px !important;
+  border: 1px solid #d6e0ea !important;
+  border-radius: 8px !important;
+  background: #fff !important;
+}
+
+#app-layout #history-orders-container .history-card-financials {
+  gap: 0 !important;
+  padding: 6px 12px !important;
+  border: 1px solid #cbd8e5 !important;
+  background: #eef3f8 !important;
+}
+
+#app-layout #history-orders-container .history-card-financials > div {
+  min-height: 29px !important;
+  align-items: center !important;
+  padding: 4px 0 !important;
+  border-bottom: 1px solid #d9e2ec !important;
+  color: #40546b !important;
+}
+
+#app-layout #history-orders-container .history-card-financials > div:last-child {
+  margin: 4px -6px 0 !important;
+  padding: 7px 6px !important;
+  border: 0 !important;
+  border-radius: 7px !important;
+  background: #dfeafa !important;
+  color: #173b72 !important;
+}
+
+#app-layout #history-orders-container .history-card-financials > div:last-child strong { color: #064db3 !important; }
+
+#app-layout #history-orders-container .history-card-actions-panel {
+  border-color: #cbd8e5 !important;
+  background: #edf2f7 !important;
+}
+
 @media (max-width: 640px) {
   #app-layout .history-card-meta,
   #app-layout .history-card-extra-meta { grid-template-columns: minmax(0, 1fr) !important; }
+
+  #app-layout #history-orders-container.history-grid:not(.details-mode) { padding: 8px !important; }
 }
 
 @media (max-width: 360px) {

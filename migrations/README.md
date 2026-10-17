@@ -682,3 +682,13 @@ per line against each confirmed, accounting-approved manual price, then records
 the exact source tax sum in the order total. Apply after `0106` before deploying
 the VAT-enabled web client. Run the login-domain and order-pricing integration
 checks on staging before rollout.
+
+Migration `0108` centralizes login on `sovie.vn` and pauses customer-managed
+custom domains without deleting existing domain records.
+
+Migration `0109` adds phone and address snapshots to orders and drafts, provides
+an order-only external-customer contact flow without creating customer
+profiles, and keeps unlinked order balances on the order rather than a customer
+ledger. It wraps confirmation and amendment responses with the saved contact
+snapshot while preserving their authoritative transactions and executor-only
+internal RPCs. Apply after `0108` before deploying the updated web client.

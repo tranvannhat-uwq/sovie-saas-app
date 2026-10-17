@@ -3,7 +3,7 @@ import { showToast, formatCurrency, formatNumber, safeCreateIcons, formatDateTim
 import { dbDeleteOrder, dbDeleteAllOrders, dbRecordSalesReturn, dbCancelSalesReturn, dbCancelOrder, dbRefreshCustomerFinancialState, dbUpdateOrderNotes, dbLoadOrdersForHistoryRange, cacheOrdersLocally, isCloudActive } from '../services/supabase.js';
 import { ensurePanelCloudData, renderAll } from '../main.js';
 import { tenantStorage } from '../services/tenant-storage.js';
-import { applyInvoiceVatDetailsToBuilder, openPrintTypeModal, resetInvoiceBuilder, syncInvoiceBusinessDateControl } from './invoice.js';
+import { applyInvoiceVatDetailsToBuilder, enableExternalCustomerMode, openPrintTypeModal, resetInvoiceBuilder, syncInvoiceBusinessDateControl } from './invoice.js';
 import { openHistoryOrderExportModal } from './customers.js';
 import {
   getOrderFinancialBreakdown,
@@ -1679,22 +1679,13 @@ function loadDraftOrderIntoInvoice(order, isReadOnly = false, isCopy = false) {
   } else {
     // Khách lẻ chỉ là tên snapshot trên đơn, không phải chế độ tạo nhanh
     // khách hàng mới (chế độ đó còn yêu cầu tỉnh, nhãn và quản lý).
-    state.activeCustomerId = '';
-    state.activeCustomerBrand = 'Tất cả';
-    state.activeCustomerBrandId = '';
     state.isQuickCustomerMode = false;
-    const customerIdInput = document.getElementById('invoice-customer-id');
-    if (customerIdInput) customerIdInput.value = '';
-    const customerSearchInput = document.getElementById('invoice-customer-search');
-    if (customerSearchInput) {
-      customerSearchInput.value = customerContext.customerName;
-      customerSearchInput.disabled = isReadOnly;
-      customerSearchInput.removeAttribute('data-selected-customer-name');
-    }
-    const customerInfoCard = document.getElementById('invoice-customer-info-card');
-    if (customerInfoCard) customerInfoCard.style.display = 'none';
-    const clearCustomerButton = document.getElementById('btn-clear-invoice-customer');
-    if (clearCustomerButton) clearCustomerButton.style.display = isReadOnly ? 'none' : 'inline-flex';
+    enableExternalCustomerMode({
+      name: customerContext.customerName,
+      phone: order.customerPhone || order.customer_phone || '',
+      address: order.customerAddress || order.customer_address || '',
+      readOnly: isReadOnly
+    });
   }
   
   // Tải các mặt hàng

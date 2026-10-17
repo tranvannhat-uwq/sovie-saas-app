@@ -39,6 +39,7 @@ export const state = {
   activeCustomerBrandId: '',
   currentTab: 'dashboard-panel',
   isQuickCustomerMode: false,
+  isExternalCustomerMode: false,
   dashboardFilter: {
     timeRange: 'month',
     startDate: '',
@@ -94,4 +95,6 @@ export function resetTenantBusinessState() {
   state.activeCustomerId = '';
   state.activeCustomerBrand = 'Tất cả';
   state.activeCustomerBrandId = '';
+  state.isQuickCustomerMode = false;
+  state.isExternalCustomerMode = false;
 }

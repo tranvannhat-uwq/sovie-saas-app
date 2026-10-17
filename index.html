@@ -1444,6 +1444,9 @@
                       <button type="button" class="btn-info-card-add" id="btn-quick-customer-toggle" title="Thêm khách hàng mới (Thêm nhanh)">
                         <i data-lucide="plus"></i> Thêm mới
                       </button>
+                      <button type="button" class="btn btn-secondary btn-sm" id="btn-invoice-external-customer" title="Nhập khách chỉ lưu trên đơn hàng">
+                        <i data-lucide="user-round-plus"></i> Khách ngoài DS
+                      </button>
                     </div>
                   </div>
 
@@ -1457,6 +1460,28 @@
                       <!-- Auto populated customer suggestions -->
                     </ul>
                     <input type="hidden" id="invoice-customer-id" value="">
+                  </div>
+
+                  <div id="invoice-external-customer-panel" class="invoice-external-customer-panel" style="display: none;">
+                    <div class="invoice-external-customer-heading">
+                      <strong>Thông tin khách ngoài danh sách</strong>
+                      <span>Thông tin chỉ lưu theo đơn hàng, không tạo hồ sơ khách.</span>
+                    </div>
+                    <div class="invoice-external-customer-fields">
+                      <div class="form-group">
+                        <label class="form-label" for="invoice-external-customer-name">Tên khách hàng *</label>
+                        <input type="text" class="form-control" id="invoice-external-customer-name" maxlength="200" autocomplete="name" placeholder="Nhập tên khách hàng" required>
+                      </div>
+                      <div class="form-group">
+                        <label class="form-label" for="invoice-external-customer-phone">Số điện thoại</label>
+                        <input type="tel" class="form-control" id="invoice-external-customer-phone" maxlength="40" autocomplete="tel" placeholder="Nhập số điện thoại">
+                      </div>
+                      <div class="form-group invoice-external-customer-address-field">
+                        <label class="form-label" for="invoice-external-customer-address">Địa chỉ</label>
+                        <input type="text" class="form-control" id="invoice-external-customer-address" maxlength="500" autocomplete="street-address" placeholder="Nhập địa chỉ (không bắt buộc)">
+                      </div>
+                    </div>
+                    <p class="invoice-external-customer-note">Nếu chốt đơn còn phải thu, khoản nợ được theo dõi trên đơn và không cộng vào công nợ hồ sơ khách hàng.</p>
                   </div>
 
                   <!-- Price list selector -->

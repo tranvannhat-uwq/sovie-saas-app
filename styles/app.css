@@ -4894,6 +4894,48 @@ body {
   overflow: visible !important;
 }
 
+#app-layout #invoice-panel .invoice-external-customer-panel {
+  margin: 0 0 12px;
+  padding: 12px;
+  border: 1px solid #bfdbfe;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #eff6ff, #f8fbff 62%, #f0fdfa);
+}
+
+#app-layout #invoice-panel .invoice-external-customer-heading {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-bottom: 10px;
+  color: #18345c;
+  font-size: 0.88rem;
+}
+
+#app-layout #invoice-panel .invoice-external-customer-heading span,
+#app-layout #invoice-panel .invoice-external-customer-note {
+  color: #586b83;
+  font-size: 0.75rem;
+  line-height: 1.45;
+}
+
+#app-layout #invoice-panel .invoice-external-customer-fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(150px, .8fr);
+  gap: 8px 12px;
+}
+
+#app-layout #invoice-panel .invoice-external-customer-fields .form-group {
+  margin: 0;
+}
+
+#app-layout #invoice-panel .invoice-external-customer-address-field {
+  grid-column: 1 / -1;
+}
+
+#app-layout #invoice-panel .invoice-external-customer-note {
+  margin: 9px 0 0;
+}
+
 #app-layout #invoice-panel #invoice-customer-suggestions {
   position: absolute !important;
   top: calc(100% + 4px) !important;
@@ -6162,6 +6204,9 @@ body {
     grid-template-columns: 1fr !important;
   }
   #invoice-panel .invoice-top-cards-row {
+    grid-template-columns: 1fr !important;
+  }
+  #invoice-panel .invoice-external-customer-fields {
     grid-template-columns: 1fr !important;
   }
 }
@@ -8246,6 +8291,35 @@ table,
 .dashboard-chart-empty {
   color: var(--vi-on-surface-variant) !important;
   background: var(--vi-surface-low) !important;
+}
+
+#pricelists-panel .price-column-header {
+  display: flex;
+  min-width: 130px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+#pricelists-panel .price-column-title {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+#pricelists-panel .price-matrix-edit-price-list {
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  padding: 4px;
+  color: #2459a8;
+  border-color: #c8d8f0;
+  background: #fff;
+}
+
+#pricelists-panel .price-matrix-edit-price-list:hover {
+  color: #1745a4;
+  border-color: #8ab0ea;
+  background: #eff6ff;
 }
 
 /* Chips, tabs and statuses */

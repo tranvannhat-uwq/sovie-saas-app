@@ -1636,6 +1636,17 @@ export function compileActiveOrder(customerOverride = null) {
       agencyBrand = qBrand.value;
     }
     customerManagerId = document.getElementById('quick-cust-manager')?.value || '';
+  } else if (state.isExternalCustomerMode) {
+    const externalName = document.getElementById('invoice-external-customer-name')?.value.trim() || '';
+    if (!externalName) {
+      showToast('Vui lòng nhập tên khách hàng ngoài danh sách.', 'danger');
+      document.getElementById('invoice-external-customer-name')?.focus();
+      return null;
+    }
+    customerName = externalName;
+    phone = document.getElementById('invoice-external-customer-phone')?.value.trim() || '';
+    address = document.getElementById('invoice-external-customer-address')?.value.trim() || '';
+    custId = null;
   } else if (state.activeCustomerId) {
     const cust = state.customers.find(c => c.id === state.activeCustomerId);
     if (cust) {
@@ -1809,6 +1820,8 @@ export function compileActiveOrder(customerOverride = null) {
     companyId: companyId,
     customerId: custId,
     customerName,
+    customerPhone: phone === 'N/A' ? '' : phone,
+    customerAddress: address === 'N/A' ? '' : address,
     notes: document.getElementById('invoice-notes').value.trim(),
     items: itemsToSave,
     date: orderDate,
@@ -2008,6 +2021,11 @@ export async function saveActiveOrder(status = 'settled') {
       }
     }
 
+    if (status === 'settled' && !order.customerId && Number(order.amountDue) > 0) {
+      const debtNotice = 'Đơn hàng này chưa thu đủ tiền. Khoản còn phải thu sẽ được theo dõi riêng trên đơn hàng và không cộng vào công nợ của hồ sơ khách hàng. Bạn xác nhận chốt đơn?';
+      if (!window.confirm(debtNotice)) return null;
+    }
+
     showToast('Đang lưu hóa đơn...', 'info');
 
     const saved = amendOrderId
@@ -2108,7 +2126,69 @@ export async function saveActiveOrder(status = 'settled') {
   }
 }
 
+export function enableExternalCustomerMode({ name = '', phone = '', address = '', readOnly = false } = {}) {
+  const priceListSelect = document.getElementById('invoice-pricelist-select');
+  if (priceListSelect) {
+    priceListSelect.querySelectorAll('option[data-customer-assigned="true"]').forEach(option => option.remove());
+    priceListSelect.value = '';
+    priceListSelect.dataset.explicitOverride = 'false';
+    priceListSelect.disabled = false;
+  }
+  state.isExternalCustomerMode = true;
+  state.isQuickCustomerMode = false;
+  state.activeCustomerId = '';
+  state.activeCustomerBrand = 'Tất cả';
+  state.activeCustomerBrandId = '';
+
+  const idInput = document.getElementById('invoice-customer-id');
+  if (idInput) idInput.value = '';
+  const searchGroup = document.getElementById('invoice-customer-search-group');
+  if (searchGroup) searchGroup.style.display = 'none';
+  const infoCard = document.getElementById('invoice-customer-info-card');
+  if (infoCard) infoCard.style.display = 'none';
+  const panel = document.getElementById('invoice-external-customer-panel');
+  if (panel) panel.style.display = 'block';
+
+  const fields = [
+    ['invoice-external-customer-name', name],
+    ['invoice-external-customer-phone', phone],
+    ['invoice-external-customer-address', address]
+  ];
+  fields.forEach(([id, value]) => {
+    const input = document.getElementById(id);
+    if (!input) return;
+    input.value = value || '';
+    input.disabled = readOnly;
+  });
+  const clearButton = document.getElementById('btn-clear-invoice-customer');
+  if (clearButton) clearButton.style.display = readOnly ? 'none' : 'inline-flex';
+  const suggestions = document.getElementById('invoice-customer-suggestions');
+  if (suggestions) suggestions.style.display = 'none';
+  applyActivePriceListToInvoice();
+  syncInvoicePersistenceActions();
+  if (!readOnly) document.getElementById('invoice-external-customer-name')?.focus();
+}
+
+function disableExternalCustomerMode({ clearInputs = true } = {}) {
+  state.isExternalCustomerMode = false;
+  const panel = document.getElementById('invoice-external-customer-panel');
+  if (panel) panel.style.display = 'none';
+  const searchGroup = document.getElementById('invoice-customer-search-group');
+  if (searchGroup) searchGroup.style.display = '';
+  [
+    'invoice-external-customer-name',
+    'invoice-external-customer-phone',
+    'invoice-external-customer-address'
+  ].forEach(id => {
+    const input = document.getElementById(id);
+    if (!input) return;
+    input.disabled = false;
+    if (clearInputs) input.value = '';
+  });
+}
+
 export function resetInvoiceCustomer() {
+  disableExternalCustomerMode();
   state.activeCustomerId = '';
   state.activeCustomerBrand = 'Tất cả';
   state.activeCustomerBrandId = '';
@@ -2154,6 +2234,7 @@ export function resetInvoiceCustomer() {
 }
 
 export function prepareInvoiceCustomerReselection(searchValue = '', shouldFocus = true) {
+  disableExternalCustomerMode();
   state.activeCustomerId = '';
   state.activeCustomerBrand = 'Tất cả';
   state.activeCustomerBrandId = '';
@@ -2234,6 +2315,16 @@ export function enableQuickCustomerMode() {
   if (modal) {
     modal.style.display = 'flex';
   }
+
+  if (state.isExternalCustomerMode) {
+    const quickNameInput = document.getElementById('quick-cust-name');
+    const quickPhoneInput = document.getElementById('quick-cust-phone');
+    const quickAddressInput = document.getElementById('quick-cust-address');
+    if (quickNameInput) quickNameInput.value = document.getElementById('invoice-external-customer-name')?.value.trim() || '';
+    if (quickPhoneInput) quickPhoneInput.value = document.getElementById('invoice-external-customer-phone')?.value.trim() || '';
+    if (quickAddressInput) quickAddressInput.value = document.getElementById('invoice-external-customer-address')?.value.trim() || '';
+    disableExternalCustomerMode({ clearInputs: false });
+  }
   
   const searchInput = document.getElementById('invoice-customer-search');
   const quickNameInput = document.getElementById('quick-cust-name');
@@ -2284,6 +2375,7 @@ export function submitQuickCustomerModal() {
   const qBrand = document.getElementById('quick-cust-assigned-brand')?.value || 'Tất cả';
   
   state.isQuickCustomerMode = true;
+  state.isExternalCustomerMode = false;
   state.activeCustomerId = '';
   state.activeCustomerBrand = qBrand;
   state.activeCustomerBrandId = getBrandById(qBrand)?.id || '';
@@ -2674,17 +2766,17 @@ export async function renderAndPrintOrder(order, type = 'retail') {
   if (order.customerId) {
     const cust = orderCustomer;
     if (cust) {
-      if (addressEl) addressEl.innerText = cust.address || 'N/A';
-      if (phoneEl) phoneEl.innerText = formatPhoneNumber(cust.phone) || 'N/A';
+      if (addressEl) addressEl.innerText = cust.address || order.customerAddress || 'N/A';
+      if (phoneEl) phoneEl.innerText = formatPhoneNumber(cust.phone || order.customerPhone) || 'N/A';
       if (groupEl) groupEl.innerText = cust.managedBy || 'N/A';
     } else {
-      if (addressEl) addressEl.innerText = 'N/A';
-      if (phoneEl) phoneEl.innerText = 'N/A';
+      if (addressEl) addressEl.innerText = order.customerAddress || 'N/A';
+      if (phoneEl) phoneEl.innerText = formatPhoneNumber(order.customerPhone) || 'N/A';
       if (groupEl) groupEl.innerText = 'N/A';
     }
   } else {
-    if (addressEl) addressEl.innerText = 'N/A';
-    if (phoneEl) phoneEl.innerText = 'N/A';
+    if (addressEl) addressEl.innerText = order.customerAddress || 'N/A';
+    if (phoneEl) phoneEl.innerText = formatPhoneNumber(order.customerPhone) || 'N/A';
     if (groupEl) groupEl.innerText = 'N/A';
   }
 
@@ -3228,7 +3320,7 @@ export function setupInvoiceCreator() {
   if (resetBtn) {
     resetBtn.addEventListener('click', () => {
       const hasItems = state.invoiceItems.length > 0;
-      const hasCustomer = state.activeCustomerId !== '' || state.isQuickCustomerMode;
+      const hasCustomer = state.activeCustomerId !== '' || state.isQuickCustomerMode || state.isExternalCustomerMode;
       const hasNotes = document.getElementById('invoice-notes') && document.getElementById('invoice-notes').value.trim() !== '';
       
       if (hasItems || hasCustomer || hasNotes) {
@@ -3388,17 +3480,25 @@ export function setupInvoiceCreator() {
         const quickName = state.isQuickCustomerMode
           ? document.getElementById('quick-cust-name')?.value.trim()
           : '';
+        const externalName = state.isExternalCustomerMode
+          ? document.getElementById('invoice-external-customer-name')?.value.trim()
+          : '';
+        const externalAddress = state.isExternalCustomerMode
+          ? document.getElementById('invoice-external-customer-address')?.value.trim()
+          : '';
         const buyerNameInput = document.getElementById('invoice-vat-buyer-name');
         const buyerAddressInput = document.getElementById('invoice-vat-buyer-address');
         if (buyerNameInput && !buyerNameInput.value.trim()) {
           buyerNameInput.value = selectedCustomer?.name
             || quickName
+            || externalName
             || document.getElementById('invoice-customer-search')?.value.trim()
             || '';
         }
         if (buyerAddressInput && !buyerAddressInput.value.trim()) {
           buyerAddressInput.value = selectedCustomer?.address
             || (state.isQuickCustomerMode ? document.getElementById('quick-cust-address')?.value.trim() : '')
+            || externalAddress
             || '';
         }
       }
@@ -3421,6 +3521,14 @@ export function setupInvoiceCreator() {
   const quickToggleBtn = document.getElementById('btn-quick-customer-toggle');
   if (quickToggleBtn) {
     quickToggleBtn.addEventListener('click', enableQuickCustomerMode);
+  }
+
+  const externalCustomerBtn = document.getElementById('btn-invoice-external-customer');
+  if (externalCustomerBtn) {
+    externalCustomerBtn.addEventListener('click', () => {
+      const name = document.getElementById('invoice-customer-search')?.value.trim() || '';
+      enableExternalCustomerMode({ name });
+    });
   }
 
   const quickCancelBtn = document.getElementById('btn-quick-customer-cancel');
@@ -3486,7 +3594,7 @@ function setupInvoiceCustomerSearch() {
   if (suggestions.parentNode !== searchGroup) searchGroup.appendChild(suggestions);
 
   custSearchInput.addEventListener('input', () => {
-    if (state.isQuickCustomerMode) return; // Không cần gợi ý ở chế độ khách lẻ
+    if (state.isQuickCustomerMode || state.isExternalCustomerMode) return; // Không gợi ý trong chế độ khách riêng của đơn
 
     const selectedName = custSearchInput.dataset.selectedCustomerName || '';
     if (state.activeCustomerId && custSearchInput.value.trim() !== selectedName) {
@@ -3543,6 +3651,7 @@ function setupInvoiceCustomerSearch() {
 }
 
 async function selectInvoiceCustomer(customer) {
+  disableExternalCustomerMode();
   const assignedBrandName = customer.assignedBrand || customer.assigned_brand || 'Tất cả';
   const assignedBrandId = String(customer.assignedBrandId || customer.assigned_brand_id
     || getBrandById(assignedBrandName)?.id || '').trim();

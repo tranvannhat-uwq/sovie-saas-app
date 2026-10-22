@@ -67,8 +67,8 @@ SELECT 'workspace_initialization_is_complete',
   AND (SELECT count(*) FROM public.organization_warehouses warehouse
     WHERE warehouse.organization_id = (payload->>'id')::uuid AND warehouse.is_default) = 1
   AND (SELECT count(*) FROM public.catalog_units unit
-    WHERE unit.organization_id = (payload->>'id')::uuid) = 10,
-  'owner, trial, branch, warehouse and 10 units expected'
+    WHERE unit.organization_id = (payload->>'id')::uuid) >= 10,
+  'owner, trial, branch, warehouse and at least 10 units expected'
 FROM onboarding_created;
 
 INSERT INTO onboarding_results

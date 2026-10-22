@@ -40,14 +40,22 @@ function createProductGroupId(baseCode, name, brand) {
 
 function getWorkspaceUnits() {
   const configured = state.businessCapabilities?.catalog?.units;
-  if (Array.isArray(configured) && configured.length) return configured;
-  return [{ code: 'piece', name: 'Cái', symbol: 'cái' }];
+  const units = Array.isArray(configured) && configured.length
+    ? [...configured]
+    : [{ code: 'piece', name: 'Cái', symbol: 'cái' }];
+  if (!units.some(unit => String(unit?.code || '').toLowerCase() === 'bag' || String(unit?.symbol || '').toLowerCase() === 'bao')) {
+    units.push({ code: 'bag', name: 'Bao', symbol: 'bao', dimension: 'count', decimal_places: 0 });
+    units.sort((a, b) => String(a.name || a.symbol || a.code).localeCompare(String(b.name || b.symbol || b.code), 'vi'));
+  }
+  return units;
 }
 
 function resolveUnit(value) {
   const normalized = String(value || '').trim().toLocaleLowerCase();
   return getWorkspaceUnits().find(unit => [unit.code, unit.symbol, unit.name]
-    .some(candidate => String(candidate || '').trim().toLocaleLowerCase() === normalized))
+    .some(candidate => String(candidate || '').trim().toLocaleLowerCase() === normalized)
+    || (unit.symbol && `${unit.name} (${unit.symbol})`.trim().toLocaleLowerCase() === normalized))
+    || getWorkspaceUnits().find(unit => unit.code === 'piece')
     || getWorkspaceUnits()[0];
 }
 

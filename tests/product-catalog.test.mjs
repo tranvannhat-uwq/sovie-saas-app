@@ -77,6 +77,7 @@ assert.equal(inferLegacyBaseCode('SP-01-CAI'), 'SP-01');
 assert.equal(inferLegacyBaseCode('SP-02-BO'), 'SP-02');
 assert.equal(inferLegacyBaseCode('SP-03-MET'), 'SP-03');
 assert.equal(inferLegacyBaseCode('SP-04-LO'), 'SP-04');
+assert.equal(inferLegacyBaseCode('SP-05-BAO'), 'SP-05');
 assert.equal(inferLegacyBaseCode('ABC-LÍT'), 'ABC');
 assert.equal(inferLegacyBaseCode('NO-SUFFIX'), 'NO-SUFFIX');
 assert.equal(getProductBaseCode(products[3], products), 'BA-46');
@@ -85,6 +86,8 @@ assert.equal(variantSpecification({ packageType: 'Cái', packageWeight: 1, packa
 assert.equal(variantSpecification({ packageType: 'Bộ', packageWeight: 1, packageWeightUnit: 'bộ' }), 'Bộ 1 bộ');
 assert.equal(variantSpecification({ packageType: 'Mét', packageWeight: 1, packageWeightUnit: 'm' }), 'Mét 1 m');
 assert.equal(variantSpecification({ packageType: 'Lọ', packageWeight: 1, packageWeightUnit: 'cái' }), 'Lọ 1 cái');
+assert.equal(variantSpecification({ packageType: 'Bao', packageWeight: 25, packageWeightUnit: 'bao' }), 'Bao 25 bao');
+assert.equal(variantSpecification({ packageType: 'Bao', packageWeight: null, packageWeightUnit: 'bao' }), 'Bao bao');
 assert.equal(isCatalogVariant({ id: 'service-no-package', sellUnitCode: 'hour', itemKind: 'service' }), true);
 assert.equal(isCatalogVariant({ id: 'legacy-row', sellUnitCode: 'hour', isLegacy: true }), false);
 assert.deepEqual(buildVariantSnapshot(products[0]), {

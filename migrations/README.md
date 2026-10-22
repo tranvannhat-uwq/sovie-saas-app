@@ -114,6 +114,8 @@ Run these files in order on a staging clone first:
 106. `0106_workspace_domain_login_binding.sql`
 107. `0107_order_vat_invoice_details.sql`
 108. `0108_centralized_login_and_pause_custom_domains.sql`
+109. `0109_order_only_external_customer_snapshots.sql`
+110. `0110_add_bag_catalog_unit.sql`
 
 Every file is additive and records its version in `public.schema_migrations`.
 Apply each version once; the migration table is the source of truth for the
@@ -692,3 +694,8 @@ profiles, and keeps unlinked order balances on the order rather than a customer
 ledger. It wraps confirmation and amendment responses with the saved contact
 snapshot while preserving their authoritative transactions and executor-only
 internal RPCs. Apply after `0108` before deploying the updated web client.
+
+Migration `0110` adds the generic `bag` unit ("Bao", symbol `bao`) to
+`public.catalog_units`, updates `public.provision_generic_catalog` to seed `bag`
+for new organizations, backfills existing organizations, and updates legacy
+products whose unit name or packaging unit is `bao` to use unit code `bag`.

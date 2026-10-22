@@ -9,6 +9,7 @@ const read = relative => fs.readFileSync(path.join(root, relative), 'utf8');
 const html = read('index.html');
 const invoice = read('js/components/invoice.js');
 const history = read('js/components/history.js');
+const css = read('styles/app.css');
 
 test('order overview exposes named reset and customer reselection actions', () => {
   assert.match(html, /id="btn-reset-order"[\s\S]{0,300}Làm Mới Đơn/);
@@ -27,6 +28,18 @@ test('all editable roles can replace the selected customer without resetting ord
   assert.match(invoice, /clearBtn\?\.addEventListener\('click', \(\) => prepareInvoiceCustomerReselection\(\)\)/);
   assert.match(invoice, /dataset\.selectedCustomerName = customer\.name/);
   assert.match(invoice, /prepareInvoiceCustomerReselection\(typedValue, false\)/);
+});
+
+test('customer suggestions reuse the page-level list outside the clipped search wrapper', () => {
+  const customerSearch = invoice.slice(
+    invoice.indexOf('function setupInvoiceCustomerSearch'),
+    invoice.indexOf('async function selectInvoiceCustomer')
+  );
+  assert.match(customerSearch, /getElementById\('invoice-customer-suggestions'\) \|\| document\.createElement\('ul'\)/);
+  assert.match(customerSearch, /const searchGroup = document\.getElementById\('invoice-customer-search-group'\)/);
+  assert.match(customerSearch, /if \(suggestions\.parentNode !== searchGroup\) searchGroup\.appendChild\(suggestions\)/);
+  assert.equal((html.match(/id="invoice-customer-suggestions"/g) || []).length, 1);
+  assert.match(css, /#app-layout #invoice-panel\.stitch-order-entry \.invoice-builder > \.glass-panel\.invoice-main-card\s*\{[\s\S]*?overflow:\s*visible\s*!important/);
 });
 
 test('sales customer scope remains enforced and read-only history remains locked', () => {

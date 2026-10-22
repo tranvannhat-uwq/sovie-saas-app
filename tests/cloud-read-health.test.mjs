@@ -13,7 +13,9 @@ const health = fs.readFileSync(path.join(root, 'js/domain/cloud-read-health.js')
 
 test('Realtime subscription never masks failed Cloud reads', () => {
   assert.match(service, /export function getCloudReadHealth\(\)/);
-  assert.match(service, /cloudReadHealth = mergeCloudReadHealth\(cloudReadHealth, failedDomains, attemptedDomains\)/);
+  assert.match(service, /cloudReadHealth = mergeCloudReadHealth\(cloudReadHealth, failedDomains, attemptedDomains, failureDetails\)/);
+  assert.match(service, /request: CLOUD_DOMAIN_REQUESTS\[domain\]/);
+  assert.match(service, /publishCloudReadHealth\(\[\], \['cashbook'\]\)/);
   assert.match(health, /status: uniqueFailures\.length > 0 \? 'degraded' : 'healthy'/);
   assert.match(service, /publishCloudReadHealth\(\[\], \['orders'\]\)/);
   assert.match(service, /publishCloudReadHealth\(\['orders'\], \['orders'\]\)/);
@@ -21,6 +23,7 @@ test('Realtime subscription never masks failed Cloud reads', () => {
   assert.match(realtime, /health\.status === 'degraded' \? 'cloud_degraded' : 'cloud'/);
   assert.match(utils, /status === 'cloud_degraded'/);
   assert.match(utils, /badge\.removeAttribute\('title'\)/);
+  assert.match(realtime, /failure\.request/);
 });
 
 test('failed lazy domains remain retryable instead of being marked loaded', () => {

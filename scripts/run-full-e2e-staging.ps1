@@ -66,10 +66,17 @@ function Login([string]$Email, [string]$Password, [string]$ExpectedRole) {
   $token = $response.data.access_token
   $userId = $response.data.user.id
   Add-Result "auth_login_$ExpectedRole" ([bool]$token -and [bool]$userId) 'Supabase Auth returned a real user session.'
-  $profile = Invoke-JsonApi -Method GET -Path "profiles?select=id,auth_user_id,role,is_active&auth_user_id=eq.$userId" -Token $token
+  $profile = Invoke-JsonApi -Method GET -Path "profiles?select=id,auth_user_id,role,is_active,organization_id,company_id&auth_user_id=eq.$userId" -Token $token
   $rows = @($profile.data)
   Add-Result "profile_role_$ExpectedRole" ($rows.Count -eq 1 -and $rows[0].role -eq $ExpectedRole -and $rows[0].is_active) "Expected exactly one active $ExpectedRole profile."
-  return [pscustomobject]@{ token = $token; userId = $userId; email = $Email; role = $ExpectedRole }
+  return [pscustomobject]@{
+    token = $token
+    userId = $userId
+    email = $Email
+    role = $ExpectedRole
+    organizationId = $rows[0].organization_id
+    companyId = $rows[0].company_id
+  }
 }
 
 function Rpc($Session, [string]$Name, $Arguments, [switch]$AllowError) {
@@ -98,6 +105,10 @@ $testTimestamp = (Get-Date).ToUniversalTime().Date.ToString('o')
 $admin = Login $AdminEmail $AdminPassword 'admin'
 $accounting = Login $AccountingEmail $AccountingPassword 'accounting'
 $sale = Login $SaleEmail $SalePassword 'sale'
+$sameOrganization = $admin.organizationId -and $admin.organizationId -eq $accounting.organizationId -and $admin.organizationId -eq $sale.organizationId
+Add-Result 'test_accounts_share_workspace' $sameOrganization "admin=$($admin.organizationId) accounting=$($accounting.organizationId) sale=$($sale.organizationId)"
+$orderCompanyId = if ($sale.companyId) { $sale.companyId } else { $sale.organizationId }
+Add-Result 'sale_profile_has_workspace_company_scope' ([bool]$orderCompanyId) "company_id=$orderCompanyId"
 
 # Authorization probes use real JWTs and make no business changes.
 $saleProfiles = Read-Rows $sale 'profiles?select=id&limit=1000'
@@ -155,7 +166,7 @@ Assert-Decimal 'customer_starts_at_zero_debt' (Customer-Debt $accounting $custom
 $draftId = "$runId-DRAFT"
 $draftBody = @{
   id = $draftId; customer_id = $customerId; customer_name = "$runId Customer"
-  company_id = 'ABS_NORTH'; notes = $runId; items = @(@{ variantId = $chosenProduct.id; quantity = 1 })
+  company_id = $orderCompanyId; notes = $runId; items = @(@{ variantId = $chosenProduct.id; quantity = 1 })
   total_market = 0; total_discount = 0; subtotal = 0; discount_value = 0
   discount_type = 'amount'; discount_amount = 0; other_fee_value = 0
   other_fee_type = 'amount'; other_fee_amount = 0; total_payable = 0

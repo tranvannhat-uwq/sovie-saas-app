@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SoVie UI regression layout harness</title>
+  <link rel="stylesheet" href="../styles/base.css">
+  <link rel="stylesheet" href="../styles/app.css?v=20260930-ui-regressions-v1">
+</head>
+<body>
+  <div class="app-container" id="app-layout" data-nav-layout="horizontal" data-ui-role="management">
+    <main class="main-content">
+      <section id="so-quy-panel" class="panel active">
+        <div class="so-quy-container">
+          <aside class="so-quy-sidebar module-filter-sidebar module-filter-sidebar-standalone is-mobile-open" data-filter-owner="so-quy-panel" role="dialog" aria-modal="true">
+            <div class="module-filter-heading">
+              <span class="module-filter-heading-icon">☷</span>
+              <span class="module-filter-heading-copy"><strong>Bộ lọc</strong><small>Sổ quỹ</small></span>
+              <span class="module-filter-actions"><button class="module-filter-toggle" type="button" aria-label="Đóng bộ lọc">×</button></span>
+            </div>
+            <div class="module-filter-body">
+              <div class="module-filter-active-chips">
+                <span class="module-filter-active-chip">Tiền mặt <button type="button">×</button></span>
+                <span class="module-filter-active-chip">Tuần này <button type="button">×</button></span>
+                <span class="module-filter-active-chip">Đã thanh toán <button type="button">×</button></span>
+                <span class="module-filter-active-chip">Có hạch toán <button type="button">×</button></span>
+                <span class="module-filter-active-chip">Thu và chi <button type="button">×</button></span>
+              </div>
+              <section class="filter-group-sec"><strong class="filter-group-sec-title">Quỹ tiền</strong><label class="custom-control"><input type="radio" checked><span>Tiền mặt</span></label><label class="custom-control"><input type="radio"><span>Ngân hàng</span></label></section>
+              <section class="filter-group-sec"><strong class="filter-group-sec-title">Thời gian</strong><select class="form-control"><option>Tuần này</option></select><label>Từ ngày <input type="date" class="form-control"></label><label>Đến ngày <input type="date" class="form-control"></label></section>
+              <section class="filter-group-sec"><strong class="filter-group-sec-title">Trạng thái thanh toán</strong><label class="custom-control"><input type="checkbox" checked><span>Đã thanh toán</span></label><label class="custom-control"><input type="checkbox"><span>Chưa thanh toán</span></label></section>
+              <section class="filter-group-sec"><strong class="filter-group-sec-title">Hạch toán công nợ</strong><label class="custom-control"><input type="checkbox" checked><span>Có hạch toán</span></label><label class="custom-control"><input type="checkbox"><span>Không hạch toán</span></label></section>
+              <section class="filter-group-sec"><strong class="filter-group-sec-title">Loại giao dịch</strong><label class="custom-control"><input type="checkbox" checked><span>Phiếu thu</span></label><label class="custom-control"><input type="checkbox" checked><span>Phiếu chi</span></label></section>
+              <section class="filter-group-sec"><strong class="filter-group-sec-title">Đối tượng</strong><input class="form-control" placeholder="Tìm khách hàng/nhà cung cấp"><button type="button">Khách hàng</button><button type="button">Nhà cung cấp</button></section>
+            </div>
+            <div class="module-filter-footer"><button class="module-filter-footer-btn module-filter-footer-reset" type="button">Xóa lọc</button><button class="module-filter-footer-btn module-filter-footer-apply" type="button">Áp dụng</button></div>
+          </aside>
+          <div class="module-filter-backdrop"></div>
+        </div>
+      </section>
+      <section id="invoice-panel" class="panel stitch-order-entry">
+        <div class="invoice-builder"><div class="glass-panel invoice-main-card">
+          <h2>Lên đơn hàng</h2>
+          <div class="invoice-customer-card"><label for="invoice-customer-search">Khách hàng</label><div id="invoice-customer-search-group"><div class="custom-input-group"><input id="invoice-customer-search" class="form-control" value="Khách QA"></div><ul id="invoice-customer-suggestions" class="suggestions-list" style="display:block"><li class="suggestion-item">QA-UAT Cửa hàng kiểm thử</li></ul></div></div>
+        </div></div>
+      </section>
+    </main>
+  </div>
+</body>
+</html>

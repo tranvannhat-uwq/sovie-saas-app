@@ -10,7 +10,7 @@ const read = relativePath => fs.readFileSync(path.join(root, relativePath), 'utf
 const invoice = read('js/components/invoice.js');
 const html = read('index.html');
 
-test('retail invoice uses the shorter title and hides company and warehouse rows only in retail mode', () => {
+test('retail invoice uses the shorter title and never prints an unconfigured warehouse', () => {
   const printFlow = invoice.slice(
     invoice.indexOf('export async function renderAndPrintOrder'),
     invoice.indexOf('export function setupPrintTypeModal')
@@ -19,10 +19,16 @@ test('retail invoice uses the shorter title and hides company and warehouse rows
   assert.match(printFlow, /type === 'retail'[\s\S]{0,100}titleEl\.innerText = 'HÓA ĐƠN'/);
   assert.doesNotMatch(printFlow, /titleEl\.innerText = 'HÓA ĐƠN BÁN LẺ'/);
   assert.match(printFlow, /companyLargeEl\.style\.display = type === 'retail' \? 'none' : ''/);
-  assert.match(printFlow, /warehouseRowEl\.style\.display = type === 'retail' \? 'none' : ''/);
+  assert.match(printFlow, /const warehouseText = String\(config\.invoiceWarehouseText \|\| ''\)\.trim\(\)/);
+  assert.match(printFlow, /warehouseTextEl\.innerText = warehouseText/);
+  assert.match(printFlow, /warehouseRowEl\.style\.display = type === 'retail' \|\| !warehouseText \? 'none' : ''/);
+  assert.match(printFlow, /if \(type === 'processing'\) warehouseRowEl\.style\.display = 'none'/);
   assert.match(printFlow, /salesPhoneGroupEl\.style\.display = type === 'warehouse' \? '' : 'none'/);
   assert.match(html, /id="print-warehouse-row"/);
   assert.match(html, /id="print-sales-phone-group"/);
+  assert.match(invoice, /setCompanyLineVisibility\('print-company-address-factory-row', config\.addressFactory\)/);
+  assert.match(invoice, /setCompanyLineVisibility\('print-company-email-row', config\.email\)/);
+  assert.match(html, /id="print-company-address-factory-row" style="display: none/);
 });
 
 test('sales invoice prints the managed business name instead of the paint brand label', () => {

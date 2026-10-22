@@ -62,6 +62,8 @@ test('generic SaaS UI removes legacy single-tenant paint strings and hardcoded c
   // Print template does not hardcode ABS company or Thai Nguyen warehouse
   assert.doesNotMatch(indexHtml, /<div id="print-company-name-large"[^>]*>CÔNG TY CỔ PHẦN ABS JAPAN<\/div>/);
   assert.doesNotMatch(indexHtml, /<strong id="print-warehouse-text">Xuất Tại kho số 03 Chi nhánh Thái Nguyên<\/strong>/);
+  assert.doesNotMatch(indexHtml, /id="print-company-address-(?:main|factory)"[^>]*>[^<]*(?:Thái Nguyên|Hà Nội)/);
+  assert.doesNotMatch(indexHtml, /id="print-company-(?:hotline|cskh|email)"[^>]*>[^<]*(?:088\.603|nhamaysonnano)/);
 
   // Navigation and primary table headers use industry-neutral 'Thương hiệu'
   assert.doesNotMatch(indexHtml, /data-target="brands-panel"[^>]*>[\s\S]*?Hãng sơn/);
@@ -72,3 +74,13 @@ test('generic SaaS UI removes legacy single-tenant paint strings and hardcoded c
   assert.doesNotMatch(indexHtml, /<option[^>]*>Tất cả nhãn sơn<\/option>/i);
 });
 
+test('invoice actions and quantity summary describe a general sale instead of stock or payment', () => {
+  const indexHtml = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
+  const service = fs.readFileSync(path.join(root, 'js', 'components', 'invoice.js'), 'utf8');
+
+  assert.match(indexHtml, /Tổng số lượng:<\/span>[\s\S]*?<strong id="summary-total-qty">0<\/strong> đơn vị/);
+  assert.match(indexHtml, /Chốt đơn &amp; ghi công nợ/);
+  assert.match(indexHtml, /Kiểm tra đơn hàng trước khi chốt/);
+  assert.doesNotMatch(indexHtml, /Thanh toán &amp; Xuất kho/);
+  assert.match(service, /const paidAmount = 0;/);
+});

@@ -26,3 +26,23 @@ test('sale customer policy resolves identity without protected auth schema acces
   assert.doesNotMatch(migration, /auth\.uid\(\)/);
   assert.doesNotMatch(migration, /GRANT\s+USAGE\s+ON\s+SCHEMA\s+auth/i);
 });
+
+test('assigned exclusive brand is enforced when Cloud orders are written', () => {
+  const migration = read('migrations/0102_enforce_assigned_brand_on_orders.sql');
+  const invoice = read('js/components/invoice.js');
+  const service = read('js/services/supabase.js');
+
+  assert.match(service, /assigned_brand_id/);
+  assert.match(invoice, /function getCustomerAssignedBrandId\(/);
+  assert.match(invoice, /filterInvoiceItemsToAssignedBrand\(/);
+  assert.match(migration, /CREATE OR REPLACE FUNCTION public\.validate_customer_order_brand_scope\(\)/);
+  assert.match(migration, /customer\.organization_id = NEW\.organization_id/);
+  assert.match(migration, /product\.organization_id = NEW\.organization_id/);
+  assert.match(migration, /NEW\.items/);
+  assert.match(migration, /NEW\.customer_id/);
+  assert.match(migration, /ERRCODE = '23514'/);
+  assert.match(migration, /BEFORE INSERT OR UPDATE OF items, customer_id, organization_id ON public\.orders/);
+  assert.match(migration, /BEFORE INSERT OR UPDATE OF items, customer_id, organization_id ON public\.draft_orders/);
+  assert.match(migration, /REVOKE ALL ON FUNCTION public\.validate_customer_order_brand_scope\(\) FROM PUBLIC, anon, authenticated/);
+  assert.doesNotMatch(migration, /DELETE FROM public\.(?:orders|order_items)|TRUNCATE/i);
+});

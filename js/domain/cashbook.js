@@ -31,6 +31,29 @@ export function getCanonicalCashbookId(transaction = {}) {
 }
 
 /**
+ * Reuse an idempotency key only while retrying the same cashbook form payload.
+ * Display voucher codes are not unique request identifiers: the server replaces
+ * them with canonical IDs, so deriving keys from the display code can collide.
+ */
+export function createCashbookIdempotencyIntent(previousIntent, transaction = {}, createId = () => globalThis.crypto.randomUUID()) {
+  const value = Number(transaction.value || 0);
+  const fingerprint = JSON.stringify([
+    String(transaction.id || ''),
+    String(transaction.date || transaction.transactionDate || ''),
+    String(transaction.type || ''),
+    String(transaction.category || ''),
+    String(transaction.partner || ''),
+    Number.isFinite(value) ? value : null,
+    String(transaction.paymentMethod || transaction.method || 'cash'),
+    transaction.accounting !== false,
+    String(transaction.note || '')
+  ]);
+
+  if (previousIntent?.key && previousIntent.fingerprint === fingerprint) return previousIntent;
+  return { key: `cashbook:${createId()}`, fingerprint };
+}
+
+/**
  * The operational cashbook shows only vouchers that still have financial
  * effect. Cancelled sources and their append-only reversal rows remain in the
  * database audit trail but are not separate business vouchers in the UI.

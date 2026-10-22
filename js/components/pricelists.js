@@ -1,4 +1,5 @@
 import { state } from '../state.js';
+import { isBrandCatalogEnabled } from '../domain/business-capabilities.js';
 import { showToast, safeCreateIcons, getBrandName, makeSelectSearchable } from '../utils.js';
 import {
   dbSavePricelist,
@@ -21,6 +22,7 @@ import {
   parseVndInteger
 } from '../domain/pricing.js';
 import { isPrintOnlyPriceList } from '../domain/invoice-discount.js';
+import { isCatalogVariant, variantSpecification } from '../domain/product-catalog.js';
 
 const pendingChanges = new Map();
 const pendingDeletes = new Set();
@@ -44,6 +46,12 @@ function itemKey(priceListId, productId) {
 
 function getPriceItem(priceListId, productId) {
   return (state.priceListItems || []).find(item => item.priceListId === priceListId && item.productId === productId) || null;
+}
+
+function productBrandLabel(product) {
+  const brand = String(product?.brand || '').trim();
+  const brandId = String(product?.brandId || '').trim();
+  return brand || brandId ? getBrandName(brandId || brand, brand || brandId) : '—';
 }
 
 function upsertPriceListSnapshot(priceList) {
@@ -97,20 +105,32 @@ function priceListDisplayName(priceList) {
   return customer ? `Giá riêng - ${customer.name}` : priceList.name;
 }
 
+function escapePriceListHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, character => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;'
+  })[character]);
+}
+
 function visiblePriceLists() {
   return filterPriceListsForUser(state.pricelists, state.currentUser);
 }
 
 function getFilteredMatrixProducts() {
   const productSearch = (document.getElementById('price-matrix-product-search')?.value || '').trim().toLowerCase();
-  const brandFilter = document.getElementById('price-matrix-brand-filter')?.value || '';
+  const brandFilter = isBrandCatalogEnabled(state.businessCapabilities, state.brands, state.products)
+    ? (document.getElementById('price-matrix-brand-filter')?.value || '')
+    : '';
   const packageFilter = document.getElementById('price-matrix-package-filter')?.value || '';
   const groupFilter = document.getElementById('price-matrix-group-filter')?.value || '';
 
   return (state.products || [])
-    .filter(product => product.id && product.packageType && !product.isLegacy && product.isActive !== false)
+    .filter(product => isCatalogVariant(product) && product.isActive !== false)
     .filter(product => {
-      const brand = getBrandName(product.brandId || product.brand, product.brand || '');
+      const brand = productBrandLabel(product);
       const haystack = `${product.code} ${product.name} ${brand} ${product.displaySpecification || ''} ${product.group || ''}`.toLowerCase();
       if (productSearch && !haystack.includes(productSearch)) return false;
       if (brandFilter && brand !== brandFilter) return false;
@@ -129,8 +149,8 @@ function matrixProductCells(product) {
   return [
     product.code,
     product.name,
-    getBrandName(product.brandId || product.brand, product.brand || ''),
-    product.displaySpecification || `${product.packageType} ${product.packageWeight ?? ''} ${product.packageWeightUnit || ''}`.trim()
+    productBrandLabel(product),
+    product.displaySpecification || variantSpecification(product)
   ];
 }
 
@@ -194,7 +214,7 @@ function buildPriceListSelector() {
             <label class="price-list-picker-label">
               <input type="checkbox" class="price-list-visible-check" value="${priceList.id}" ${isChecked ? 'checked' : ''}>
               <span class="price-list-option-info">
-                <span class="price-list-option-name" title="${priceListDisplayName(priceList)}">${priceListDisplayName(priceList)}</span>
+                <span class="price-list-option-name" title="${escapePriceListHtml(priceListDisplayName(priceList))}">${escapePriceListHtml(priceListDisplayName(priceList))}</span>
                 ${priceListBadge(priceList)}
               </span>
             </label>
@@ -225,9 +245,9 @@ function buildPriceListSelector() {
 }
 
 function populateMatrixFilters() {
-  const skuProducts = (state.products || []).filter(product => product.id && product.packageType && !product.isLegacy);
+  const skuProducts = (state.products || []).filter(isCatalogVariant);
   const definitions = [
-    ['price-matrix-brand-filter', 'Tất cả thương hiệu', [...new Set(skuProducts.map(product => getBrandName(product.brandId || product.brand, product.brand)).filter(Boolean))]],
+    ['price-matrix-brand-filter', 'Tất cả thương hiệu', [...new Set(skuProducts.map(productBrandLabel).filter(Boolean))]],
     ['price-matrix-package-filter', 'Tất cả loại bao bì', [...new Set(skuProducts.map(product => product.packageType).filter(Boolean))]],
     ['price-matrix-group-filter', 'Tất cả nhóm sản phẩm', [...new Set(skuProducts.map(product => product.group).filter(Boolean))]]
   ];
@@ -389,11 +409,15 @@ export function renderPricelistsTable(options = {}) {
       <tr>
         <th class="sticky-col sticky-code">Mã sản phẩm</th>
         <th class="sticky-col sticky-name">Tên sản phẩm</th>
-        <th class="sticky-col sticky-brand">Thương hiệu</th>
+        <th class="sticky-col sticky-brand" data-brand-feature>Thương hiệu</th>
         <th class="sticky-col sticky-package">Quy cách</th>
         ${selectedLists.map(priceList => `
           <th class="price-col">
-            <div class="price-column-header">${priceListDisplayName(priceList)}${priceListBadge(priceList)}</div>
+            <div class="price-column-header">
+              <span class="price-column-title">${escapePriceListHtml(priceListDisplayName(priceList))}</span>
+              ${priceListBadge(priceList)}
+              ${canManagePriceLists() ? `<button type="button" class="icon-btn price-matrix-edit-price-list" data-id="${escapePriceListHtml(priceList.id)}" aria-label="Sửa tên bảng giá ${escapePriceListHtml(priceListDisplayName(priceList))}" title="Sửa bảng giá"><i data-lucide="pencil"></i></button>` : ''}
+            </div>
           </th>
         `).join('')}
       </tr>
@@ -426,8 +450,8 @@ export function renderPricelistsTable(options = {}) {
     <tr>
       <td class="sticky-col sticky-code sku-code"><span class="table-code-chip code-chip-product">${product.code}</span></td>
       <td class="sticky-col sticky-name" title="${product.name}" style="font-weight: 700; color: #0f172a;">${product.name}</td>
-      <td class="sticky-col sticky-brand"><span style="font-weight: 600; color: #334155;">${getBrandName(product.brandId || product.brand, product.brand || '')}</span></td>
-      <td class="sticky-col sticky-package">${product.displaySpecification || `${product.packageType} ${product.packageWeight ?? ''} ${product.packageWeightUnit || ''}`}</td>
+      <td class="sticky-col sticky-brand" data-brand-feature><span style="font-weight: 600; color: #334155;">${productBrandLabel(product)}</span></td>
+      <td class="sticky-col sticky-package">${product.displaySpecification || variantSpecification(product)}</td>
       ${selectedLists.map(priceList => renderCell(product, priceList, effectivePriceItems)).join('')}
     </tr>
   `).join('');
@@ -553,7 +577,16 @@ export async function savePricelist() {
     return;
   }
 
-  const id = index === -1 ? `pl-${Date.now()}` : document.getElementById('pricelist-edit-id').value;
+  const editId = document.getElementById('pricelist-edit-id').value;
+  const existingPriceList = index === -1
+    ? null
+    : (state.allPricelists || []).find(item => item.id === editId)
+      || state.pricelists[index];
+  if (index !== -1 && (!existingPriceList || String(existingPriceList.id) !== String(editId))) {
+    showToast('Không tìm thấy bảng giá cần sửa. Hãy tải lại danh sách rồi thử lại.', 'danger');
+    return;
+  }
+  const id = index === -1 ? `pl-${Date.now()}` : editId;
   const priceList = {
     id,
     code: document.getElementById('pl-code').value.trim().toUpperCase(),
@@ -568,9 +601,13 @@ export async function savePricelist() {
     isAvailableForSales: type === PRICE_LIST_TYPES.DEALER_PRIVATE ? false : document.getElementById('pl-available-for-sales').checked,
     isPrintOnly: !document.getElementById('pl-allow-order-save').checked,
     displayOrder: Number(document.getElementById('pl-display-order').value || 0),
-    brandDiscounts: {}
+    brandDiscounts: existingPriceList?.brandDiscounts || {}
   };
-  if (!priceList.name) return;
+  if (!priceList.name) {
+    showToast('Vui lòng nhập tên bảng giá.', 'warning');
+    document.getElementById('pl-name')?.focus();
+    return;
+  }
   if (priceList.parentPriceListId === id) {
     showToast('Bảng giá không thể kế thừa chính nó.', 'warning');
     return;
@@ -660,7 +697,7 @@ export function populatePricelistsDropdowns() {
       <option value="">Tự động theo khách hàng</option>
       ${lists.map(priceList => `<option value="${priceList.id}">${priceListDisplayName(priceList)}</option>`).join('')}
       ${assignedOnly ? `<option value="${assignedOnly.id}" data-customer-assigned="true">${assignedOnly.name} (theo đại lý)</option>` : ''}
-      <option value="retail">Nhập tay có xác nhận</option>
+      ${['admin', 'accounting'].includes(state.currentUser?.role) ? '<option value="retail">Nhập tay có xác nhận</option>' : ''}
     `;
     const desired = current || assignedOnly?.id || '';
     if ([...invoiceSelect.options].some(option => option.value === desired)) invoiceSelect.value = desired;
@@ -749,6 +786,51 @@ export function exportPriceMatrixExcel() {
   showToast(`Đã xuất ${products.length} SKU và ${lists.length} bảng giá đang chọn.`);
 }
 
+export function downloadPriceMatrixTemplate() {
+  if (!canManagePriceLists()) {
+    rejectPriceListMutation();
+    return;
+  }
+
+  const lists = sortPriceLists(
+    (state.pricelists || []).filter(priceList =>
+      priceList.isActive !== false && state.selectedPriceListIds.includes(priceList.id)
+    )
+  );
+  if (!lists.length) {
+    showToast('Hãy chọn ít nhất một bảng giá để tạo file mẫu.', 'warning');
+    return;
+  }
+
+  const products = getFilteredMatrixProducts();
+  const headers = [...PRICE_MATRIX_FIXED_HEADERS, ...lists.map(priceListExcelHeader)];
+  const rows = [
+    headers,
+    ...products.map(product => [...matrixProductCells(product), ...lists.map(() => '')])
+  ];
+  const workbook = XLSX.utils.book_new();
+  const matrixSheet = XLSX.utils.aoa_to_sheet(rows);
+  matrixSheet['!cols'] = [
+    { wch: 18 }, { wch: 44 }, { wch: 22 }, { wch: 24 }, ...lists.map(() => ({ wch: 28 }))
+  ];
+  matrixSheet['!autofilter'] = {
+    ref: `A1:${XLSX.utils.encode_col(headers.length - 1)}${Math.max(1, products.length + 1)}`
+  };
+  XLSX.utils.book_append_sheet(workbook, matrixSheet, 'Nhap Gia');
+  XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet([
+    ['HƯỚNG DẪN NHẬP BẢNG GIÁ'],
+    ['1. Điền giá vào sheet "Nhap Gia"; không sửa Mã SKU hoặc tiêu đề bảng giá.'],
+    ['2. Giữ ô trống nếu không muốn thay đổi giá hiện tại.'],
+    ['3. Nhập XOA để xóa giá riêng và quay lại giá kế thừa.'],
+    ['4. Giá phải là số nguyên không âm. Giá 0 sẽ cần xác nhận khi nhập.'],
+    ['5. Giữ nguyên phần ID trong dấu [] ở tiêu đề để hệ thống nhận diện bảng giá.']
+  ]), 'Huong Dan');
+
+  const stamp = new Date().toISOString().slice(0, 10);
+  XLSX.writeFile(workbook, `Mau_Ma_Tran_Bang_Gia_${stamp}.xlsx`);
+  showToast(`Đã tải file mẫu gồm ${products.length} SKU và ${lists.length} bảng giá.`);
+}
+
 function findPriceListFromExcelHeader(header, lists) {
   const raw = String(header || '').trim();
   const idMatch = raw.match(/\[([^\]]+)\]\s*$/);
@@ -769,8 +851,7 @@ function findProductFromExcelRow(code, brand) {
   const normalizedBrand = String(brand || '').trim().toLowerCase();
   const matches = (state.products || []).filter(product =>
     product.code === normalizedCode &&
-    product.packageType &&
-    !product.isLegacy
+    isCatalogVariant(product)
   );
   if (matches.length <= 1 || !normalizedBrand) return matches.length === 1 ? matches[0] : null;
   return matches.find(product =>
@@ -954,6 +1035,26 @@ async function importPriceMatrixExcel(file) {
 
 export function setupPricelistManagement() {
   const visiblePicker = document.getElementById('pricelist-visible-picker');
+  const matrixHead = document.querySelector('#pricelists-panel .price-matrix-table thead');
+
+  if (matrixHead && !matrixHead.dataset.editHandlerBound) {
+    matrixHead.dataset.editHandlerBound = 'true';
+    matrixHead.addEventListener('click', event => {
+      const editButton = event.target.closest('.price-matrix-edit-price-list');
+      if (!editButton) return;
+      event.preventDefault();
+      if (!canManagePriceLists()) {
+        rejectPriceListMutation();
+        return;
+      }
+      const index = state.pricelists.findIndex(priceList => String(priceList.id) === String(editButton.dataset.id));
+      if (index < 0) {
+        showToast('Không tìm thấy bảng giá này trong danh sách được quản lý.', 'warning');
+        return;
+      }
+      openPricelistModal(index);
+    });
+  }
 
   document.getElementById('btn-open-add-pricelist-modal')?.addEventListener('click', () => openPricelistModal(-1));
   document.getElementById('btn-close-pricelist-modal')?.addEventListener('click', closePricelistModal);
@@ -1021,6 +1122,7 @@ export function setupPricelistManagement() {
   });
   document.getElementById('btn-save-price-matrix')?.addEventListener('click', savePriceMatrix);
   document.getElementById('btn-export-pricelist-excel')?.addEventListener('click', exportPriceMatrixExcel);
+  document.getElementById('btn-download-pricelist-template')?.addEventListener('click', downloadPriceMatrixTemplate);
   const priceExcelInput = document.getElementById('pricelist-excel-file-input');
   document.getElementById('btn-import-pricelist-excel')?.addEventListener('click', () => priceExcelInput?.click());
   priceExcelInput?.addEventListener('change', async () => {

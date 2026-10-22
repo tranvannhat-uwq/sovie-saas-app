@@ -11,12 +11,19 @@ const html = read('index.html');
 const css = read('styles/base.css');
 const migration = read('migrations/0033_dashboard_revenue_attribution.sql');
 const customerFilterMigration = read('migrations/0099_dashboard_customer_filter.sql');
+const brandIssuerMigration = read('migrations/0105_optional_workspace_brands_and_invoice_issuer.sql');
 
-test('company revenue is attributed from each item paint brand', () => {
-  assert.match(dashboard, /getCompanyIdByBrand\(rBrand, state\.brands\)/);
-  assert.match(migration, /brand\.company_id/);
+test('company revenue follows the transaction company except for legacy paint compatibility', () => {
+  assert.match(dashboard, /if \(transactionCompanyId\) return transactionCompanyId/);
+  assert.match(dashboard, /if \(!isLegacyPaintWorkspace\(\)\) return ''/);
+  assert.match(dashboard, /getCompanyIdByBrand\([\s\S]*state\.brands/);
+  assert.match(migration, /brand\.company_id/); // Historical migration retained for already deployed databases.
   assert.match(migration, /GROUP BY revenue_company_id/);
-  assert.doesNotMatch(migration.match(/'by_company'[\s\S]*?'by_brand'/)?.[0] || '', /FROM visible_orders GROUP BY company_id/);
+  const dashboardStart = brandIssuerMigration.indexOf('CREATE OR REPLACE FUNCTION public.rpc_get_phase5_dashboard');
+  const dashboardEnd = brandIssuerMigration.indexOf('ALTER FUNCTION public.rpc_get_phase5_dashboard', dashboardStart);
+  const dashboardSql = brandIssuerMigration.slice(dashboardStart, dashboardEnd);
+  assert.match(dashboardSql, /sale\.company_id revenue_company_id/);
+  assert.doesNotMatch(dashboardSql, /brand\.company_id/);
 });
 
 test('sales revenue is attributed to the customer manager, not the order closer', () => {

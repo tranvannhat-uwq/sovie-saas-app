@@ -42,3 +42,17 @@ export function resolveBusinessCapabilities(payload, expectedOrganizationId) {
 export function isBusinessModuleEnabled(capabilities, moduleKey) {
   return capabilities?.modules?.[moduleKey]?.enabled === true;
 }
+
+export function isSalesBrandRestrictionEnabled(capabilities) {
+  return capabilities?.modules?.sales?.config?.brand_restriction_enabled === true;
+}
+
+export function isBrandCatalogEnabled(capabilities, brands = [], products = []) {
+  if (isSalesBrandRestrictionEnabled(capabilities)) return true;
+  const configured = capabilities?.modules?.sales?.config?.brand_catalog_enabled;
+  if (typeof configured === 'boolean') return configured;
+  // Compatibility for workspaces that have not applied the optional-brand
+  // migration yet: keep existing brand data visible until they can configure it.
+  return (Array.isArray(brands) && brands.length > 0)
+    || (Array.isArray(products) && products.some(product => String(product?.brand || product?.brand_id || '').trim()));
+}

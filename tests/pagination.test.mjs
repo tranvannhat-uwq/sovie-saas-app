@@ -26,3 +26,43 @@ test('pagination also reaches the empty page when exact count is unavailable', a
   assert.equal(result.length, 750);
   assert.deepEqual(offsets, [0, 500, 750]);
 });
+
+test('pagination rejects an early empty page when the server reports more rows', async () => {
+  let calls = 0;
+  await assert.rejects(
+    collectAllPages(async () => {
+      calls += 1;
+      return calls === 1
+        ? { data: [{ id: 'a' }, { id: 'b' }], count: 5, error: null }
+        : { data: [], count: 5, error: null };
+    }, 2),
+    error => error.code === 'PAGINATION_INCOMPLETE'
+      && error.expectedRows === 5
+      && error.loadedRows === 2
+  );
+});
+
+test('pagination rejects duplicate keys when rows shift between offset pages', async () => {
+  let calls = 0;
+  await assert.rejects(
+    collectAllPages(async () => {
+      calls += 1;
+      if (calls === 1) return { data: [{ id: 'a' }, { id: 'b' }], count: null, error: null };
+      return { data: [{ id: 'b' }], count: null, error: null };
+    }, 2),
+    error => error.code === 'PAGINATION_DUPLICATE_ROW' && error.rowKey === 'b'
+  );
+});
+
+test('pagination rejects totals that change between exact-counted pages', async () => {
+  let calls = 0;
+  await assert.rejects(
+    collectAllPages(async () => {
+      calls += 1;
+      return calls === 1
+        ? { data: [{ id: 'a' }, { id: 'b' }], count: 3, error: null }
+        : { data: [{ id: 'c' }], count: 4, error: null };
+    }, 2),
+    error => error.code === 'PAGINATION_TOTAL_CHANGED'
+  );
+});

@@ -2,16 +2,13 @@ import { state } from '../state.js';
 import { showToast, safeCreateIcons } from '../utils.js';
 import {
   createSaasOrganization,
-  disableSaasCustomDomain,
-  getSaasCustomDomainVerification,
-  provisionSaasCustomDomain,
-  requestSaasCustomDomain,
   requestSaasOrganizationArchive,
   requestSaasPlanChange,
+  saveSalesBrandSettings,
+  saveInvoiceIssuerProfile,
   saveSaasBranch,
   saveSaasWarehouse,
-  setPrimarySaasCustomDomain,
-  verifySaasCustomDomainDns,
+  switchSaasOrganization,
   validateSaasOrganizationSlug
 } from '../services/supabase.js';
 
@@ -44,12 +41,12 @@ async function validateSlugInput({ quiet = false } = {}) {
   const slug = normalizeSlug(slugInput?.value);
   if (slugInput) slugInput.value = slug;
   if (slug.length < 3) {
-    if (!quiet) setSlugStatus('Tên miền cần ít nhất 3 ký tự.', 'danger');
+    if (!quiet) setSlugStatus('Mã workspace cần ít nhất 3 ký tự.', 'danger');
     return false;
   }
 
   const sequence = ++slugValidationSequence;
-  if (!quiet) setSlugStatus('Đang kiểm tra tên miền...', 'muted');
+  if (!quiet) setSlugStatus('Đang kiểm tra mã workspace...', 'muted');
   try {
     const result = await validateSaasOrganizationSlug(slug);
     if (sequence !== slugValidationSequence) return false;
@@ -58,18 +55,18 @@ async function validateSlugInput({ quiet = false } = {}) {
       return false;
     }
     if (result?.reserved) {
-      setSlugStatus('Tên miền này được hệ thống giữ lại.', 'danger');
+      setSlugStatus('Mã workspace này được hệ thống giữ lại.', 'danger');
       return false;
     }
     if (!result?.available) {
-      setSlugStatus('Tên miền này đã được sử dụng.', 'danger');
+      setSlugStatus('Mã workspace này đã được sử dụng.', 'danger');
       return false;
     }
-    setSlugStatus(`${slug}.sovie.vn đang khả dụng.`, 'success');
+    setSlugStatus(`Mã ${slug} đang khả dụng. Đăng nhập và chuyển workspace tại sovie.vn.`, 'success');
     return true;
   } catch (error) {
     if (sequence === slugValidationSequence) {
-      setSlugStatus(error?.message || 'Không thể kiểm tra tên miền.', 'danger');
+      setSlugStatus(error?.message || 'Không thể kiểm tra mã workspace.', 'danger');
     }
     return false;
   }
@@ -77,14 +74,28 @@ async function validateSlugInput({ quiet = false } = {}) {
 
 export function renderWorkspaceSwitcher() {
   const nameLabel = document.getElementById('workspace-current-name');
-  const domainLabel = document.getElementById('workspace-current-domain');
+  const codeLabel = document.getElementById('workspace-current-code');
   const usageLabel = document.getElementById('workspace-plan-usage');
+  const selector = document.getElementById('workspace-select');
 
   if (nameLabel) nameLabel.textContent = state.saasContext?.organizationName || 'Chưa có doanh nghiệp';
-  if (domainLabel) {
-    domainLabel.textContent = state.saasContext?.organizationSlug
-      ? `${state.saasContext.organizationSlug}.sovie.vn`
-      : 'Thiết lập workspace để bắt đầu';
+  if (codeLabel) {
+    codeLabel.textContent = state.saasContext?.organizationSlug
+      ? `Mã workspace: ${state.saasContext.organizationSlug} · Đăng nhập tại sovie.vn`
+      : 'Đăng nhập tại sovie.vn';
+  }
+  if (selector) {
+    const organizations = Array.isArray(state.saasContext?.organizations)
+      ? state.saasContext.organizations
+      : [];
+    selector.replaceChildren(...organizations.map(organization => {
+      const option = document.createElement('option');
+      option.value = String(organization.id || '');
+      option.textContent = organization.name || organization.slug || 'Workspace';
+      return option;
+    }));
+    selector.value = String(state.saasContext?.organizationId || '');
+    selector.style.display = organizations.length > 1 ? 'block' : 'none';
   }
   if (usageLabel) {
     const usage = state.saasContext?.planUsage || {};
@@ -100,10 +111,73 @@ export function renderWorkspaceSwitcher() {
     backupSection.style.display = ['owner','admin'].includes(state.currentUser?.organizationRole)
       ? 'block' : 'none';
   }
-  renderCustomDomainManagement();
   renderBillingManagement();
   renderLocationManagement();
+  renderSalesPolicyManagement();
+  renderInvoiceIssuerManagement();
   renderOrganizationArchiveManagement();
+}
+
+export function renderSalesPolicyManagement() {
+  const section = document.getElementById('sales-policy-section');
+  const restrictionCheckbox = document.getElementById('sales-brand-restriction-enabled');
+  const catalogCheckbox = document.getElementById('sales-brand-catalog-enabled');
+  const canManage = ['owner', 'admin'].includes(state.currentUser?.organizationRole);
+  if (section) section.style.display = canManage ? 'block' : 'none';
+  if (!canManage || !restrictionCheckbox || !catalogCheckbox) return;
+  const config = state.businessCapabilities?.modules?.sales?.config || {};
+  restrictionCheckbox.checked = config.brand_restriction_enabled === true;
+  catalogCheckbox.checked = typeof config.brand_catalog_enabled === 'boolean'
+    ? config.brand_catalog_enabled || restrictionCheckbox.checked
+    : Boolean((state.brands || []).length || restrictionCheckbox.checked);
+  catalogCheckbox.disabled = restrictionCheckbox.checked;
+}
+
+function renderInvoiceIssuerManagement() {
+  const section = document.getElementById('invoice-issuer-section');
+  const form = document.getElementById('invoice-issuer-form');
+  const companySelect = document.getElementById('invoice-issuer-company');
+  const canManage = ['owner', 'admin'].includes(state.currentUser?.organizationRole);
+  if (section) section.style.display = canManage ? 'block' : 'none';
+  if (!canManage || !form || !companySelect) return;
+
+  const organizationId = String(state.saasContext?.organizationId || '').trim();
+  const companies = new Map((state.companies || []).map(company => [String(company.id), company]));
+  (state.businessCapabilities?.branches || []).forEach(branch => {
+    const id = String(branch.id || '').trim();
+    if (id && !companies.has(id)) companies.set(id, { id, name: branch.name || branch.code || id });
+  });
+  if (organizationId && !companies.has(organizationId)) {
+    companies.set(organizationId, { id: organizationId, name: state.saasContext?.organizationName || 'Doanh nghiệp' });
+  }
+  const currentCompanyId = companySelect.value || organizationId;
+  companySelect.replaceChildren(...[...companies.values()].map(company => {
+    const option = document.createElement('option');
+    option.value = String(company.id);
+    option.textContent = String(company.name || company.id);
+    return option;
+  }));
+  companySelect.value = companies.has(currentCompanyId) ? currentCompanyId : (organizationId || companies.keys().next().value || '');
+
+  const profiles = state.businessCapabilities?.settings?.branding?.invoice_issuers || {};
+  const profile = profiles[companySelect.value] || {};
+  const fields = {
+    'invoice-issuer-name': profile.legal_name || '',
+    'invoice-issuer-tax-code': profile.tax_code || '',
+    'invoice-issuer-logo': profile.logo_url || '',
+    'invoice-issuer-hotline': profile.hotline || '',
+    'invoice-issuer-customer-service': profile.customer_service_phone || '',
+    'invoice-issuer-email': profile.email || '',
+    'invoice-issuer-address': profile.address || '',
+    'invoice-issuer-factory-address': profile.factory_address || '',
+    'invoice-issuer-business-address': profile.business_address || '',
+    'invoice-issuer-warehouse-text': profile.invoice_warehouse_text || '',
+    'invoice-issuer-sales-phone': profile.sales_phone || ''
+  };
+  Object.entries(fields).forEach(([id, value]) => {
+    const input = document.getElementById(id);
+    if (input && document.activeElement !== input) input.value = value;
+  });
 }
 
 export function renderSubscriptionAccessNotice() {
@@ -127,110 +201,6 @@ export function renderSubscriptionAccessNotice() {
   } else {
     notice.textContent = 'Workspace đang ở chế độ chỉ đọc do gói dịch vụ tạm dừng hoặc đã hủy. Dữ liệu và chức năng xuất vẫn được giữ; các thao tác ghi bị database chặn.';
   }
-}
-
-export function renderCustomDomainManagement() {
-  const section = document.getElementById('custom-domain-section');
-  const list = document.getElementById('custom-domain-list');
-  const input = document.getElementById('custom-domain-hostname');
-  const submit = document.getElementById('btn-request-custom-domain');
-  const isOwner = state.currentUser?.organizationRole === 'owner';
-  const domainLimit = Number(state.businessCapabilities?.planLimits?.custom_domains || 0);
-  const domains = Array.isArray(state.businessCapabilities?.domains)
-    ? state.businessCapabilities.domains
-    : [];
-  if (section) section.style.display = isOwner ? 'block' : 'none';
-  if (!isOwner || !list) return;
-
-  const customDomains = domains.filter(domain => domain.domain_type === 'custom' && domain.status !== 'disabled');
-  list.innerHTML = customDomains.length ? customDomains.map(domain => `
-    <div class="custom-domain-row">
-      <div><strong>${domain.hostname}</strong><small>${domain.status} · SSL ${domain.ssl_status}${domain.is_primary ? ' · Tên miền chính' : ''}</small></div>
-      <div class="custom-domain-actions">
-        ${domain.status !== 'active' ? `<button type="button" class="btn btn-secondary btn-xs domain-verification-btn" data-id="${domain.id}">Bản ghi TXT</button>` : ''}
-        ${['pending','failed'].includes(domain.status) ? `<button type="button" class="btn btn-primary btn-xs domain-dns-check-btn" data-id="${domain.id}">Kiểm tra DNS</button>` : ''}
-        ${domain.status === 'verified' ? `<button type="button" class="btn btn-primary btn-xs domain-ssl-btn" data-id="${domain.id}">Cấp/kiểm tra SSL</button>` : ''}
-        ${domain.status === 'active' && domain.ssl_status === 'active' && !domain.is_primary ? `<button type="button" class="btn btn-primary btn-xs domain-primary-btn" data-id="${domain.id}">Đặt làm chính</button>` : ''}
-        <button type="button" class="btn btn-danger btn-xs domain-disable-btn" data-id="${domain.id}">Vô hiệu hóa</button>
-      </div>
-    </div>
-  `).join('') : '<p class="custom-domain-empty">Chưa đăng ký custom domain.</p>';
-
-  const remaining = Math.max(0, domainLimit - customDomains.length);
-  if (input) input.disabled = remaining < 1;
-  if (submit) {
-    submit.disabled = remaining < 1;
-    submit.textContent = domainLimit < 1 ? 'Plan hiện tại chưa hỗ trợ' : `Đăng ký (${remaining} còn lại)`;
-  }
-
-  list.querySelectorAll('.domain-verification-btn').forEach(button => button.addEventListener('click', async () => {
-    try {
-      const result = await getSaasCustomDomainVerification(button.dataset.id);
-      const verification = result?.verification || {};
-      const output = document.getElementById('custom-domain-verification-output');
-      if (output) {
-        output.style.display = 'block';
-        output.textContent = `Tạo bản ghi ${verification.type || 'TXT'}\nTên: ${verification.name || ''}\nGiá trị: ${verification.value || ''}`;
-      }
-    } catch (error) {
-      showToast(error?.message || 'Không thể tải hướng dẫn xác minh.', 'danger');
-    }
-  }));
-  list.querySelectorAll('.domain-primary-btn').forEach(button => button.addEventListener('click', async () => {
-    try {
-      await setPrimarySaasCustomDomain(button.dataset.id);
-      showToast('Đã đổi tên miền chính. Đang tải lại cấu hình...', 'success');
-      window.location.reload();
-    } catch (error) {
-      showToast(error?.message || 'Không thể đổi tên miền chính.', 'danger');
-    }
-  }));
-  list.querySelectorAll('.domain-dns-check-btn').forEach(button => button.addEventListener('click', async () => {
-    button.disabled = true;
-    try {
-      const result = await verifySaasCustomDomainDns(button.dataset.id);
-      if (result?.verified) {
-        showToast('DNS đã được xác minh. SSL đang chờ cấp phát.', 'success');
-        window.location.reload();
-      } else {
-        showToast('Chưa tìm thấy TXT chính xác. Hãy kiểm tra DNS và thử lại sau một phút.', 'warning');
-      }
-    } catch (error) {
-      button.disabled = false;
-      showToast(error?.message || 'Không thể kiểm tra DNS.', 'danger');
-    }
-  }));
-  list.querySelectorAll('.domain-ssl-btn').forEach(button => button.addEventListener('click', async () => {
-    button.disabled = true;
-    try {
-      const result = await provisionSaasCustomDomain(button.dataset.id);
-      const output = document.getElementById('custom-domain-verification-output');
-      if (result?.ready) {
-        showToast('Cloudflare đã kích hoạt hostname và SSL.', 'success');
-        window.location.reload();
-      } else {
-        if (output) {
-          output.style.display = 'block';
-          output.textContent = `SSL đang xử lý.\nCNAME cần trỏ tới: ${result?.cnameTarget || 'chưa cấu hình'}\nHostname: ${result?.hostnameStatus || 'pending'}\nSSL: ${result?.sslStatus || 'pending'}`;
-        }
-        showToast('Đã gửi yêu cầu cấp SSL. Hãy cấu hình CNAME rồi kiểm tra lại.', 'warning');
-        button.disabled = false;
-      }
-    } catch (error) {
-      button.disabled = false;
-      showToast(error?.message || 'Không thể cấp SSL.', 'danger');
-    }
-  }));
-  list.querySelectorAll('.domain-disable-btn').forEach(button => button.addEventListener('click', async () => {
-    if (!confirm('Vô hiệu hóa custom domain này? Subdomain sovie.vn vẫn được giữ.')) return;
-    try {
-      await disableSaasCustomDomain(button.dataset.id);
-      showToast('Đã vô hiệu hóa custom domain.', 'warning');
-      window.location.reload();
-    } catch (error) {
-      showToast(error?.message || 'Không thể vô hiệu hóa tên miền.', 'danger');
-    }
-  }));
 }
 
 function escapeWorkspaceText(value) {
@@ -391,7 +361,7 @@ export function openWorkspaceOnboarding({ required = false } = {}) {
       ? 'Tạo workspace đầu tiên để bắt đầu dùng SoVie. Bạn được dùng thử gói Starter trong 14 ngày.'
       : 'Tạo thêm một workspace độc lập cho doanh nghiệp hoặc thương hiệu khác.';
   }
-  setSlugStatus('Địa chỉ truy cập sẽ có dạng ten-doanh-nghiep.sovie.vn.');
+  setSlugStatus('Mã workspace dùng để nhận diện doanh nghiệp; mọi tài khoản đăng nhập tại sovie.vn.');
   modal?.classList.add('active');
   document.getElementById('workspace-name')?.focus();
   safeCreateIcons();
@@ -406,10 +376,21 @@ export function setupWorkspaceManagement() {
   const form = document.getElementById('workspace-onboarding-form');
   const nameInput = document.getElementById('workspace-name');
   const slugInput = document.getElementById('workspace-slug');
-  const domainForm = document.getElementById('custom-domain-form');
+  const workspaceSelect = document.getElementById('workspace-select');
   const branchForm = document.getElementById('branch-management-form');
   const warehouseForm = document.getElementById('warehouse-management-form');
   const archiveForm = document.getElementById('organization-archive-form');
+  const salesPolicyForm = document.getElementById('sales-policy-form');
+  const invoiceIssuerForm = document.getElementById('invoice-issuer-form');
+  const restrictionCheckbox = document.getElementById('sales-brand-restriction-enabled');
+  const catalogCheckbox = document.getElementById('sales-brand-catalog-enabled');
+  const issuerCompanySelect = document.getElementById('invoice-issuer-company');
+
+  restrictionCheckbox?.addEventListener('change', () => {
+    if (restrictionCheckbox.checked && catalogCheckbox) catalogCheckbox.checked = true;
+    if (catalogCheckbox) catalogCheckbox.disabled = restrictionCheckbox.checked;
+  });
+  issuerCompanySelect?.addEventListener('change', renderInvoiceIssuerManagement);
 
   document.getElementById('btn-close-workspace-onboarding')?.addEventListener('click', closeWorkspaceOnboarding);
   document.getElementById('btn-cancel-workspace-onboarding')?.addEventListener('click', closeWorkspaceOnboarding);
@@ -443,24 +424,19 @@ export function setupWorkspaceManagement() {
     }
   });
 
-  domainForm?.addEventListener('submit', async event => {
-    event.preventDefault();
-    const hostname = document.getElementById('custom-domain-hostname')?.value || '';
-    const button = document.getElementById('btn-request-custom-domain');
-    if (button) button.disabled = true;
+  workspaceSelect?.addEventListener('change', async () => {
+    const organizationId = String(workspaceSelect.value || '').trim();
+    const currentOrganizationId = String(state.activeOrganizationId || state.saasContext?.organizationId || '').trim();
+    if (!organizationId || organizationId === currentOrganizationId) return;
+    workspaceSelect.disabled = true;
     try {
-      const result = await requestSaasCustomDomain(hostname);
-      const verification = result?.verification || {};
-      const output = document.getElementById('custom-domain-verification-output');
-      if (output) {
-        output.style.display = 'block';
-        output.textContent = `Tạo bản ghi ${verification.type || 'TXT'}\nTên: ${verification.name || ''}\nGiá trị: ${verification.value || ''}`;
-      }
-      showToast('Đã đăng ký tên miền. Hãy tạo bản ghi TXT để xác minh.', 'success');
+      await switchSaasOrganization(organizationId);
+      window.location.reload();
     } catch (error) {
-      showToast(error?.message || 'Không thể đăng ký custom domain.', 'danger');
+      workspaceSelect.value = currentOrganizationId;
+      showToast(error?.message || 'Không thể chuyển workspace.', 'danger');
     } finally {
-      if (button) button.disabled = false;
+      workspaceSelect.disabled = false;
     }
   });
 
@@ -529,6 +505,49 @@ export function setupWorkspaceManagement() {
     } catch (error) {
       submit.disabled = false;
       showToast(error?.message || 'Không thể gửi yêu cầu lưu trữ.', 'danger');
+    }
+  });
+
+  salesPolicyForm?.addEventListener('submit', async event => {
+    event.preventDefault();
+    const submit = salesPolicyForm.querySelector('button[type="submit"]');
+    if (submit) submit.disabled = true;
+    try {
+      await saveSalesBrandSettings({
+        restrictionEnabled: restrictionCheckbox?.checked === true,
+        catalogEnabled: catalogCheckbox?.checked === true
+      });
+      showToast('Đã cập nhật cấu hình thương hiệu. Đang tải lại workspace...', 'success');
+      window.location.reload();
+    } catch (error) {
+      if (submit) submit.disabled = false;
+      showToast(error?.message || 'Không thể cập nhật chính sách bán hàng.', 'danger');
+    }
+  });
+
+  invoiceIssuerForm?.addEventListener('submit', async event => {
+    event.preventDefault();
+    const submit = invoiceIssuerForm.querySelector('button[type="submit"]');
+    if (submit) submit.disabled = true;
+    try {
+      await saveInvoiceIssuerProfile(issuerCompanySelect?.value, {
+        legalName: document.getElementById('invoice-issuer-name')?.value,
+        taxCode: document.getElementById('invoice-issuer-tax-code')?.value,
+        logoUrl: document.getElementById('invoice-issuer-logo')?.value,
+        hotline: document.getElementById('invoice-issuer-hotline')?.value,
+        customerServicePhone: document.getElementById('invoice-issuer-customer-service')?.value,
+        email: document.getElementById('invoice-issuer-email')?.value,
+        address: document.getElementById('invoice-issuer-address')?.value,
+        factoryAddress: document.getElementById('invoice-issuer-factory-address')?.value,
+        businessAddress: document.getElementById('invoice-issuer-business-address')?.value,
+        invoiceWarehouseText: document.getElementById('invoice-issuer-warehouse-text')?.value,
+        salesPhone: document.getElementById('invoice-issuer-sales-phone')?.value
+      });
+      showToast('Đã lưu thông tin đơn vị phát hành. Đang tải lại workspace...', 'success');
+      window.location.reload();
+    } catch (error) {
+      if (submit) submit.disabled = false;
+      showToast(error?.message || 'Không thể lưu thông tin phát hành.', 'danger');
     }
   });
 

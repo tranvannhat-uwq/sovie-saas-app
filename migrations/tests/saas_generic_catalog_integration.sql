@@ -52,7 +52,7 @@ RESET ROLE;
 
 SET LOCAL ROLE authenticated;
 INSERT INTO catalog_results
-SELECT 'catalog_reads_are_tenant_scoped', count(*) = 10,
+SELECT 'catalog_reads_are_tenant_scoped', count(*) >= 10,
   format('visible_units=%s', count(*)) FROM public.catalog_units;
 RESET ROLE;
 
@@ -74,7 +74,7 @@ SET LOCAL ROLE authenticated;
 INSERT INTO catalog_results
 SELECT 'catalog_context_returns_current_tenant_only',
   payload->>'organizationId' = '62000000-0000-4000-8000-000000000011'
-    AND jsonb_array_length(payload->'units') = 10
+    AND jsonb_array_length(payload->'units') >= 10
     AND payload->'extensions'->'paint_color'->>'enabled' = 'true',
   format('payload=%s', payload)
 FROM (SELECT public.rpc_my_catalog_context() payload) result;

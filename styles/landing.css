@@ -583,8 +583,8 @@
 #landing-page .landing-nav a::after { content: ''; position: absolute; left: 0; right: 100%; bottom: 3px; height: 2px; background: var(--landing-blue); transition: .25s ease; }
 #landing-page .landing-nav a:hover::after { right: 0; }
 #landing-page .landing-login-button { display: inline-flex; align-items: center; gap: 8px; padding: 0 20px; background: var(--landing-blue); box-shadow: 0 10px 24px rgba(7,95,247,.22); transition: transform .2s ease, box-shadow .2s ease; }
-#landing-page .landing-login-button:hover,
-#landing-page .landing-primary-button:hover { box-shadow: 0 14px 30px rgba(7,95,247,.28); }
+#landing-page .landing-login-button:not(:disabled):not([aria-disabled="true"]):hover,
+#landing-page .landing-primary-button:not(:disabled):not([aria-disabled="true"]):hover { box-shadow: 0 14px 30px rgba(7,95,247,.28); }
 #landing-page .landing-login-button svg { width: 17px; }
 
 #landing-page .landing-hero { min-height: 710px; max-width: 1240px; padding: 72px 24px 90px; display: grid; grid-template-columns: .92fr 1.08fr; align-items: center; gap: 56px; position: relative; }
@@ -1034,8 +1034,8 @@
     background-color var(--motion-fast) ease;
 }
 
-#landing-page .landing-primary-button:hover,
-#landing-page .landing-login-button:hover {
+#landing-page .landing-primary-button:not(:disabled):not([aria-disabled="true"]):hover,
+#landing-page .landing-login-button:not(:disabled):not([aria-disabled="true"]):hover {
   transform: translateY(-2px) scale(1.02);
 }
 
@@ -1047,8 +1047,8 @@
   transition: left 520ms var(--motion-ease), opacity 160ms ease;
 }
 
-#landing-page .landing-primary-button:hover::after,
-#landing-page .landing-login-button:hover::after {
+#landing-page .landing-primary-button:not(:disabled):not([aria-disabled="true"]):hover::after,
+#landing-page .landing-login-button:not(:disabled):not([aria-disabled="true"]):hover::after {
   left: 125%;
   opacity: .8;
 }
@@ -1402,8 +1402,8 @@
   font-weight: 700;
 }
 
-#landing-page .landing-login-button:hover,
-#landing-page .landing-primary-button:hover {
+#landing-page .landing-login-button:not(:disabled):not([aria-disabled="true"]):hover,
+#landing-page .landing-primary-button:not(:disabled):not([aria-disabled="true"]):hover {
   transform: translateY(-2px);
   box-shadow: var(--lp-shadow-blue);
 }
@@ -2245,7 +2245,7 @@
   cursor: pointer;
 }
 
-#login-screen .login-forgot-button:hover { color: #084eb7; text-decoration: underline; }
+#login-screen .login-forgot-button:not(:disabled):not([aria-disabled="true"]):hover { color: #084eb7; text-decoration: underline; }
 #login-screen .login-forgot-button:disabled { opacity: .55; cursor: wait; }
 
 @media (max-width: 520px) {
@@ -2530,10 +2530,10 @@
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: color .16s ease, background-color .16s ease, border-color .16s ease, box-shadow .16s ease, transform .16s ease;
 }
 
-#landing-page .landing-login-button:hover {
+#landing-page .landing-login-button:not(:disabled):not([aria-disabled="true"]):hover {
   background: #f1f5f9;
   color: var(--ink);
 }
@@ -2816,10 +2816,10 @@
   cursor: pointer;
   box-shadow: 0 8px 24px rgba(0, 102, 255, 0.28);
   overflow: hidden;
-  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: color .16s ease, background-color .16s ease, border-color .16s ease, box-shadow .16s ease, transform .16s ease;
 }
 
-#landing-page .ref-btn-primary:hover {
+#landing-page .ref-btn-primary:not(:disabled):not([aria-disabled="true"]):hover {
   background: var(--blue-hover);
   transform: translateY(-2px);
   box-shadow: 0 12px 30px rgba(0, 102, 255, 0.38);
@@ -2831,7 +2831,7 @@
   transition: transform 0.25s ease;
 }
 
-#landing-page .ref-btn-primary:hover svg {
+#landing-page .ref-btn-primary:not(:disabled):not([aria-disabled="true"]):hover svg {
   transform: translateX(4px);
 }
 
@@ -2851,10 +2851,10 @@
   font-weight: 600;
   cursor: pointer;
   box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
-  transition: all 0.2s ease;
+  transition: color .16s ease, background-color .16s ease, border-color .16s ease, box-shadow .16s ease, transform .16s ease;
 }
 
-#landing-page .ref-btn-secondary:hover {
+#landing-page .ref-btn-secondary:not(:disabled):not([aria-disabled="true"]):hover {
   background: #f8fafc;
   border-color: #94a3b8;
   transform: translateY(-1px);
@@ -3468,7 +3468,7 @@
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: color .16s ease, background-color .16s ease, border-color .16s ease, box-shadow .16s ease, transform .16s ease;
 }
 
 #landing-page .ref-orders-actions .btn-create-order {
@@ -3477,7 +3477,7 @@
   box-shadow: 0 4px 12px rgba(0, 102, 255, 0.2);
 }
 
-#landing-page .ref-orders-actions .btn-create-order:hover {
+#landing-page .ref-orders-actions .btn-create-order:not(:disabled):not([aria-disabled="true"]):hover {
   background: var(--blue-hover);
 }
 
@@ -3486,7 +3486,7 @@
   color: var(--ink-secondary);
 }
 
-#landing-page .ref-orders-actions .btn-export-order:hover {
+#landing-page .ref-orders-actions .btn-export-order:not(:disabled):not([aria-disabled="true"]):hover {
   background: #e2e8f0;
 }
 
@@ -4410,10 +4410,10 @@
   cursor: pointer;
   background: #f1f5f9;
   color: var(--ink-secondary);
-  transition: all 0.2s;
+  transition: color .16s ease, background-color .16s ease, border-color .16s ease, box-shadow .16s ease, transform .16s ease;
 }
 
-#landing-page .ref-price-btn:hover {
+#landing-page .ref-price-btn:not(:disabled):not([aria-disabled="true"]):hover {
   background: #e2e8f0;
   color: var(--ink);
 }
@@ -4424,7 +4424,7 @@
   box-shadow: 0 6px 18px rgba(0, 102, 255, 0.28);
 }
 
-#landing-page .ref-price-card.featured .ref-price-btn:hover {
+#landing-page .ref-price-card.featured .ref-price-btn:not(:disabled):not([aria-disabled="true"]):hover {
   background: var(--blue-hover);
   box-shadow: 0 10px 25px rgba(0, 102, 255, 0.38);
 }
@@ -4501,10 +4501,10 @@
   font-weight: 700;
   cursor: pointer;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
-  transition: all 0.25s;
+  transition: color .16s ease, background-color .16s ease, border-color .16s ease, box-shadow .16s ease, transform .16s ease;
 }
 
-#landing-page .ref-cta-actions .btn-white:hover {
+#landing-page .ref-cta-actions .btn-white:not(:disabled):not([aria-disabled="true"]):hover {
   background: #f8fafc;
   transform: translateY(-2px);
   box-shadow: 0 12px 30px rgba(0, 0, 0, 0.24);
@@ -4525,10 +4525,10 @@
   font-size: 15px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: color .16s ease, background-color .16s ease, border-color .16s ease, box-shadow .16s ease, transform .16s ease;
 }
 
-#landing-page .ref-cta-actions .btn-outline:hover {
+#landing-page .ref-cta-actions .btn-outline:not(:disabled):not([aria-disabled="true"]):hover {
   background: rgba(255, 255, 255, 0.12);
   border-color: #ffffff;
 }
@@ -5102,10 +5102,10 @@
   border-radius: 9999px !important;
   cursor: pointer !important;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04) !important;
-  transition: all 0.2s ease !important;
+  transition: color .16s ease, background-color .16s ease, border-color .16s ease, box-shadow .16s ease, transform .16s ease;
 }
 
-#landing-page .landing-login-button:hover {
+#landing-page .landing-login-button:not(:disabled):not([aria-disabled="true"]):hover {
   background: #f1f5f9 !important;
   border-color: #94a3b8 !important;
   color: #0f172a !important;
@@ -5926,11 +5926,11 @@
   font-weight: 700 !important;
   cursor: pointer !important;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.22), 0 2px 6px rgba(0, 0, 0, 0.08) !important;
-  transition: all 0.25s ease !important;
+  transition: color .16s ease, background-color .16s ease, border-color .16s ease, box-shadow .16s ease, transform .16s ease;
   text-decoration: none !important;
 }
 
-#landing-page .ref-cta-actions .btn-white:hover {
+#landing-page .ref-cta-actions .btn-white:not(:disabled):not([aria-disabled="true"]):hover {
   background: #f8fafc !important;
   color: #003fa3 !important;
   transform: translateY(-2px) !important;
@@ -5954,11 +5954,11 @@
   cursor: pointer !important;
   backdrop-filter: blur(8px) !important;
   -webkit-backdrop-filter: blur(8px) !important;
-  transition: all 0.25s ease !important;
+  transition: color .16s ease, background-color .16s ease, border-color .16s ease, box-shadow .16s ease, transform .16s ease;
   text-decoration: none !important;
 }
 
-#landing-page .ref-cta-actions .btn-outline:hover {
+#landing-page .ref-cta-actions .btn-outline:not(:disabled):not([aria-disabled="true"]):hover {
   background: rgba(255, 255, 255, 0.28) !important;
   border-color: #ffffff !important;
   color: #ffffff !important;
@@ -6138,8 +6138,8 @@
   font-weight: 700 !important;
 }
 
-.ref-btn-primary:hover,
-.landing-primary-button:hover,
+.ref-btn-primary:not(:disabled):not([aria-disabled="true"]):hover,
+.landing-primary-button:not(:disabled):not([aria-disabled="true"]):hover,
 .ref-trial:hover {
   color: #ffffff !important;
   background: linear-gradient(180deg, #1e40af 0%, #172554 100%) !important;
@@ -6154,7 +6154,7 @@
   font-weight: 600 !important;
 }
 
-.ref-btn-secondary:hover {
+.ref-btn-secondary:not(:disabled):not([aria-disabled="true"]):hover {
   color: #0f172a !important;
   background: #f8fafc !important;
   border-color: #94a3b8 !important;
@@ -6198,11 +6198,11 @@
   box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05), inset 0 1px 0 #ffffff !important;
   color: #64748b !important;
   cursor: pointer !important;
-  transition: all 0.2s ease !important;
+  transition: color .16s ease, background-color .16s ease, border-color .16s ease, box-shadow .16s ease, transform .16s ease;
   z-index: 30 !important;
 }
 
-#login-screen .login-close-button:hover {
+#login-screen .login-close-button:not(:disabled):not([aria-disabled="true"]):hover {
   color: #0056cd !important;
   background: #ffffff !important;
   border-color: #cbd5e1 !important;
@@ -6234,7 +6234,7 @@
   transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.18s cubic-bezier(0.16, 1, 0.3, 1), background 0.18s ease !important;
 }
 
-#login-screen .login-submit-button:hover {
+#login-screen .login-submit-button:not(:disabled):not([aria-disabled="true"]):hover {
   transform: translateY(-1.5px) !important;
   background: linear-gradient(180deg, #2b82ff 0%, #0d69f2 60%, #0053cc 100%) !important;
   box-shadow: 

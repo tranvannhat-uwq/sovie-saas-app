@@ -1,7 +1,7 @@
 import { state } from '../state.js';
 import { showToast, formatCurrency, safeCreateIcons, formatPhoneNumber } from '../utils.js';
-import { dbSaveSupplier, dbDeleteSupplier, dbSaveSuppliersBulk } from '../services/supabase.js';
-import { renderAll } from '../main.js';
+import { dbSaveSupplier, dbDeleteSupplier, dbSaveSuppliersBulk, getCloudReadHealth } from '../services/supabase.js';
+import { ensurePanelCloudData, renderAll } from '../main.js';
 import { tenantStorage } from '../services/tenant-storage.js';
 
 function toNumber(value) {
@@ -119,6 +119,29 @@ function calculateSupplierMetrics(supplier) {
 export function renderSuppliersTable() {
   const tableBody = document.getElementById('suppliers-table-body');
   if (!tableBody) return;
+
+  if (getCloudReadHealth().failedDomains.includes('suppliers')) {
+    const addButton = document.getElementById('btn-open-add-supplier-modal');
+    if (addButton) {
+      addButton.disabled = true;
+      addButton.title = 'Tải lại danh sách trước khi thêm để tránh tạo trùng nhà cung cấp.';
+    }
+    tableBody.innerHTML = `
+      <tr><td colspan="6" role="alert" class="text-center py-4">
+        Không tải được danh sách nhà cung cấp từ Cloud. Dữ liệu có thể đang cũ.
+        <button type="button" class="btn btn-secondary btn-sm" id="btn-retry-suppliers-load">Thử tải lại</button>
+      </td></tr>`;
+    document.getElementById('btn-retry-suppliers-load')?.addEventListener('click', async event => {
+      event.currentTarget.disabled = true;
+      await ensurePanelCloudData('suppliers-panel', { force: true });
+    });
+    return;
+  }
+  const addButton = document.getElementById('btn-open-add-supplier-modal');
+  if (addButton) {
+    addButton.disabled = false;
+    addButton.removeAttribute('title');
+  }
   
   console.log("[SUPPLIERS] RENDER INPUT:", state.suppliers?.length || 0);
 
@@ -186,7 +209,7 @@ export function renderSuppliersTable() {
     tableBody.innerHTML = `
       <tr>
         <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 3rem;">
-          Không tìm thấy nhà cung cấp nào.
+          ${searchVal ? 'Không tìm thấy nhà cung cấp nào phù hợp.' : 'Chưa có nhà cung cấp trong workspace này.'}
         </td>
       </tr>
     `;
@@ -310,32 +333,6 @@ export function setupSupplierManagement() {
       renderSuppliersTable();
       populateSupplierDatalist();
       showToast(id ? 'Cập nhật nhà cung cấp thành công!' : 'Thêm nhà cung cấp thành công!');
-      return;
-
-      if (id) {
-        // Cập nhật
-        const idx = state.suppliers.findIndex(s => s.id === id);
-        if (idx !== -1) {
-          state.suppliers[idx] = supplierData;
-          showToast('Cập nhật nhà cung cấp thành công!');
-        }
-      } else {
-        // Thêm mới
-        state.suppliers.push(supplierData);
-        showToast('Thêm nhà cung cấp thành công!');
-      }
-
-      // Lưu LocalStorage
-      tenantStorage.setItem('billing_system_suppliers', JSON.stringify(state.suppliers));
-      
-      // Lưu đám mây
-      dbSaveSupplier(supplierData);
-
-      closeModal();
-      
-      // Vẽ lại bảng và các datalist liên quan
-      renderSuppliersTable();
-      populateSupplierDatalist();
     });
   }
 

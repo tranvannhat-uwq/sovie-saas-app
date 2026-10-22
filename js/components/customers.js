@@ -1,5 +1,5 @@
 import { state } from '../state.js';
-import { showToast, formatCurrency, safeCreateIcons, formatPhoneNumber, isSameUser, getProvinceNameByCode, getManagerDisplayName, PROVINCES, makeSelectSearchable, getCompanyIdByBrand, normalizeCompanyId, formatDateOnly } from '../utils.js';
+import { showToast, formatCurrency, safeCreateIcons, formatPhoneNumber, isSameUser, getUserDisplayName, getProvinceNameByCode, getManagerDisplayName, PROVINCES, makeSelectSearchable, getCompanyIdByBrand, normalizeCompanyId, formatDateOnly, isLegacyPaintWorkspace } from '../utils.js';
 import { dbSaveCustomer, dbDeleteCustomer, dbDeleteCustomersBulk, dbSaveCustomersBulk, dbImportCustomerFinancialBaselines, dbFetchCustomers, dbFetchCustomerById, dbRefreshCustomerFinancialState, dbRefreshOrderById, dbFetchCashbookTransactionById, dbRecordCustomerPayment, dbAdjustCustomerDebt, dbFetchCustomerOrderHistory, dbFetchCustomersOrderHistory } from '../services/supabase.js';
 import { renderAll } from '../main.js';
 import { tenantStorage } from '../services/tenant-storage.js';
@@ -14,8 +14,13 @@ import { buildCustomerDebtDisplayHistory, collectCustomerDebt, getCustomerDebtPo
 import { businessDateKey, parseExcelDate } from '../domain/import-date.js';
 import { buildCustomerImportColumnMap, normalizeExcelHeader, normalizeExcelSheetName } from '../domain/customer-import-columns.js';
 import { customerDateKey, customerDaysSince, finiteCustomerNumber, normalizeCustomerSearch, queryCustomerRows } from '../domain/customer-query.js';
+import { isBrandCatalogEnabled, isSalesBrandRestrictionEnabled } from '../domain/business-capabilities.js';
 
 let pendingCustomerPaymentKey = '';
+let excelJsLoadPromise = null;
+
+const EXCELJS_CDN_URL = 'https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js';
+const EXCELJS_CDN_INTEGRITY = 'sha384-Pqp51FUN2/qzfxZxBCtF0stpc9ONI6MYZpVqmo8m20SoaQCzf+arZvACkLkirlPz';
 
 const selectedCustomerIdsForExport = new Set();
 let activeExportOrders = null;
@@ -141,7 +146,7 @@ function setupCustomerColumnPicker() {
   if (!picker || !button || !popover || !options) return;
 
   options.innerHTML = CUSTOMER_COLUMN_DEFINITIONS.map(column => `
-    <label class="customer-column-option-label">
+    <label class="customer-column-option-label" ${column.key === 'brand' ? 'data-brand-feature' : ''}>
       <input class="customer-column-option" type="checkbox" value="${column.key}">
       <span>${column.label}</span>
     </label>
@@ -732,6 +737,8 @@ function refreshCustomerQueryOptionsIfNeeded() {
 function getActiveCustomerFilterCount() {
   return Object.entries(customerViewQuery).reduce((count, [key, value]) => {
     if (['q', 'sortKey', 'sortDirection', 'nulls', 'pageSize', 'salesMetric'].includes(key)) return count;
+    if (!isBrandCatalogEnabled(state.businessCapabilities, state.brands, state.products)
+        && ['brands', 'brandState'].includes(key)) return count;
     return count + (Array.isArray(value) ? (value.length ? 1 : 0) : (value ? 1 : 0));
   }, 0);
 }
@@ -755,7 +762,10 @@ function applyCustomerQueryChange({ clearSelection = true } = {}) {
 }
 
 function getFilteredCustomersForCurrentView() {
-  return queryCustomerRows(buildCustomerViewRows(), customerViewQuery);
+  const query = isBrandCatalogEnabled(state.businessCapabilities, state.brands, state.products)
+    ? customerViewQuery
+    : { ...customerViewQuery, brands: [], brandState: '' };
+  return queryCustomerRows(buildCustomerViewRows(), query);
 }
 
 export function renderCustomersTable() {
@@ -930,7 +940,7 @@ export function renderCustomersTable() {
         <td data-customer-column="phone">${c.phone || '<span style="color: var(--text-muted);">N/A</span>'}</td>
         <td data-customer-column="address" style="font-size: 0.8rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${addrTitle}">${displayAddr}</td>
         <td data-customer-column="notes" title="${escapeCustomerHtml(notes)}"><div class="customer-notes-cell">${notesHtml}</div></td>
-        <td data-customer-column="brand">
+        <td data-customer-column="brand" data-brand-feature>
           <span class="suggestion-brand-badge" style="font-size: 0.7rem; padding: 2px 8px; border-radius: 6px; background: ${c.assignedBrand === 'Tất cả' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(34, 197, 94, 0.15)'}; color: ${c.assignedBrand === 'Tất cả' ? '#047857' : '#15803d'}; border: 1px solid ${c.assignedBrand === 'Tất cả' ? 'rgba(16, 185, 129, 0.4)' : 'rgba(34, 197, 94, 0.3)'}; font-weight: 650;">${c.assignedBrand}</span>
         </td>
         <td data-customer-column="manager" style="font-size: 0.85rem; max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
@@ -1028,8 +1038,20 @@ export function renderCustomersTable() {
 
 export function generateRandomCustomerCode(provinceCode) {
   const randNum = Math.floor(1000 + Math.random() * 9000); // 4 digits
-  const pCode = provinceCode || 'DL';
-  return `KH-${pCode}-${randNum}`;
+  return provinceCode ? `KH-${provinceCode}-${randNum}` : `KH-${randNum}`;
+}
+
+export function isCustomerFieldRequired(field) {
+  const normalizedField = String(field || '').trim().toLowerCase();
+  if (['code', 'name', 'pricelist', 'price_list'].includes(normalizedField)) return true;
+  if (['brand', 'assigned_brand'].includes(normalizedField)) {
+    return isSalesBrandRestrictionEnabled(state.businessCapabilities);
+  }
+  const config = state.businessCapabilities?.modules?.customers?.config
+    || state.businessCapabilities?.modules?.customer?.config
+    || {};
+  const configuredFields = Array.isArray(config.required_fields) ? config.required_fields : [];
+  return configuredFields.map(value => String(value).trim().toLowerCase()).includes(normalizedField);
 }
 
 export function generateUniqueCustomerCode(provinceCode) {
@@ -1057,6 +1079,17 @@ export function openCustomerModal(index = -1) {
   const form = document.getElementById('customer-form');
   
   if (!modal) return;
+
+  [
+    ['cust-phone', 'phone'],
+    ['cust-province', 'province'],
+    ['cust-assigned-brand', 'assigned_brand']
+  ].forEach(([id, requirement]) => {
+    const field = document.getElementById(id);
+    const required = isCustomerFieldRequired(requirement);
+    if (required) field?.setAttribute('required', '');
+    else field?.removeAttribute('required');
+  });
 
   // Dynamic rendering of brand discount inputs in customer modal
   const container = document.getElementById('customer-brand-discounts-container');
@@ -1211,9 +1244,10 @@ function validateCustomerForm() {
   const requiredFields = [
     ['cust-code', 'Vui lòng nhập mã khách hàng.'],
     ['cust-name', 'Vui lòng nhập tên khách hàng.'],
-    ['cust-phone', 'Vui lòng nhập số điện thoại.'],
-    ['cust-province', 'Vui lòng chọn Tỉnh/Thành phố.'],
-    ['cust-pricelist', 'Vui lòng chọn bảng giá mặc định áp dụng.']
+    ['cust-pricelist', 'Vui lòng chọn bảng giá mặc định áp dụng.'],
+    ...(isCustomerFieldRequired('phone') ? [['cust-phone', 'Vui lòng nhập số điện thoại.']] : []),
+    ...(isCustomerFieldRequired('province') ? [['cust-province', 'Vui lòng chọn Tỉnh/Thành phố.']] : []),
+    ...(isCustomerFieldRequired('assigned_brand') ? [['cust-assigned-brand', 'Workspace này yêu cầu gán thương hiệu cho khách hàng.']] : [])
   ];
   requiredFields.forEach(([id]) => clearCustomerFieldError(document.getElementById(id)));
   const invalidEntry = requiredFields.find(([id]) => {
@@ -1263,8 +1297,8 @@ export async function saveCustomer() {
   const notes = document.getElementById('cust-notes').value.trim();
   const pricelistId = document.getElementById('cust-pricelist').value;
   
-  if (!assignedBrand) {
-    showToast('Vui lòng chọn nhãn đại lý độc quyền!', 'warning');
+  if (isCustomerFieldRequired('assigned_brand') && (!assignedBrand || assignedBrand === 'Tất cả')) {
+    showToast('Workspace này yêu cầu gán thương hiệu cho khách hàng.', 'warning');
     return;
   }
   if (!pricelistId) {
@@ -1307,7 +1341,7 @@ export async function saveCustomer() {
     }
   }
   
-  const brandDiscounts = {};
+  const brandDiscounts = { ...(editedCustomer?.brandDiscounts || {}) };
   document.querySelectorAll('.cust-brand-disc').forEach(input => {
     const brand = input.getAttribute('data-brand');
     brandDiscounts[brand] = parseFloat(input.value) || 0;
@@ -1376,6 +1410,7 @@ export async function saveCustomer() {
     // Nếu cập nhật đúng khách hàng đang chọn lên đơn, cập nhật lại giao diện lên đơn
     if (state.activeCustomerId === customerId) {
       state.activeCustomerBrand = assignedBrand;
+      state.activeCustomerBrandId = refreshedCustomer?.assignedBrandId || assignedBrandId || '';
       document.getElementById('selected-customer-name-lbl').innerText = name;
       document.getElementById('selected-customer-phone-lbl').innerText = phone || 'N/A';
       document.getElementById('selected-customer-address-lbl').innerText = address || 'N/A';
@@ -2057,13 +2092,13 @@ export function setupCustomerManagement() {
 export function downloadCustomerExcelTemplate() {
   const sampleData = [
     {
-      "Mã khách hàng": "BG01-HN-001",
-      "Tên khách hàng": "Đại lý Sơn Tuấn Anh",
-      "Điện thoại": "0987654321",
-      "Địa chỉ": "Số 12 Phố Vọng, Phường Phương Mai, Quận Đống Đa, Hà Nội",
-      "Nhãn sơn": "Nano10*",
-      "Bảng giá": "Bảng giá BG01",
-      "Người quản lý": "Nguyễn Thanh Thụy",
+      "Mã khách hàng": "KH-001",
+      "Tên khách hàng": "Cửa hàng Minh An",
+      "Điện thoại": "0900000001",
+      "Địa chỉ": "12 Đường Trung Tâm, Phường An Bình",
+      "Thương hiệu": "",
+      "Bảng giá": "",
+      "Người quản lý": "",
       "Tổng doanh số": 85000000,
       "Tổng giá trị trả hàng": 5000000,
       "Doanh số sau trả": 80000000,
@@ -2073,13 +2108,13 @@ export function downloadCustomerExcelTemplate() {
       "Số ngày nợ": 5
     },
     {
-      "Mã khách hàng": "BG02-HP-002",
-      "Tên khách hàng": "Cửa hàng Vật Tư Minh Đức",
-      "Điện thoại": "0912345678",
-      "Địa chỉ": "45 Đường Lạch Tray, Quận Ngô Quyền, Hải Phòng",
-      "Nhãn sơn": "Hatacco nano",
-      "Bảng giá": "Bảng giá đại lý cấp 1",
-      "Người quản lý": "Dương Như Hoàn",
+      "Mã khách hàng": "KH-002",
+      "Tên khách hàng": "Đại lý Minh Phát",
+      "Điện thoại": "0900000002",
+      "Địa chỉ": "45 Đường Lạch Tray, Phường Đông Hải",
+      "Thương hiệu": "",
+      "Bảng giá": "",
+      "Người quản lý": "",
       "Tổng doanh số": 42000000,
       "Tổng giá trị trả hàng": 0,
       "Doanh số sau trả": 42000000,
@@ -2089,13 +2124,13 @@ export function downloadCustomerExcelTemplate() {
       "Số ngày nợ": 0
     },
     {
-      "Mã khách hàng": "BG03-DN-003",
-      "Tên khách hàng": "Đại lý Sơn & Hóa Chất Hoàng Long",
-      "Điện thoại": "0905123456",
-      "Địa chỉ": "78 Đường Nguyễn Văn Linh, Quận Thanh Khê, Đà Nẵng",
-      "Nhãn sơn": "mutsutec",
-      "Bảng giá": "Chiết khấu riêng",
-      "Người quản lý": "ctyabs@lendon.com",
+      "Mã khách hàng": "KH-003",
+      "Tên khách hàng": "Công ty Hoàng Long",
+      "Điện thoại": "0900000003",
+      "Địa chỉ": "78 Đường Nguyễn Văn Linh, Phường Thanh Khê",
+      "Thương hiệu": "",
+      "Bảng giá": "",
+      "Người quản lý": "",
       "Tổng doanh số": 120000000,
       "Tổng giá trị trả hàng": 10000000,
       "Doanh số sau trả": 110000000,
@@ -2105,13 +2140,13 @@ export function downloadCustomerExcelTemplate() {
       "Số ngày nợ": 18
     },
     {
-      "Mã khách hàng": "BG04-TH-004",
-      "Tên khách hàng": "NPP Anh Chung Thanh Hóa",
-      "Điện thoại": "0943218765",
-      "Địa chỉ": "156 Đường Lê Lai, Phường Đông Sơn, TP Thanh Hóa, Thanh Hóa",
-      "Nhãn sơn": "Tất cả",
-      "Bảng giá": "Bảng giá 04",
-      "Người quản lý": "Trần Văn Nhất",
+      "Mã khách hàng": "KH-004",
+      "Tên khách hàng": "Nhà phân phối An Bình",
+      "Điện thoại": "0900000004",
+      "Địa chỉ": "156 Đường Lê Lai, Phường Đông Sơn",
+      "Thương hiệu": "",
+      "Bảng giá": "",
+      "Người quản lý": "",
       "Tổng doanh số": 65000000,
       "Tổng giá trị trả hàng": 2000000,
       "Doanh số sau trả": 63000000,
@@ -2121,13 +2156,13 @@ export function downloadCustomerExcelTemplate() {
       "Số ngày nợ": 22
     },
     {
-      "Mã khách hàng": "BG05-BD-005",
-      "Tên khách hàng": "Công Ty TNHH XD Sơn Nam Dương",
-      "Điện thoại": "0978112233",
-      "Địa chỉ": "89 Đại Lộ Bình Dương, Phường Phú Hòa, TP Thủ Dầu Một, Bình Dương",
-      "Nhãn sơn": "tdkaw",
-      "Bảng giá": "Chiết khấu riêng",
-      "Người quản lý": "Dương Như Hoàn",
+      "Mã khách hàng": "KH-005",
+      "Tên khách hàng": "Công ty Nam Dương",
+      "Điện thoại": "0900000005",
+      "Địa chỉ": "89 Đại lộ Trung Tâm, Phường Phú Hòa",
+      "Thương hiệu": "",
+      "Bảng giá": "",
+      "Người quản lý": "",
       "Tổng doanh số": 195000000,
       "Tổng giá trị trả hàng": 0,
       "Doanh số sau trả": 195000000,
@@ -2144,7 +2179,7 @@ export function downloadCustomerExcelTemplate() {
     { wch: 38 }, // Tên khách hàng
     { wch: 16 }, // Điện thoại
     { wch: 55 }, // Địa chỉ
-    { wch: 18 }, // Nhãn sơn
+    { wch: 18 }, // Thương hiệu
     { wch: 25 }, // Bảng giá
     { wch: 25 }, // Người quản lý
     { wch: 18 }, // Tổng doanh số
@@ -2247,10 +2282,39 @@ function sanitizeFilePart(value) {
     .slice(0, 80) || 'KhachHang';
 }
 
-function getDisplayUserName(username) {
-  if (!username) return '';
-  const found = (state.users || []).find(u => isSameUser(u.username, username));
-  return found ? (found.displayName || found.name || found.username) : username;
+function getDisplayUserName(userReference, fallback = '') {
+  if (!userReference) return fallback;
+  const displayName = getUserDisplayName(userReference, '', state.users || []);
+  // Auth UUIDs are useful as internal keys but should not be exposed as names
+  // in a human-facing report when the member profile is unavailable.
+  if (/^[0-9a-f]{8}-[0-9a-f-]{27,}$/i.test(String(displayName))) {
+    return fallback || 'Không xác định';
+  }
+  return displayName || fallback;
+}
+
+function loadExcelJS() {
+  if (globalThis.ExcelJS?.Workbook) return Promise.resolve(globalThis.ExcelJS);
+  if (excelJsLoadPromise) return excelJsLoadPromise;
+
+  excelJsLoadPromise = new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = EXCELJS_CDN_URL;
+    script.integrity = EXCELJS_CDN_INTEGRITY;
+    script.crossOrigin = 'anonymous';
+    script.async = true;
+    script.onload = () => {
+      if (globalThis.ExcelJS?.Workbook) resolve(globalThis.ExcelJS);
+      else reject(new Error('Thư viện Excel đã tải nhưng không khởi tạo được.'));
+    };
+    script.onerror = () => reject(new Error('Không thể tải thư viện định dạng Excel. Vui lòng kiểm tra kết nối mạng.'));
+    document.head.appendChild(script);
+  }).catch(error => {
+    excelJsLoadPromise = null;
+    throw error;
+  });
+
+  return excelJsLoadPromise;
 }
 
 function getPricelistName(id) {
@@ -2263,7 +2327,7 @@ function getPricelistName(id) {
 
 function getOrderReturnCodes(orderId) {
   return (state.salesReturns || [])
-    .filter(r => String(r.saleId || r.orderId || '') === String(orderId))
+    .filter(r => String(r.saleId || r.orderId || r.sale_id || r.order_id || '') === String(orderId))
     .filter(r => !['cancelled', 'canceled', 'draft'].includes(String(r.status || 'completed').toLowerCase()))
     .map(r => r.id)
     .filter(Boolean)
@@ -2271,13 +2335,31 @@ function getOrderReturnCodes(orderId) {
 }
 
 function getLineAmount(item) {
-  const qty = toExportNumber(item.quantity);
-  const unitPrice = toExportNumber(item.price ?? item.unitPrice ?? item.listPrice);
-  const discountPercent = toExportNumber(item.discountPercent ?? item.discount);
+  const qty = toExportNumber(item.quantity ?? item.qty);
+  const unitPrice = toExportNumber(item.price ?? item.unitPrice ?? item.unit_price ?? item.listPrice ?? item.list_price);
+  const discountPercent = toExportNumber(item.discountPercent ?? item.discount_percent ?? item.discount);
   if (item.subtotal !== undefined && item.subtotal !== null && item.subtotal !== '') return toExportNumber(item.subtotal);
   if (item.total !== undefined && item.total !== null && item.total !== '') return toExportNumber(item.total);
   if (item.lineTotal !== undefined && item.lineTotal !== null && item.lineTotal !== '') return toExportNumber(item.lineTotal);
+  if (item.line_total !== undefined && item.line_total !== null && item.line_total !== '') return toExportNumber(item.line_total);
   return Math.round(qty * unitPrice * (1 - discountPercent / 100));
+}
+
+function getExportItems(record) {
+  const candidates = [record?.items, record?.orderItems, record?.order_items, record?.lineItems, record?.line_items, record?.details];
+  for (const candidate of candidates) {
+    if (Array.isArray(candidate) && candidate.length > 0) return candidate;
+    if (typeof candidate === 'string' && candidate.trim()) {
+      try {
+        const parsed = JSON.parse(candidate);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      } catch (_error) {
+        // Fall through to other known item containers; malformed legacy JSON
+        // should not prevent exporting the rest of an order history.
+      }
+    }
+  }
+  return [];
 }
 
 function buildCustomerOrderExportRows(orders, customer, { preReturn = true } = {}) {
@@ -2285,21 +2367,24 @@ function buildCustomerOrderExportRows(orders, customer, { preReturn = true } = {
   return orders.flatMap(order => {
     // Keep the order visible in Excel even when an old/guest order has no
     // hydrated item rows. Product columns remain blank for that one row.
-    const items = Array.isArray(order.items) && order.items.length > 0 ? order.items : [{}];
+    const actualItems = getExportItems(order);
+    const items = actualItems.length > 0 ? actualItems : [{}];
     const financials = getOrderFinancialBreakdown(order, preReturn ? [] : (state.salesReturns || []));
     return items.map(item => {
-      const qty = toExportNumber(item.quantity);
-      const unitPrice = toExportNumber(item.price ?? item.unitPrice ?? item.listPrice);
-      const discountPercent = toExportNumber(item.discountPercent ?? item.discount);
+      const qty = toExportNumber(item.quantity ?? item.qty);
+      const unitPrice = toExportNumber(item.price ?? item.unitPrice ?? item.unit_price ?? item.listPrice ?? item.list_price);
+      const discountPercent = toExportNumber(item.discountPercent ?? item.discount_percent ?? item.discount);
       const lineAmount = getLineAmount(item);
-      const lineDiscount = toExportNumber(item.discountAmount, Math.max(0, Math.round(qty * unitPrice - lineAmount)));
+      const lineDiscount = toExportNumber(item.discountAmount ?? item.discount_amount, Math.max(0, Math.round(qty * unitPrice - lineAmount)));
       const salePrice = qty > 0 ? Math.round(lineAmount / qty) : unitPrice;
       return {
         'Mã hóa đơn': order.id || '',
         'Thời gian': formatExportDateTime(order.date || order.orderDate || order.createdAt),
         'Ngày cập nhật': formatExportDateTime(order.updatedAt || order.createdAt || order.date),
         'Mã trả hàng': getOrderReturnCodes(order.id),
-        'Mã đơn hàng gốc': order.id || '',
+        // Regular sales do not have an originating order. Keep this field
+        // empty; only return rows should reference the source invoice.
+        'Mã đơn hàng gốc': '',
         'Ngày trả hàng': '',
         'Mã khách hàng': customer.code || customer.id || '',
         'Tên khách hàng': customer.name || order.customerName || '',
@@ -2309,9 +2394,9 @@ function buildCustomerOrderExportRows(orders, customer, { preReturn = true } = {
         'Khu vực (Khách hàng)': provinceName || '',
         'Khu vực': provinceName || '',
         'Bảng giá': getPricelistName(order.pricelistId || customer.pricelistId),
-        'Kinh doanh quản lý': getDisplayUserName(customer.managedBy || customer.managed_by),
-        'Người bán': getDisplayUserName(order.salespersonId || order.createdBy),
-        'Người tạo': getDisplayUserName(order.createdBy),
+        'Kinh doanh quản lý': getDisplayUserName(customer.managedBy || customer.managed_by || customer.managerId || customer.manager_id, 'Chưa phân công'),
+        'Người bán': getDisplayUserName(order.salespersonId || order.salesperson_id || order.createdBy || order.created_by, 'Không xác định'),
+        'Người tạo': getDisplayUserName(order.createdBy || order.created_by, 'Không xác định'),
         'Ghi chú': order.notes || '',
         'Tổng tiền hàng': financials.totalBeforeDiscount,
         'Tổng giảm giá': financials.totalDiscountAmount,
@@ -2329,18 +2414,18 @@ function buildCustomerOrderExportRows(orders, customer, { preReturn = true } = {
         'Doanh thu thuần': financials.isRevenueEligible ? financials.totalPayment : 0,
         'Tổng thanh toán': financials.isRevenueEligible ? financials.totalPayment : 0,
         'Trạng thái': getOrderStatusLabel(order.status || 'settled'),
-        'Mã hàng': item.variantCode || item.productCode || item.code || item.variantId || item.productId || '',
-        'Tên hàng': item.productName || item.name || item.product?.name || '',
-        'Thương hiệu': item.productBrand || item.brand || '',
-        'Thương hiệu/Nhãn sơn': item.productBrand || item.brand || '',
-        'Quy cách': item.specificationSnapshot || item.weightOrVolumeSnapshot || item.displaySpecification || [
-          item.packagingName || item.packageType || item.package,
-          item.weightOrVolume || item.packageWeight,
-          item.unitName || item.packageWeightUnit
+        'Mã hàng': item.variantCode || item.variant_code || item.productCode || item.product_code || item.sku || item.code || item.variantId || item.variant_id || item.productId || item.product_id || '',
+        'Tên hàng': item.productName || item.product_name || item.name || item.product?.name || '',
+        'Thương hiệu': item.productBrand || item.product_brand || item.brand || '',
+        'Thương hiệu/Nhãn sơn': item.productBrand || item.product_brand || item.brand || '',
+        'Quy cách': item.specificationSnapshot || item.specification_snapshot || item.weightOrVolumeSnapshot || item.weight_or_volume_snapshot || item.displaySpecification || [
+          item.packagingName || item.packaging_name || item.packageType || item.package_type || item.package,
+          item.weightOrVolume || item.weight_or_volume || item.packageWeight || item.package_weight,
+          item.unitName || item.unit_name || item.packageWeightUnit || item.package_weight_unit
         ].filter(value => value !== null && value !== undefined && value !== '').join(' '),
-        'ĐVT': item.unitName || item.unit || item.packagingName || item.packageType || item.package || '',
-        'Đơn vị tính': item.unitName || item.unit || item.packagingName || item.packageType || item.package || '',
-        'Ghi chú hàng hóa': item.note || item.notes || '',
+        'ĐVT': item.unitName || item.unit_name || item.unit || item.packagingName || item.packaging_name || item.packageType || item.package_type || item.package || '',
+        'Đơn vị tính': item.unitName || item.unit_name || item.unit || item.packagingName || item.packaging_name || item.packageType || item.package_type || item.package || '',
+        'Ghi chú hàng hóa': item.note || item.notes || item.itemNote || item.item_note || '',
         'Số lượng': qty,
         'Đơn giá': unitPrice,
         'Giảm giá %': discountPercent,
@@ -2375,17 +2460,19 @@ function buildHistoryOrderExportRow(order, customer) {
   return orderRow;
 }
 
-function buildHistoryReturnExportRow(ret, order, customer = {}) {
+function buildHistoryReturnExportRow(ret, order, customer = {}, { detailRowsOnly = false } = {}) {
   const refundAmount = getSalesReturnRefundAmount(ret);
-  const items = Array.isArray(ret.items) && ret.items.length > 0 ? ret.items : [{}];
+  const actualItems = getExportItems(ret);
+  const hasItemDetails = actualItems.length > 0;
+  const items = hasItemDetails ? actualItems : [{}];
   const provinceName = getProvinceNameByCode(customer.brandDiscounts && customer.brandDiscounts.province);
-  const orderDate = order ? (order.date || order.orderDate || order.createdAt) : ret.createdAt;
-  const returnDate = ret.returnDate || ret.createdAt || orderDate;
+  const orderDate = order ? (order.date || order.orderDate || order.order_date || order.createdAt || order.created_at) : (ret.createdAt || ret.created_at);
+  const returnDate = ret.returnDate || ret.return_date || ret.createdAt || ret.created_at || orderDate;
 
   const detailRows = items.map(item => {
-    const qty = toExportNumber(item.quantity);
-    const unitPrice = toExportNumber(item.refundPrice ?? item.price ?? item.unitPrice ?? 0);
-    const discountPercent = toExportNumber(item.deductionPercent ?? 0);
+    const qty = toExportNumber(item.quantity ?? item.qty);
+    const unitPrice = toExportNumber(item.refundPrice ?? item.refund_price ?? item.price ?? item.unitPrice ?? item.unit_price ?? 0);
+    const discountPercent = toExportNumber(item.deductionPercent ?? item.deduction_percent ?? 0);
     const lineAmount = item.subtotal !== undefined && item.subtotal !== null && item.subtotal !== ''
       ? toExportNumber(item.subtotal)
       : Math.round(qty * unitPrice * (1 - discountPercent / 100));
@@ -2393,7 +2480,7 @@ function buildHistoryReturnExportRow(ret, order, customer = {}) {
     return {
       'Mã hóa đơn': ret.id || '',
       'Thời gian': formatExportDateTime(returnDate),
-      'Ngày cập nhật': formatExportDateTime(ret.updatedAt || ret.createdAt || returnDate),
+      'Ngày cập nhật': formatExportDateTime(ret.updatedAt || ret.updated_at || ret.createdAt || ret.created_at || returnDate),
       'Mã trả hàng': ret.id || '',
       'Mã đơn hàng gốc': order?.id || ret.saleId || ret.orderId || '',
       'Ngày trả hàng': formatExportDateTime(returnDate),
@@ -2405,9 +2492,9 @@ function buildHistoryReturnExportRow(ret, order, customer = {}) {
       'Khu vực (Khách hàng)': provinceName || '',
       'Khu vực': provinceName || '',
       'Bảng giá': getPricelistName(order?.pricelistId || customer.pricelistId),
-      'Kinh doanh quản lý': getDisplayUserName(customer.managedBy || customer.managed_by),
-      'Người bán': getDisplayUserName(ret.salespersonId || order?.salespersonId || order?.createdBy),
-      'Người tạo': getDisplayUserName(ret.createdBy),
+      'Kinh doanh quản lý': getDisplayUserName(customer.managedBy || customer.managed_by || customer.managerId || customer.manager_id, 'Chưa phân công'),
+      'Người bán': getDisplayUserName(ret.salespersonId || ret.salesperson_id || order?.salespersonId || order?.salesperson_id || order?.createdBy || order?.created_by, 'Không xác định'),
+      'Người tạo': getDisplayUserName(ret.createdBy || ret.created_by, 'Không xác định'),
       'Ghi chú': ret.reason || ret.notes || '',
       'Tổng tiền hàng': -refundAmount,
       'Tổng giảm giá': 0,
@@ -2420,24 +2507,25 @@ function buildHistoryReturnExportRow(ret, order, customer = {}) {
       'Doanh thu thuần': -refundAmount,
       'Tổng thanh toán': -refundAmount,
       'Trạng thái': 'Trả hàng',
-      'Mã hàng': item.variantCode || item.productCode || item.code || item.variantId || item.productId || '',
-      'Tên hàng': item.productName || item.name || item.product?.name || '',
-      'Thương hiệu': item.productBrand || item.brand || '',
-      'Thương hiệu/Nhãn sơn': item.productBrand || item.brand || '',
-      'Quy cách': item.specificationSnapshot || item.weightOrVolumeSnapshot || item.displaySpecification || '',
-      'ĐVT': item.unitName || item.unit || item.packagingName || '',
-      'Đơn vị tính': item.unitName || item.unit || item.packagingName || '',
-      'Ghi chú hàng hóa': item.note || item.notes || '',
-      'Số lượng': qty > 0 ? -qty : (qty < 0 ? qty : -1),
+      'Mã hàng': item.variantCode || item.variant_code || item.productCode || item.product_code || item.sku || item.code || item.variantId || item.variant_id || item.productId || item.product_id || '',
+      'Tên hàng': item.productName || item.product_name || item.name || item.product?.name || '',
+      'Thương hiệu': item.productBrand || item.product_brand || item.brand || '',
+      'Thương hiệu/Nhãn sơn': item.productBrand || item.product_brand || item.brand || '',
+      'Quy cách': item.specificationSnapshot || item.specification_snapshot || item.weightOrVolumeSnapshot || item.weight_or_volume_snapshot || item.displaySpecification || '',
+      'ĐVT': item.unitName || item.unit_name || item.unit || item.packagingName || item.packaging_name || '',
+      'Đơn vị tính': item.unitName || item.unit_name || item.unit || item.packagingName || item.packaging_name || '',
+      'Ghi chú hàng hóa': item.note || item.notes || item.itemNote || item.item_note || '',
+      'Số lượng': hasItemDetails ? -Math.abs(qty) : 0,
       'Đơn giá': unitPrice,
       'Giảm giá %': discountPercent,
       'Giảm giá': 0,
       'Giá bán': unitPrice,
-      'Thành tiền': -refundAmount
+      'Thành tiền': hasItemDetails ? -lineAmount : -refundAmount
     };
   });
 
   if (detailRows.length === 0) return null;
+  if (detailRowsOnly) return detailRows;
   if (detailRows.length === 1) return detailRows[0];
 
   const returnRow = { ...detailRows[0] };
@@ -2451,6 +2539,131 @@ function buildHistoryReturnExportRow(ret, order, customer = {}) {
     }
   });
   return returnRow;
+}
+
+const HISTORY_EXPORT_SUMMARY_ONLY_COLUMNS = [
+  'Tổng tiền hàng', 'Tổng giảm giá', 'Tổng sau giảm giá', 'Phí vận chuyển',
+  'Khách cọc', 'Còn phải thu', 'Giá trị trả hàng',
+  'Thành tiền/Doanh thu thuần', 'Doanh thu thuần', 'Tổng thanh toán'
+];
+
+function prepareHistoryItemDetailRows(rows) {
+  return (rows || []).map((row, index) => {
+    if (index === 0) return row;
+    const detailRow = { ...row };
+    HISTORY_EXPORT_SUMMARY_ONLY_COLUMNS.forEach(column => { detailRow[column] = ''; });
+    return detailRow;
+  });
+}
+
+const HISTORY_EXPORT_GROUP_COLORS = [
+  { header: 'FF2563EB', body: ['FFF8FAFC', 'FFF1F5F9'] },
+  { header: 'FF0F766E', body: ['FFF0FDFA', 'FFE6FFFB'] },
+  { header: 'FF7C3AED', body: ['FFFAF5FF', 'FFF3E8FF'] },
+  { header: 'FFB45309', body: ['FFFFFBEB', 'FFFEF3C7'] }
+];
+
+const HISTORY_EXPORT_AMOUNT_COLUMNS = new Set([
+  'Tổng tiền hàng', 'Tổng giảm giá', 'Tổng sau giảm giá', 'Phí vận chuyển',
+  'Khách cọc', 'Còn phải thu', 'Giá trị trả hàng', 'Thành tiền/Doanh thu thuần',
+  'Doanh thu thuần', 'Tổng thanh toán', 'Đơn giá', 'Giảm giá', 'Giá bán', 'Thành tiền'
+]);
+
+const HISTORY_EXPORT_QUANTITY_COLUMNS = new Set(['Số lượng']);
+const HISTORY_EXPORT_PERCENT_COLUMNS = new Set(['Giảm giá %']);
+
+function getHistoryExportColumnGroupIndex(column) {
+  const index = CUSTOMER_ORDER_EXPORT_COLUMN_GROUPS.findIndex(group => group.columns.includes(column));
+  if (index >= 0) return index;
+  if (['Thương hiệu', 'ĐVT', 'Đơn vị tính'].includes(column)) return 3;
+  return 0;
+}
+
+function getHistoryExportColumnWidth(column) {
+  if (['Mã hóa đơn', 'Mã đơn hàng gốc', 'Mã trả hàng'].includes(column)) return 24;
+  if (['Tên khách hàng', 'Tên hàng', 'Thương hiệu', 'Thương hiệu/Nhãn sơn', 'Bảng giá'].includes(column)) return 27;
+  if (['Địa chỉ', 'Địa chỉ (Khách hàng)', 'Ghi chú', 'Ghi chú hàng hóa'].includes(column)) return 32;
+  if (['Thời gian', 'Ngày cập nhật', 'Ngày trả hàng'].includes(column)) return 21;
+  if (HISTORY_EXPORT_AMOUNT_COLUMNS.has(column)) return 19;
+  if (HISTORY_EXPORT_QUANTITY_COLUMNS.has(column) || HISTORY_EXPORT_PERCENT_COLUMNS.has(column)) return 14;
+  return Math.max(14, Math.min(25, column.length + 4));
+}
+
+function buildHistoryExportWorksheet(workbook, name, selectedColumns, rows, tabColor) {
+  const worksheet = workbook.addWorksheet(name, {
+    properties: { tabColor: { argb: tabColor } },
+    views: [{ state: 'frozen', xSplit: 1, ySplit: 1, showGridLines: false }],
+    pageSetup: {
+      paperSize: 9,
+      orientation: 'landscape',
+      fitToPage: true,
+      fitToWidth: 1,
+      fitToHeight: 0,
+      margins: { left: 0.25, right: 0.25, top: 0.45, bottom: 0.45, header: 0.2, footer: 0.2 }
+    }
+  });
+  worksheet.columns = selectedColumns.map((column, index) => ({ key: `column${index}`, width: getHistoryExportColumnWidth(column) }));
+  worksheet.addRow(selectedColumns);
+  worksheet.addRows(rows.map(row => selectedColumns.map(column => row[column] ?? '')));
+  worksheet.autoFilter = {
+    from: { row: 1, column: 1 },
+    to: { row: Math.max(1, worksheet.rowCount), column: selectedColumns.length }
+  };
+  worksheet.pageSetup.printArea = `A1:${worksheet.getColumn(selectedColumns.length).letter}${Math.max(1, worksheet.rowCount)}`;
+  worksheet.pageSetup.printTitlesRow = '1:1';
+  worksheet.headerFooter.oddFooter = 'Trang &P / &N';
+
+  const header = worksheet.getRow(1);
+  header.height = 34;
+  header.eachCell((cell, columnIndex) => {
+    const group = HISTORY_EXPORT_GROUP_COLORS[getHistoryExportColumnGroupIndex(selectedColumns[columnIndex - 1])];
+    cell.font = { name: 'Aptos', size: 10, bold: true, color: { argb: 'FFFFFFFF' } };
+    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: group.header } };
+    cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+    cell.border = {
+      bottom: { style: 'medium', color: { argb: 'FFCBD5E1' } },
+      left: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+      right: { style: 'thin', color: { argb: 'FFE2E8F0' } }
+    };
+  });
+
+  for (let rowIndex = 2; rowIndex <= worksheet.rowCount; rowIndex += 1) {
+    const row = worksheet.getRow(rowIndex);
+    let maxLines = 1;
+    row.eachCell({ includeEmpty: true }, (cell, columnIndex) => {
+      const label = selectedColumns[columnIndex - 1];
+      const group = HISTORY_EXPORT_GROUP_COLORS[getHistoryExportColumnGroupIndex(label)];
+      const value = cell.value;
+      if (typeof value === 'string') maxLines = Math.max(maxLines, value.split('\n').length);
+      cell.font = { name: 'Aptos', size: 10, color: { argb: 'FF1E293B' } };
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: group.body[rowIndex % 2] } };
+      cell.alignment = {
+        horizontal: HISTORY_EXPORT_AMOUNT_COLUMNS.has(label) || HISTORY_EXPORT_QUANTITY_COLUMNS.has(label) || HISTORY_EXPORT_PERCENT_COLUMNS.has(label) ? 'right' : 'left',
+        vertical: 'top',
+        wrapText: true
+      };
+      cell.border = { bottom: { style: 'hair', color: { argb: 'FFE2E8F0' } } };
+      if (HISTORY_EXPORT_AMOUNT_COLUMNS.has(label)) cell.numFmt = '#,##0;[Red]-#,##0;0';
+      else if (HISTORY_EXPORT_QUANTITY_COLUMNS.has(label)) cell.numFmt = '#,##0.###;[Red]-#,##0.###;0';
+      else if (HISTORY_EXPORT_PERCENT_COLUMNS.has(label)) cell.numFmt = '0.##"%"';
+    });
+    row.height = Math.min(72, Math.max(22, maxLines * 17));
+  }
+
+  return worksheet;
+}
+
+async function downloadHistoryExportWorkbook(workbook, fileName) {
+  const buffer = await workbook.xlsx.writeBuffer();
+  const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 function getSavedCustomerOrderExportColumns() {
@@ -2645,7 +2858,10 @@ function getSelectedExportBrand() {
 function customerMatchesExportCompany(customer, companyId) {
   if (!companyId || companyId === 'all') return true;
   const selectedCompanyId = normalizeCompanyId(companyId);
-  const customerCompanyId = customer.companyId || customer.company_id || getCompanyIdByBrand(customer.assignedBrand, state.brands);
+  let customerCompanyId = customer.companyId || customer.company_id;
+  if (!customerCompanyId && isLegacyPaintWorkspace()) {
+    customerCompanyId = getCompanyIdByBrand(customer.assignedBrand, state.brands);
+  }
   return normalizeCompanyId(customerCompanyId) === selectedCompanyId;
 }
 
@@ -2658,7 +2874,9 @@ function customerMatchesExportBrand(customer, brandName) {
 function orderMatchesExportCompany(order, companyId) {
   if (!companyId || companyId === 'all') return true;
   const selectedCompanyId = normalizeCompanyId(companyId);
-  if (normalizeCompanyId(order.companyId || order.company_id) === selectedCompanyId) return true;
+  const transactionCompanyId = normalizeCompanyId(order.companyId || order.company_id);
+  if (transactionCompanyId) return transactionCompanyId === selectedCompanyId;
+  if (!isLegacyPaintWorkspace()) return false;
   return (order.items || []).some(item => {
     const itemCompany = item.revenueCompany || item.companyId || item.company_id || getCompanyIdByBrand(item.revenueBrand || item.agencyBrand || item.productBrand || item.brand, state.brands);
     return normalizeCompanyId(itemCompany) === selectedCompanyId;
@@ -2815,10 +3033,6 @@ async function exportCustomerOrderHistoryExcel() {
     showToast('Không có khách hàng phù hợp để xuất.', 'warning');
     return;
   }
-  if (!globalThis.XLSX) {
-    showToast('Thư viện Excel chưa tải xong. Vui lòng thử lại.', 'danger');
-    return;
-  }
   const selectedColumns = getSelectedCustomerOrderExportColumns();
   if (selectedColumns.length === 0) {
     showToast('Vui lòng chọn ít nhất một cột để xuất.', 'warning');
@@ -2847,6 +3061,8 @@ async function exportCustomerOrderHistoryExcel() {
   }
   try {
     const { startIso, endExclusiveIso } = getVnRangeIso(fromDate, toDate);
+    const startTime = startIso ? new Date(startIso).getTime() : null;
+    const endTime = endExclusiveIso ? new Date(endExclusiveIso).getTime() : null;
     const selectedCompanyId = getSelectedExportCompanyId();
     const selectedBrand = getSelectedExportBrand();
     const selectedManagerId = getSelectedExportManagerId();
@@ -2868,8 +3084,6 @@ async function exportCustomerOrderHistoryExcel() {
     let orders = [];
     if (isHistoryExport) {
       const allowedOrderIds = activeExportOrderIds ? new Set(activeExportOrderIds.map(String)) : null;
-      const startTime = new Date(startIso).getTime();
-      const endTime = new Date(endExclusiveIso).getTime();
       orders = activeExportOrders.filter(order => {
         if (allowedOrderIds && !allowedOrderIds.has(String(order.id))) return false;
         if (selectedCustomerId !== 'all'
@@ -2893,7 +3107,11 @@ async function exportCustomerOrderHistoryExcel() {
       orders = await dbFetchCustomersOrderHistory(scopedCustomers.map(c => c.id), startIso, endExclusiveIso, status);
     }
     const exportedReturnIds = new Set();
-    const exportRows = orders.flatMap(order => {
+    const summaryRows = [];
+    const productDetailRows = [];
+    let productLineCount = 0;
+    let exportedReturnCount = 0;
+    orders.forEach(order => {
       const customer = customerById.get(String(order.customerId || order.customer_id)) || {
         id: order.customerId || order.customer_id || '',
         code: order.customerCode || order.customer_code || '',
@@ -2904,13 +3122,12 @@ async function exportCustomerOrderHistoryExcel() {
         managedBy: order.customerManagerId || order.customer_manager_id || '',
         brandDiscounts: {}
       };
-      const rows = [];
-      if (isHistoryExport) {
-        const row = buildHistoryOrderExportRow(order, customer);
-        if (row) rows.push(row);
-      } else {
-        rows.push(...buildCustomerOrderExportRows([order], customer));
-      }
+      const orderSummaryRow = buildHistoryOrderExportRow(order, customer);
+      if (orderSummaryRow) summaryRows.push(orderSummaryRow);
+      const orderItems = getExportItems(order);
+      const orderDetailRows = buildCustomerOrderExportRows([order], customer);
+      productDetailRows.push(...prepareHistoryItemDetailRows(orderDetailRows));
+      productLineCount += orderItems.length;
 
       // Export associated active returns within scope
       const orderReturns = (state.salesReturns || []).filter(ret => {
@@ -2919,8 +3136,8 @@ async function exportCustomerOrderHistoryExcel() {
         if (retOrderId !== String(order.id)) return false;
         const retTime = new Date(ret.returnDate || ret.createdAt || ret.date).getTime();
         if (Number.isFinite(retTime)) {
-          if (startTime && retTime < startTime) return false;
-          if (endTime && retTime >= endTime) return false;
+          if (Number.isFinite(startTime) && retTime < startTime) return false;
+          if (Number.isFinite(endTime) && retTime >= endTime) return false;
         }
         return true;
       });
@@ -2930,41 +3147,31 @@ async function exportCustomerOrderHistoryExcel() {
         if (returnId && exportedReturnIds.has(returnId)) return;
         if (returnId) exportedReturnIds.add(returnId);
         const returnRow = buildHistoryReturnExportRow(ret, order, customer);
-        if (returnRow) rows.push(returnRow);
+        if (returnRow) summaryRows.push(returnRow);
+        const returnDetailRows = buildHistoryReturnExportRow(ret, order, customer, { detailRowsOnly: true });
+        if (Array.isArray(returnDetailRows)) productDetailRows.push(...prepareHistoryItemDetailRows(returnDetailRows));
+        productLineCount += getExportItems(ret).length;
+        exportedReturnCount += 1;
       });
-
-      return rows;
     });
-    if (exportRows.length === 0) {
+    if (summaryRows.length === 0) {
       showToast('Không có đơn hàng phù hợp để xuất Excel.', 'warning');
       return;
     }
 
-    const sheetData = [
-      selectedColumns,
-      ...exportRows.map(row => selectedColumns.map(col => row[col] ?? ''))
-    ];
-    const worksheet = XLSX.utils.aoa_to_sheet(sheetData);
-    worksheet['!autofilter'] = { ref: XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: sheetData.length - 1, c: selectedColumns.length - 1 } }) };
-    worksheet['!freeze'] = { xSplit: 0, ySplit: 1 };
-    worksheet['!cols'] = selectedColumns.map(col => ({ wch: Math.min(38, Math.max(12, col.length + 4)) }));
-    selectedColumns.forEach((_, idx) => {
-      const cellRef = XLSX.utils.encode_cell({ r: 0, c: idx });
-      if (worksheet[cellRef]) worksheet[cellRef].s = { font: { bold: true } };
-    });
-
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Lịch sử đơn hàng');
+    const ExcelJS = await loadExcelJS();
+    const workbook = new ExcelJS.Workbook();
+    workbook.creator = state.currentUser?.displayName || state.currentUser?.username || 'SoVie';
+    workbook.lastModifiedBy = workbook.creator;
+    workbook.created = new Date();
+    workbook.modified = new Date();
+    buildHistoryExportWorksheet(workbook, 'Lịch sử đơn hàng', selectedColumns, summaryRows, 'FF2563EB');
+    buildHistoryExportWorksheet(workbook, 'Chi tiết mặt hàng', selectedColumns, productDetailRows, 'FFB45309');
     const fileRange = range.label || `${fromDate}-${toDate}`;
-    const fileName = `LichSuDonHang_${sanitizeFilePart(fileRange)}_${customers.length}Khach.xlsx`;
-    XLSX.writeFile(workbook, fileName);
+    const fileName = `LichSuDonHang_${sanitizeFilePart(fileRange)}_${orders.length}Don_${productLineCount}DongHang.xlsx`;
+    await downloadHistoryExportWorkbook(workbook, fileName);
     closeCustomerOrderExportModal();
-    showToast(
-      isHistoryExport
-        ? `Đã xuất ${exportRows.length} đơn hàng, mỗi đơn một dòng.`
-        : `Đã xuất ${exportRows.length} dòng chi tiết lịch sử đơn hàng.`,
-      'success'
-    );
+    showToast(`Đã xuất ${orders.length} đơn hàng, ${exportedReturnCount} phiếu trả và ${productLineCount} dòng hàng vào 2 trang tính.`, 'success');
   } catch (error) {
     console.error('Không thể xuất Excel lịch sử đơn hàng:', error);
     showToast('Không thể xuất Excel lịch sử đơn hàng: ' + (error.message || 'Lỗi hệ thống'), 'danger');
@@ -3130,6 +3337,7 @@ export async function openCustomerDetailModal(index) {
   const brandEl = document.getElementById('detail-cust-brand');
   if (brandEl) {
     brandEl.innerHTML = `<span class="suggestion-brand-badge" style="font-size: 0.7rem; padding: 2px 8px; border-radius: 6px; background: ${cust.assignedBrand === 'Tất cả' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(34, 197, 94, 0.15)'}; color: ${cust.assignedBrand === 'Tất cả' ? '#10b981' : '#22c55e'}; border: 1px solid ${cust.assignedBrand === 'Tất cả' ? 'rgba(16, 185, 129, 0.4)' : 'rgba(34, 197, 94, 0.3)'};">${cust.assignedBrand}</span>`;
+    brandEl.parentElement?.setAttribute('data-brand-feature', '');
   }
   
   const mName = cust.managedBy ? getManagerDisplayName(cust.managedBy, state.users) : 'Chưa bàn giao / Trống';
@@ -3356,6 +3564,7 @@ function handleCustExcelFile(file) {
       
       const headerMapping = buildCustomerImportColumnMap(rows[0]);
       const colMap = headerMapping.columns;
+      const legacyPaintWorkspace = isLegacyPaintWorkspace();
       custExcelImportDebug = { sheetName, ...headerMapping, sample: null };
       
       if (colMap.name === -1) {
@@ -3372,10 +3581,10 @@ function handleCustExcelFile(file) {
       const resolveImportManager = excelName => {
         if (!excelName) return null;
         const originalTarget = normalizePersonName(excelName);
-        const aliases = {
+        const aliases = legacyPaintWorkspace ? {
           thuy: 'nguyen thanh thuy',
           'duong hoan': 'duong nhu hoan'
-        };
+        } : {};
         const targets = [...new Set([originalTarget, aliases[originalTarget]].filter(Boolean))];
 
         // Always try the exact name from Excel first. Aliases are only a
@@ -3401,12 +3610,12 @@ function handleCustExcelFile(file) {
 
       const resolveImportBrand = excelName => {
         const originalTarget = normalizeExcelHeader(excelName);
-        const aliases = {
+        const aliases = legacyPaintWorkspace ? {
           'festival nano': 'festiva nano',
           fesvival: 'festiva nano',
           'fesvival nano': 'festiva nano',
           'tddkaw nano': 'tdkaw nano'
-        };
+        } : {};
         const targets = [...new Set([originalTarget, aliases[originalTarget]].filter(Boolean))];
         for (const target of targets) {
           const matches = (state.brands || []).filter(brand =>
@@ -3478,7 +3687,7 @@ function handleCustExcelFile(file) {
         if (excelBrandVal) {
           const foundBrand = resolveImportBrand(excelBrandVal);
           if (!foundBrand) {
-            rowWarnings.push(`Dòng ${i + 1}: Không tìm thấy nhãn sơn "${excelBrandVal}"; đã để trống`);
+            rowWarnings.push(`Dòng ${i + 1}: Không tìm thấy thương hiệu "${excelBrandVal}"; đã để trống`);
           } else {
             assignedBrand = foundBrand.name;
             assignedBrandId = foundBrand.id;
@@ -3521,8 +3730,8 @@ function handleCustExcelFile(file) {
         let managedBy = '';
         if (rawManager) {
           const normalizedManager = normalizeExcelHeader(rawManager);
-          if (normalizedManager.includes('abs japan')) managedBy = 'ctyabs@lendon.com';
-          else if (normalizedManager.includes('emp hoa ky')) managedBy = 'emp_hoa_ky';
+          if (legacyPaintWorkspace && normalizedManager.includes('abs japan')) managedBy = 'ctyabs@lendon.com';
+          else if (legacyPaintWorkspace && normalizedManager.includes('emp hoa ky')) managedBy = 'emp_hoa_ky';
           else {
             const matchedUser = resolveImportManager(rawManager);
             if (!matchedUser) {

@@ -17,8 +17,11 @@ test('history exposes independent multi-select status checkboxes', () => {
   }
   assert.match(html, /class="history-status-filter-check" value="cancelled"><span>Đã hủy<\/span>/);
   assert.doesNotMatch(html, /class="history-status-filter-check" value="cancelled" checked/);
-  assert.match(history, /querySelectorAll\('\.history-status-filter-check:checked'\)/);
-  assert.match(history, /matchesHistoryOrderStatuses\(o\.status, selectedStatuses\)/);
+  assert.match(history, /statusControls\.filter\(checkbox => checkbox\.checked\)/);
+  assert.match(history, /statusControls\.length > 0 && !matchesHistoryOrderStatuses\(o\.status, selectedStatuses\)/);
+  assert.match(history, /defaultStatuses = new Set\(\['settled', 'draft'\]\)/);
+  assert.match(history, /statusFilter\.dataset\.defaultsInitialized !== 'true'[\s\S]*?checkbox\.checked = defaultStatuses\.has\(checkbox\.value\)/);
+  assert.match(history, /statusFilter\.dataset\.defaultsInitialized = 'true'/);
 });
 
 test('checked history groups match finalized, draft and cancelled aliases', () => {

@@ -10,7 +10,7 @@ const read = relative => fs.readFileSync(path.join(root, relative), 'utf8');
 test('customer screen and Excel export share one filtered and sorted row pipeline', () => {
   const customers = read('js/components/customers.js');
   const html = read('index.html');
-  assert.match(customers, /return queryCustomerRows\(buildCustomerViewRows\(\), customerViewQuery\)/);
+  assert.match(customers, /const query = isBrandCatalogEnabled\(state\.businessCapabilities, state\.brands, state\.products\)[\s\S]*?customerViewQuery[\s\S]*?return queryCustomerRows\(buildCustomerViewRows\(\), query\)/);
   assert.match(customers, /customerFilteredRows = filtered/);
   assert.match(customers, /if \(scope === 'page'\) return \[\.\.\.customerCurrentPageRows\]/);
   assert.match(customers, /if \(scope === 'selected'\) return customerFilteredRows\.filter/);

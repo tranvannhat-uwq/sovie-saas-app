@@ -5,13 +5,22 @@ import {
   buildProductFamilies,
   getProductBaseCode,
   inferLegacyBaseCode,
+  isCatalogVariant,
   searchProductFamilies,
   shouldAutoSelectVariant,
   variantSpecification
 } from '../js/domain/product-catalog.js';
 
 const productsUi = readFileSync(new URL('../js/components/products.js', import.meta.url), 'utf8');
-assert.match(productsUi, /'Lít', 'Cái', 'Bộ', 'Mét', 'Lọ'\]\.map\(value =>/);
+const unitResolver = productsUi.slice(
+  productsUi.indexOf('function getWorkspaceUnits'),
+  productsUi.indexOf('function escapeHtml')
+);
+assert.match(unitResolver, /state\.businessCapabilities\?\.catalog\?\.units/);
+assert.match(unitResolver, /code: 'piece', name: 'Cái', symbol: 'cái'/);
+assert.match(unitResolver, /\[unit\.code, unit\.symbol, unit\.name\]/);
+assert.doesNotMatch(productsUi, /\['Lít', 'Cái', 'Bộ', 'Mét', 'Lọ'\]/);
+assert.match(productsUi, /filter\(brand => !\['all', 'tất cả'\]\.includes\(normalizeCatalogText\(brand\)\)\)/);
 
 const products = [
   {
@@ -68,6 +77,7 @@ assert.equal(inferLegacyBaseCode('SP-01-CAI'), 'SP-01');
 assert.equal(inferLegacyBaseCode('SP-02-BO'), 'SP-02');
 assert.equal(inferLegacyBaseCode('SP-03-MET'), 'SP-03');
 assert.equal(inferLegacyBaseCode('SP-04-LO'), 'SP-04');
+assert.equal(inferLegacyBaseCode('SP-05-BAO'), 'SP-05');
 assert.equal(inferLegacyBaseCode('ABC-LÍT'), 'ABC');
 assert.equal(inferLegacyBaseCode('NO-SUFFIX'), 'NO-SUFFIX');
 assert.equal(getProductBaseCode(products[3], products), 'BA-46');
@@ -76,6 +86,10 @@ assert.equal(variantSpecification({ packageType: 'Cái', packageWeight: 1, packa
 assert.equal(variantSpecification({ packageType: 'Bộ', packageWeight: 1, packageWeightUnit: 'bộ' }), 'Bộ 1 bộ');
 assert.equal(variantSpecification({ packageType: 'Mét', packageWeight: 1, packageWeightUnit: 'm' }), 'Mét 1 m');
 assert.equal(variantSpecification({ packageType: 'Lọ', packageWeight: 1, packageWeightUnit: 'cái' }), 'Lọ 1 cái');
+assert.equal(variantSpecification({ packageType: 'Bao', packageWeight: 25, packageWeightUnit: 'bao' }), 'Bao 25 bao');
+assert.equal(variantSpecification({ packageType: 'Bao', packageWeight: null, packageWeightUnit: 'bao' }), 'Bao bao');
+assert.equal(isCatalogVariant({ id: 'service-no-package', sellUnitCode: 'hour', itemKind: 'service' }), true);
+assert.equal(isCatalogVariant({ id: 'legacy-row', sellUnitCode: 'hour', isLegacy: true }), false);
 assert.deepEqual(buildVariantSnapshot(products[0]), {
   productGroupId: null,
   variantId: 'ct-d1-lon',
@@ -91,6 +105,13 @@ assert.equal(buildVariantSnapshot(products[1]).specificationSnapshot, 'Thùng 22
 
 const families = buildProductFamilies(products);
 assert.equal(families.length, 3);
+const serviceFamily = buildProductFamilies([{
+  id: 'service-no-package', code: 'SERVICE-HOUR', baseCode: 'SERVICE',
+  name: 'Dịch vụ theo giờ', sellUnitCode: 'hour', unitName: 'giờ',
+  itemKind: 'service', isActive: true
+}]);
+assert.equal(serviceFamily.length, 1);
+assert.equal(serviceFamily[0].variants[0].packageType, undefined);
 
 const ctFamily = families.find(family => family.name === 'Sơn lót chống kiềm nội thất cao cấp');
 assert.ok(ctFamily);

@@ -32,6 +32,16 @@ test('dashboard exposes and applies the customer autocomplete filter', () => {
   assert.match(dashboard, /String\(o\.customerId \|\| o\.customer_id\) === String\(state\.dashboardFilter\.customerId\)/);
 });
 
+test('dashboard filter suggestions escape the scrollable modal body and stay aligned', () => {
+  assert.match(dashboard, /function setupDashboardSuggestionPopover\(input, list\)/);
+  assert.match(dashboard, /appRoot\.append\(list\)/);
+  assert.match(dashboard, /setProperty\('position', 'fixed', 'important'\)/);
+  assert.match(dashboard, /dashboard-filter-modal-body'\)[\s\S]*?addEventListener\('scroll', positionPopover/);
+  assert.match(dashboard, /window\.addEventListener\('resize', positionPopover\)/);
+  assert.match(dashboard, /const positionSuggestions = setupDashboardSuggestionPopover\(input, list\)/g);
+  assert.match(dashboard, /positionSuggestions\(\)/g);
+});
+
 test('chart range buttons update only the chart and leave dashboard filters unchanged', () => {
   const buttonHandler = dashboard.slice(dashboard.indexOf("document.querySelectorAll('.chart-view-btn')"));
   assert.match(buttonHandler, /state\.dashboardChartView\s*=\s*view;/);

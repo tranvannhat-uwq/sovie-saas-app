@@ -33,7 +33,7 @@ test('manual prices are recalculated after color markup without replacing the ba
     invoiceSource.indexOf("document.querySelectorAll('.item-manual-price')"),
     invoiceSource.indexOf("document.querySelectorAll('.item-notes')")
   );
-  assert.match(manualPriceHandler, /item\.unitPrice = price;[\s\S]*item\.listPrice = price;/);
+  assert.match(manualPriceHandler, /item\.unitPrice = item\.manualPriceEntered \? price : null;[\s\S]*item\.listPrice = item\.unitPrice;/);
   assert.match(manualPriceHandler, /recalculateItemPriceWithColorMarkup\(idx\);/);
   assert.match(manualPriceHandler, /updateRowUnitPrice\(row, idx\);/);
   assert.doesNotMatch(manualPriceHandler, /item\.price = price;/);

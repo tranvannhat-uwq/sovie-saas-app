@@ -4,8 +4,10 @@ import {
   dbCancelPurchase,
   dbCancelSupplierPayment,
   dbCreatePurchase,
-  dbRecordSupplierPayment
+  dbRecordSupplierPayment,
+  getCloudReadHealth
 } from '../services/supabase.js';
+import { ensurePanelCloudData, switchTab } from '../main.js';
 
 let pendingPurchaseKey = '';
 const pendingSupplierPaymentKeys = new Map();
@@ -25,6 +27,74 @@ function escapeHtml(value) {
   }[char]));
 }
 
+function requestPurchaseCancellationReason(title) {
+  return new Promise(resolve => {
+    const previousFocus = document.activeElement;
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay active purchase-reason-overlay';
+    overlay.setAttribute('role', 'alertdialog');
+    overlay.setAttribute('aria-modal', 'true');
+    overlay.setAttribute('aria-labelledby', 'purchase-reason-title');
+    overlay.setAttribute('aria-describedby', 'purchase-reason-help');
+    overlay.innerHTML = `
+      <div class="modal-content purchase-reason-dialog" tabindex="-1">
+        <div class="modal-header"><h3 class="modal-title" id="purchase-reason-title">${escapeHtml(title)}</h3></div>
+        <div class="modal-body">
+          <label for="purchase-cancellation-reason">Lý do hủy <span aria-hidden="true">*</span></label>
+          <textarea id="purchase-cancellation-reason" class="form-control" rows="3" maxlength="500" required aria-describedby="purchase-reason-help"></textarea>
+          <small id="purchase-reason-help">Lý do được lưu trong lịch sử nghiệp vụ.</small>
+          <div class="purchase-reason-error" role="alert" aria-live="polite"></div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-purchase-reason-cancel>Để sau</button>
+          <button type="button" class="btn btn-danger" data-purchase-reason-submit>Xác nhận hủy</button>
+        </div>
+      </div>`;
+    document.body.appendChild(overlay);
+
+    const reasonInput = overlay.querySelector('#purchase-cancellation-reason');
+    const errorLabel = overlay.querySelector('.purchase-reason-error');
+    const cancelButton = overlay.querySelector('[data-purchase-reason-cancel]');
+    const submitButton = overlay.querySelector('[data-purchase-reason-submit]');
+    const finish = reason => {
+      overlay.removeEventListener('keydown', onKeyDown);
+      overlay.remove();
+      if (previousFocus?.isConnected) previousFocus.focus();
+      resolve(reason);
+    };
+    const onKeyDown = event => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        finish(null);
+      } else if (event.key === 'Tab') {
+        const focusable = [reasonInput, cancelButton, submitButton];
+        const currentIndex = focusable.indexOf(document.activeElement);
+        const nextIndex = event.shiftKey
+          ? (currentIndex <= 0 ? focusable.length - 1 : currentIndex - 1)
+          : (currentIndex < 0 || currentIndex === focusable.length - 1 ? 0 : currentIndex + 1);
+        event.preventDefault();
+        focusable[nextIndex].focus();
+      }
+    };
+    overlay.addEventListener('keydown', onKeyDown);
+    overlay.addEventListener('click', event => {
+      if (event.target === overlay) finish(null);
+    });
+    cancelButton.addEventListener('click', () => finish(null));
+    submitButton.addEventListener('click', () => {
+      const reason = reasonInput.value.trim();
+      if (!reason) {
+        errorLabel.textContent = 'Vui lòng nhập lý do hủy.';
+        reasonInput.focus();
+        return;
+      }
+      finish(reason);
+    });
+    reasonInput.addEventListener('input', () => { errorLabel.textContent = ''; });
+    reasonInput.focus();
+  });
+}
+
 function purchaseTotal(purchase) {
   return Number(purchase.totalAmount ?? purchase.totalPayable ?? 0);
 }
@@ -40,11 +110,29 @@ function statusLabel(status) {
   return 'Hoàn thành';
 }
 
+function purchaseEntrySuggestions() {
+  const suggestions = new Map();
+  (state.purchases || []).forEach(purchase => {
+    if (!['completed', 'draft'].includes(String(purchase.status || 'completed'))) return;
+    (purchase.items || []).forEach(item => {
+      const code = String(item.code || '').trim();
+      if (!code) return;
+      const key = code.toLocaleLowerCase('vi');
+      if (!suggestions.has(key)) suggestions.set(key, {
+        code,
+        name: String(item.name || '').trim(),
+        unit: String(item.unit || '').trim()
+      });
+    });
+  });
+  return [...suggestions.values()].sort((left, right) => left.code.localeCompare(right.code, 'vi'));
+}
+
 function itemRow(item = {}) {
   return `
     <tr class="purchase-entry-item-row">
-      <td><input type="text" class="purchase-entry-code" value="${escapeHtml(item.code || '')}" required placeholder="Mã hàng/dịch vụ"></td>
-      <td><input type="text" class="purchase-entry-name" value="${escapeHtml(item.name || '')}" required placeholder="Tên hàng hóa/dịch vụ"></td>
+      <td><input type="text" class="purchase-entry-code" value="${escapeHtml(item.code || '')}" required list="purchase-entry-code-list" autocomplete="off" placeholder="Mã hàng/dịch vụ"></td>
+      <td><input type="text" class="purchase-entry-name" value="${escapeHtml(item.name || '')}" required list="purchase-entry-name-list" autocomplete="off" placeholder="Tên hàng hóa/dịch vụ"></td>
       <td><input type="text" class="purchase-entry-unit" value="${escapeHtml(item.unit || '')}" placeholder="ĐVT"></td>
       <td><input type="number" class="purchase-entry-qty" min="0.0001" step="any" value="${item.quantity || 1}" required></td>
       <td><input type="number" class="purchase-entry-price" min="0" step="1" value="${item.unitPrice || 0}" required></td>
@@ -99,9 +187,11 @@ function purchaseModal() {
                   <tbody id="purchase-entry-items-body">${itemRow()}</tbody>
                 </table>
               </div>
+              <datalist id="purchase-entry-code-list">${purchaseEntrySuggestions().map(item => `<option value="${escapeHtml(item.code)}" label="${escapeHtml([item.name, item.unit].filter(Boolean).join(' · '))}"></option>`).join('')}</datalist>
+              <datalist id="purchase-entry-name-list">${purchaseEntrySuggestions().filter(item => item.name).map(item => `<option value="${escapeHtml(item.name)}" label="${escapeHtml([item.code, item.unit].filter(Boolean).join(' · '))}"></option>`).join('')}</datalist>
               <div class="purchase-entry-total"><span>Tổng dự kiến</span><strong id="purchase-entry-total">0 ₫</strong></div>
               <div class="purchase-entry-total"><span>Còn phải trả dự kiến</span><strong id="purchase-entry-debt-total">0 ₫</strong></div>
-              <small>Database sẽ tự tính lại toàn bộ thành tiền và công nợ.</small>
+              <small>Chọn mã hoặc tên từng nhập để tự điền. Mã mới nhập trực tiếp sẽ có trong gợi ý sau khi lưu phiếu. Database sẽ tự tính lại toàn bộ thành tiền và công nợ.</small>
             </div>
             <div class="form-group purchase-form-wide"><label class="form-label">Ghi chú</label><textarea class="form-control" id="purchase-note-input" rows="2"></textarea></div>
           </div>
@@ -172,16 +262,26 @@ function printPurchase(purchase) {
   popup.print();
 }
 
-function renderPurchaseRows(purchases, activeId) {
+function renderPurchaseRows(purchases, activeId, { readFailed = false, supplierReadFailed = false, filtered = false } = {}) {
+  if (readFailed) {
+    return '<tr><td colspan="10" role="alert" class="purchase-empty">Không thể hiển thị danh sách vì lần đọc Cloud thất bại. Hãy dùng nút tải lại phía trên.</td></tr>';
+  }
   if (!purchases.length) {
+    if (filtered) {
+      return '<tr><td colspan="10" class="purchase-empty">Không có phiếu mua phù hợp với từ khóa hoặc trạng thái đã chọn.</td></tr>';
+    }
+    if (supplierReadFailed) {
+      return '<tr><td colspan="10" class="purchase-empty">Chưa thể xác định nhà cung cấp hiện có. Hãy tải lại danh sách nhà cung cấp trước khi tạo phiếu mua.</td></tr>';
+    }
+    const hasSuppliers = (state.suppliers || []).some(supplier => supplier?.isActive !== false);
     return `<tr><td colspan="10" class="purchase-empty">
       <div class="purchase-empty-state">
         <div class="purchase-empty-icon"><i data-lucide="shopping-bag"></i></div>
         <h4>Chưa có phiếu mua hàng trên database.</h4>
         <p>Ghi nhận giá trị mua và công nợ nhà cung cấp khi nhập hàng hóa, dịch vụ vào hệ thống.</p>
-        <button type="button" class="btn btn-primary btn-sm purchase-empty-btn" id="btn-empty-create-purchase">
-          <i data-lucide="plus"></i> Tạo phiếu mua ngay
-        </button>
+        ${hasSuppliers
+          ? `<button type="button" class="btn btn-primary btn-sm purchase-empty-btn" id="btn-empty-create-purchase"><i data-lucide="plus"></i> Tạo phiếu mua ngay</button>`
+          : `<p>Hãy thêm nhà cung cấp trước để lập phiếu mua.</p><button type="button" class="btn btn-secondary btn-sm" id="btn-empty-add-supplier"><i data-lucide="user-plus"></i> Thêm nhà cung cấp</button>`}
       </div>
     </td></tr>`;
   }
@@ -227,13 +327,13 @@ function attachRowEvents(panel) {
     }
   }));
   panel.querySelectorAll('.purchase-cancel-payment-btn').forEach(button => button.addEventListener('click', async event => {
-    event.stopPropagation(); const reason = prompt('Nhập lý do hủy phiếu chi:'); if (!reason?.trim()) return;
-    const result = await dbCancelSupplierPayment(button.dataset.id, reason.trim());
+    event.stopPropagation(); const reason = await requestPurchaseCancellationReason('Hủy phiếu chi nhà cung cấp'); if (!reason) return;
+    const result = await dbCancelSupplierPayment(button.dataset.id, reason);
     if (result) { showToast('Đã hủy phiếu chi và ghi giao dịch đảo.', 'success'); renderPurchasesPanel(panel); }
   }));
   panel.querySelectorAll('.purchase-cancel-btn').forEach(button => button.addEventListener('click', async event => {
-    event.stopPropagation(); const reason = prompt('Nhập lý do hủy phiếu mua:'); if (!reason?.trim()) return;
-    const result = await dbCancelPurchase(button.dataset.id, reason.trim());
+    event.stopPropagation(); const reason = await requestPurchaseCancellationReason('Hủy phiếu mua hàng'); if (!reason) return;
+    const result = await dbCancelPurchase(button.dataset.id, reason);
     if (result) { showToast('Đã hủy phiếu mua và đảo công nợ/phiếu chi.', 'success'); renderPurchasesPanel(panel); }
   }));
   panel.querySelectorAll('.purchase-print-btn').forEach(button => button.addEventListener('click', event => {
@@ -242,6 +342,10 @@ function attachRowEvents(panel) {
   panel.querySelector('#btn-empty-create-purchase')?.addEventListener('click', () => {
     panel.querySelector('#btn-open-purchase-modal')?.click();
   });
+  panel.querySelector('#btn-empty-add-supplier')?.addEventListener('click', () => {
+    switchTab('suppliers-panel');
+    document.getElementById('btn-open-add-supplier-modal')?.click();
+  });
 }
 
 function attachEvents(panel) {
@@ -249,6 +353,17 @@ function attachEvents(panel) {
   const modal = panel.querySelector('#purchase-entry-modal');
   const close = () => modal?.classList.remove('active');
   panel.querySelector('#btn-open-purchase-modal')?.addEventListener('click', () => {
+    const failedDomains = getCloudReadHealth().failedDomains;
+    if (failedDomains.includes('purchases') || failedDomains.includes('suppliers')) {
+      showToast('Chưa thể tạo phiếu mua khi dữ liệu nhà cung cấp hoặc phiếu mua chưa tải được.', 'warning');
+      return;
+    }
+    if (!(state.suppliers || []).some(supplier => supplier?.isActive !== false)) {
+      showToast('Hãy thêm nhà cung cấp trước khi lập phiếu mua.', 'warning');
+      switchTab('suppliers-panel');
+      document.getElementById('btn-open-add-supplier-modal')?.click();
+      return;
+    }
     const date = new Date(); date.setMinutes(date.getMinutes() - date.getTimezoneOffset());
     panel.querySelector('#purchase-date-input').value = date.toISOString().slice(0, 16);
     pendingPurchaseKey ||= newKey('purchase');
@@ -261,6 +376,23 @@ function attachEvents(panel) {
     panel.querySelector('#purchase-entry-items-body').insertAdjacentHTML('beforeend', itemRow()); updateTotals(panel);
   });
   panel.querySelector('#purchase-entry-items-body')?.addEventListener('input', () => updateTotals(panel));
+  panel.querySelector('#purchase-entry-items-body')?.addEventListener('change', event => {
+    const row = event.target.closest('.purchase-entry-item-row');
+    if (!row) return;
+    const codeInput = row.querySelector('.purchase-entry-code');
+    const nameInput = row.querySelector('.purchase-entry-name');
+    const changedValue = String(event.target.value || '').trim().toLocaleLowerCase('vi');
+    let matches = [];
+    if (event.target === codeInput) {
+      matches = purchaseEntrySuggestions().filter(item => item.code.toLocaleLowerCase('vi') === changedValue);
+    } else if (event.target === nameInput) {
+      matches = purchaseEntrySuggestions().filter(item => item.name.toLocaleLowerCase('vi') === changedValue);
+    }
+    if (matches.length !== 1) return;
+    codeInput.value = matches[0].code;
+    nameInput.value = matches[0].name;
+    row.querySelector('.purchase-entry-unit').value = matches[0].unit;
+  });
   panel.querySelector('#purchase-paid-input')?.addEventListener('input', () => updateTotals(panel));
   panel.querySelector('#purchase-entry-items-body')?.addEventListener('click', event => {
     const button = event.target.closest('.purchase-entry-remove-row'); if (!button) return;
@@ -269,24 +401,38 @@ function attachEvents(panel) {
   });
   panel.querySelector('#purchase-entry-form')?.addEventListener('submit', async event => {
     event.preventDefault();
-    const items = Array.from(panel.querySelectorAll('.purchase-entry-item-row')).map(row => ({
-      code: row.querySelector('.purchase-entry-code').value.trim(),
-      name: row.querySelector('.purchase-entry-name').value.trim(),
-      unit: row.querySelector('.purchase-entry-unit').value.trim(),
-      quantity: Number(row.querySelector('.purchase-entry-qty').value),
-      unitPrice: Number(row.querySelector('.purchase-entry-price').value)
-    }));
-    const submit = event.submitter; if (submit) submit.disabled = true;
-    const result = await dbCreatePurchase({
-      supplierId: panel.querySelector('#purchase-supplier-select').value,
-      invoiceNumber: panel.querySelector('#purchase-invoice-number').value.trim(),
-      purchaseDate: new Date(panel.querySelector('#purchase-date-input').value).toISOString(),
-      paidAmount: Number(panel.querySelector('#purchase-paid-input').value || 0),
-      paymentMethod: panel.querySelector('#purchase-payment-method').value,
-      notes: panel.querySelector('#purchase-note-input').value.trim(),
-      idempotencyKey: pendingPurchaseKey || newKey('purchase'), items
-    });
-    if (submit) submit.disabled = false;
+    const formButtons = Array.from(panel.querySelectorAll('#purchase-entry-form button'));
+    formButtons.forEach(button => { button.disabled = true; });
+    let result;
+    try {
+      const items = Array.from(panel.querySelectorAll('.purchase-entry-item-row')).map(row => ({
+        code: row.querySelector('.purchase-entry-code').value.trim(),
+        name: row.querySelector('.purchase-entry-name').value.trim(),
+        unit: row.querySelector('.purchase-entry-unit').value.trim(),
+        quantity: Number(row.querySelector('.purchase-entry-qty').value),
+        unitPrice: Number(row.querySelector('.purchase-entry-price').value)
+      }));
+      const purchaseDate = new Date(panel.querySelector('#purchase-date-input').value);
+      if (!Number.isFinite(purchaseDate.getTime())) {
+        showToast('Ngày mua chưa hợp lệ. Hãy kiểm tra ngày rồi lưu lại.', 'warning');
+        return;
+      }
+      result = await dbCreatePurchase({
+        supplierId: panel.querySelector('#purchase-supplier-select').value,
+        invoiceNumber: panel.querySelector('#purchase-invoice-number').value.trim(),
+        purchaseDate: purchaseDate.toISOString(),
+        paidAmount: Number(panel.querySelector('#purchase-paid-input').value || 0),
+        paymentMethod: panel.querySelector('#purchase-payment-method').value,
+        notes: panel.querySelector('#purchase-note-input').value.trim(),
+        idempotencyKey: pendingPurchaseKey || newKey('purchase'), items
+      });
+    } catch (error) {
+      console.error('Create purchase failed before a database response:', error);
+      showToast('Không lưu được phiếu mua. Dữ liệu vẫn còn trên màn hình; hãy kiểm tra ngày hoặc kết nối rồi thử lại.', 'danger');
+      return;
+    } finally {
+      formButtons.forEach(button => { button.disabled = false; });
+    }
     if (!result) return;
     pendingPurchaseKey = '';
     panel.dataset.activePurchaseId = result.purchase?.id || '';
@@ -299,6 +445,9 @@ function attachEvents(panel) {
     const statusFilter = panel.dataset.purchaseStatus || 'all';
     const activeId = panel.dataset.activePurchaseId || '';
     const purchases = state.purchases || [];
+    const failedDomains = getCloudReadHealth().failedDomains;
+    const purchasesReadFailed = failedDomains.includes('purchases');
+    const suppliersReadFailed = failedDomains.includes('suppliers');
     const filtered = purchases.filter(p => {
       if (statusFilter !== 'all' && p.status !== statusFilter) return false;
       if (query) {
@@ -309,13 +458,19 @@ function attachEvents(panel) {
     });
     const tbody = panel.querySelector('#purchases-table-body');
     if (tbody) {
-      tbody.innerHTML = renderPurchaseRows(filtered, activeId);
+      tbody.innerHTML = renderPurchaseRows(filtered, activeId, {
+        readFailed: purchasesReadFailed,
+        supplierReadFailed: suppliersReadFailed,
+        filtered: Boolean(query || statusFilter !== 'all')
+      });
       safeCreateIcons();
       attachRowEvents(panel);
     }
     const countEl = panel.querySelector('#purchase-stat-count');
     if (countEl) {
-      countEl.textContent = (query || statusFilter !== 'all')
+      countEl.textContent = purchasesReadFailed
+        ? '—'
+        : (query || statusFilter !== 'all')
         ? `${filtered.length} / ${purchases.length} phiếu`
         : `${purchases.length} phiếu`;
     }
@@ -330,6 +485,13 @@ function attachEvents(panel) {
     panel.dataset.purchaseStatus = event.target.value;
     updateFilteredTable();
   });
+
+  panel.querySelectorAll('[data-retry-cloud-domain]').forEach(button => button.addEventListener('click', async event => {
+    const retryButton = event.currentTarget;
+    const domain = retryButton.dataset.retryCloudDomain;
+    retryButton.disabled = true;
+    await ensurePanelCloudData('goods-panel', { force: true, domains: [domain] });
+  }));
 }
 
 export function renderPurchasesPanel(panel) {
@@ -339,6 +501,10 @@ export function renderPurchasesPanel(panel) {
     return;
   }
   const activeId = panel.dataset.activePurchaseId || '';
+  const failedDomains = getCloudReadHealth().failedDomains;
+  const purchasesReadFailed = failedDomains.includes('purchases');
+  const suppliersReadFailed = failedDomains.includes('suppliers');
+  const hasSuppliers = (state.suppliers || []).some(supplier => supplier?.isActive !== false);
   const purchases = state.purchases || [];
   const query = (panel.dataset.purchaseSearch || '').trim().toLowerCase();
   const statusFilter = panel.dataset.purchaseStatus || 'all';
@@ -367,28 +533,34 @@ export function renderPurchasesPanel(panel) {
             <small class="panel-subtitle">Ghi nhận giá trị mua và công nợ nhà cung cấp</small>
           </div>
           <div class="purchase-actions">
-            <button class="purchase-primary-btn btn btn-primary" id="btn-open-purchase-modal">
+            <button class="purchase-primary-btn btn btn-primary" id="btn-open-purchase-modal" ${purchasesReadFailed || suppliersReadFailed || !hasSuppliers ? 'disabled' : ''}>
               <i data-lucide="plus"></i> Tạo phiếu mua
             </button>
           </div>
         </div>
 
+        ${(purchasesReadFailed || suppliersReadFailed) ? `<div class="purchase-cloud-read-error" role="alert">
+          <span>Không tải được ${[purchasesReadFailed ? 'danh sách phiếu mua' : '', suppliersReadFailed ? 'nhà cung cấp' : ''].filter(Boolean).join(' và ')} từ Cloud. Dữ liệu hiện có thể chưa cập nhật.</span>
+          ${purchasesReadFailed ? '<button type="button" class="btn btn-secondary btn-sm" data-retry-cloud-domain="purchases">Tải lại phiếu mua</button>' : ''}
+          ${suppliersReadFailed ? '<button type="button" class="btn btn-secondary btn-sm" data-retry-cloud-domain="suppliers">Tải lại nhà cung cấp</button>' : ''}
+        </div>` : (!hasSuppliers ? '<div class="purchase-cloud-read-error" role="status">Workspace chưa có nhà cung cấp. Hãy thêm nhà cung cấp trước khi tạo phiếu mua.</div>' : '')}
+
         <div class="purchase-summary-bar">
           <div class="purchase-summary-item">
             <span class="purchase-summary-label">Tổng số phiếu</span>
-            <strong id="purchase-stat-count">${totalCount} phiếu</strong>
+            <strong id="purchase-stat-count">${purchasesReadFailed ? '—' : `${totalCount} phiếu`}</strong>
           </div>
           <div class="purchase-summary-item total-amount">
             <span class="purchase-summary-label">Tổng tiền mua</span>
-            <strong>${formatCurrency(totalAmount)}</strong>
+            <strong>${purchasesReadFailed ? '—' : formatCurrency(totalAmount)}</strong>
           </div>
           <div class="purchase-summary-item total-paid">
             <span class="purchase-summary-label">Đã thanh toán</span>
-            <strong>${formatCurrency(totalPaid)}</strong>
+            <strong>${purchasesReadFailed ? '—' : formatCurrency(totalPaid)}</strong>
           </div>
           <div class="purchase-summary-item total-debt">
             <span class="purchase-summary-label">Còn nợ NCC</span>
-            <strong>${formatCurrency(totalDebt)}</strong>
+            <strong>${purchasesReadFailed ? '—' : formatCurrency(totalDebt)}</strong>
           </div>
         </div>
 
@@ -424,7 +596,12 @@ export function renderPurchasesPanel(panel) {
               </tr>
             </thead>
             <tbody id="purchases-table-body">
-              ${renderPurchaseRows(filteredPurchases, activeId)}
+              ${purchasesReadFailed
+                ? '<tr><td colspan="10" role="alert" class="purchase-empty">Không thể hiển thị danh sách vì lần đọc Cloud thất bại. Hãy dùng nút tải lại phía trên.</td></tr>'
+                : renderPurchaseRows(filteredPurchases, activeId, {
+                  supplierReadFailed: suppliersReadFailed,
+                  filtered: Boolean(query || statusFilter !== 'all')
+                })}
             </tbody>
           </table>
         </div>

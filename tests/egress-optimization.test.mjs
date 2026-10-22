@@ -24,7 +24,8 @@ test('login uses a lean bootstrap and defers historical domains until their pane
   assert.match(service, /if \(!includeItems\) \{\s*itemData = \[\]/);
   assert.match(main, /'invoice-panel': \['pricelists'\]/);
   assert.match(main, /'pricelists-panel': \['pricelists'\]/);
-  assert.match(main, /'history-panel': \['orders', 'salesReturns'\]/);
+  assert.match(main, /'history-panel': \['salesReturns'\]/);
+  assert.match(history, /dbLoadOrdersForHistoryRange\(window\.startIso, window\.endExclusiveIso\)/);
   assert.match(main, /'so-quy-panel': \['cashbook', 'startingBalances'\]/);
   assert.match(main, /loadedPanelDomains\.has\(domain\)/);
   assert.match(main, /pendingPanelDomainLoads\.has\(loadKey\)/);
@@ -52,17 +53,18 @@ test('routine refresh actions do not download every business table', () => {
   assert.match(cashbook, /dbFetchCashbookTransactionById/);
 });
 
-test('invoice history defaults to the current week and pages through the selected date window', () => {
-  assert.match(html, /<option value="week" selected>Tuần này<\/option>/);
-  assert.match(service, /fetchOrderRowsForHistoryWindow\(currentWeek\.startIso, currentWeek\.endExclusiveIso\)/);
+test('invoice history defaults to all time and pages through the selected date window', () => {
+  assert.match(html, /<option value="all" selected>Tất cả thời gian<\/option>/);
+  assert.match(service, /fetchOrderRowsForHistoryWindow\(startIso, endExclusiveIso\)/);
   assert.match(service, /loadPages = \(dateColumn, onlyMissingOrderDate = false\) => collectAllPages/);
   assert.match(service, /\.gte\(dateColumn, startIso\)/);
   assert.match(service, /\.lt\(dateColumn, endExclusiveIso\)/);
   assert.match(service, /return query\.range\(offset, end\);[\s\S]*?\}, 500\)/);
+  assert.match(service, /query = query\.order\(dateColumn, \{ ascending: false \}\)\.order\('id', \{ ascending: false \}\)/);
   assert.match(service, /loadPages\('created_at', true\)/);
   assert.doesNotMatch(service, /p_limit:\s*10000/);
   assert.match(history, /const onDateFilterChange = \(\) => \{[\s\S]*reloadHistoryDateWindow\(\)/);
-  assert.match(history, /if \(dateMode !== 'all'\)[\s\S]*oDate >= endExclusiveDate/);
+  assert.match(history, /if \(o\.date && dateMode !== 'all'\)[\s\S]*orderDate >= endExclusiveDate/);
 });
 
 test('cashbook defaults to the current week and loads only the selected date window', () => {

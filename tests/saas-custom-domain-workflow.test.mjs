@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const migration = fs.readFileSync(path.join(root, 'migrations', '0070_custom_domain_workflow.sql'), 'utf8');
+const pauseMigration = fs.readFileSync(path.join(root, 'migrations', '0108_centralized_login_and_pause_custom_domains.sql'), 'utf8');
 const integration = fs.readFileSync(path.join(root, 'migrations', 'tests', 'saas_custom_domain_workflow_integration.sql'), 'utf8');
 const service = fs.readFileSync(path.join(root, 'js', 'services', 'supabase.js'), 'utf8');
 const workspaces = fs.readFileSync(path.join(root, 'js', 'components', 'workspaces.js'), 'utf8');
@@ -37,11 +38,12 @@ test('verification tokens remain tenant-private and disabling restores Sovie pri
   assert.match(integration, /disabling_primary_restores_sovie_subdomain/);
 });
 
-test('Owner UI manages custom domain requests without exposing service verification writes', () => {
-  assert.match(service, /rpc_request_custom_domain/);
-  assert.match(service, /rpc_my_custom_domain_verification/);
+test('customer custom-domain controls are paused while historical records remain available', () => {
+  assert.match(pauseMigration, /REVOKE ALL ON FUNCTION public\.rpc_request_custom_domain/);
+  assert.match(pauseMigration, /rpc_my_custom_domain_verification/);
+  assert.doesNotMatch(service, /rpc_request_custom_domain/);
+  assert.doesNotMatch(service, /rpc_my_custom_domain_verification/);
   assert.doesNotMatch(service, /rpc_apply_domain_verification/);
-  assert.match(workspaces, /renderCustomDomainManagement/);
-  assert.match(html, /id="custom-domain-section"/);
-  assert.match(html, /id="custom-domain-verification-output"/);
+  assert.doesNotMatch(workspaces, /renderCustomDomainManagement/);
+  assert.doesNotMatch(html, /custom-domain-section|custom-domain-verification-output/);
 });

@@ -1,27 +1,149 @@
 import { state } from '../state.js';
-import { showToast, formatCurrency, formatNumber, formatPhoneNumber, safeCreateIcons, formatDateTime, calculateColorMarkedUpPrice, isSameUser, getProvinceNameByCode, PROVINCES, makeSelectSearchable, docSoTienBangChu, getUserCompanyId, getRevenueAttributes, getBrandName, getCompanyName, getCustomerName, getUserById, getUserDisplayName, getPricelistName } from '../utils.js';
-import { dbSaveOrder, dbCreateQuickCustomer, dbConfirmOrder, dbAmendOrder, dbFetchOrderDebtSnapshot, dbLoadCustomerAssignedPricing, dbRefreshCustomerFinancialState, dbRefreshOrderById, cacheOrdersLocally, isCloudActive } from '../services/supabase.js';
+import { showToast, formatCurrency, formatNumber, formatPhoneNumber, safeCreateIcons, formatDateTime, calculateColorMarkedUpPrice, isSameUser, getProvinceNameByCode, PROVINCES, makeSelectSearchable, docSoTienBangChu, getUserCompanyId, getRevenueAttributes, getBrandName, getBrandById, getCompanyName, getCustomerName, getUserById, getUserDisplayName, getPricelistName, isLegacyPaintWorkspace } from '../utils.js';
+import { dbSaveOrder, dbCreateImportedInvoiceDraft, dbLoadOrdersForHistoryRange, dbCreateQuickCustomer, dbConfirmOrder, dbAmendOrder, dbFetchOrderDebtSnapshot, dbLoadCustomerAssignedPricing, dbRefreshCustomerFinancialState, dbRefreshOrderById, cacheOrdersLocally, isCloudActive } from '../services/supabase.js';
 import { renderAll, switchTab } from '../main.js';
 import { tenantStorage } from '../services/tenant-storage.js';
 import { populatePricelistsDropdowns } from './pricelists.js';
-import { generateUniqueCustomerCode } from './customers.js';
+import { generateUniqueCustomerCode, isCustomerFieldRequired } from './customers.js';
 import { addCashbookTransaction } from './so_quy.js';
 import { getApplicablePriceList, resolveCustomerProductPrice, normalizePriceListType, PRICE_LIST_TYPES, filterPriceListsForUser, canUserViewPriceList, canUserUsePriceListForCustomer, isDealerPrivatePriceList, isUsableResolvedPrice, shouldOverrideWithGlobalCustomerPriceList } from '../domain/pricing.js';
 import { normalizeCustomerPhone } from '../domain/customer-query.js';
 import { isPrintOnlyPriceList, requiresOrderSaveApproval, supportsInvoiceLineDiscount } from '../domain/invoice-discount.js';
-import { buildProductFamilies, buildVariantSnapshot, searchProductFamilies, shouldAutoSelectVariant, variantSpecification } from '../domain/product-catalog.js';
+import { buildProductFamilies, buildVariantSnapshot, isCatalogVariant, normalizeCatalogText, searchProductFamilies, shouldAutoSelectVariant, variantSpecification } from '../domain/product-catalog.js';
 import { chargeCustomerDebt, getOrderDebtSnapshot, getOrderOutstandingAmount } from '../domain/customer-debt.js';
 import { getOrderDisplayCode } from '../domain/order-display.js';
 import { canAdjustOrderBusinessDate, currentBusinessDateInputValue, parseOrderBusinessDateInput } from '../domain/order-business-date.js';
 import { reorderOrderItems } from '../domain/order-edit.js';
 import { catalogAdjustmentPercent, isCatalogExtensionEnabled } from '../domain/generic-catalog.js';
+import { buildInvoiceImportFingerprint, buildInvoiceImportIdentity, findInvoiceImportProductMatches, parseInvoiceImportRows, stableInvoiceImportUuid } from '../domain/invoice-excel-import.js';
+import { isSalesBrandRestrictionEnabled } from '../domain/business-capabilities.js';
+import { itemMatchesAssignedBrand, partitionItemsByAssignedBrand } from '../domain/order-brand-policy.js';
 
 let currentOrderToPrint = null;
 let lastFinalizedOrder = null;
 let isSavingOrder = false;
 let selectedProductFamilyKey = '';
+let importedInvoiceVatDetails = null;
+let pendingInvoiceExcelImport = null;
 const ORDER_IDEMPOTENCY_STORAGE_KEY = 'billing_pending_order_idempotency_key';
 const ORDER_PENDING_ID_STORAGE_KEY = 'billing_pending_order_id';
+
+function readInvoiceVatDetails(subtotal = 0, discountAmount = 0) {
+  const enabled = Boolean(document.getElementById('invoice-vat-enabled')?.checked);
+  const buyerName = enabled ? (document.getElementById('invoice-vat-buyer-name')?.value.trim() || '') : '';
+  const buyerTaxCode = enabled ? (document.getElementById('invoice-vat-buyer-tax-code')?.value.trim() || '') : '';
+  const buyerAddress = enabled ? (document.getElementById('invoice-vat-buyer-address')?.value.trim() || '') : '';
+  const buyerEmail = enabled ? (document.getElementById('invoice-vat-buyer-email')?.value.trim() || '') : '';
+  const rateInput = document.getElementById('invoice-vat-rate')?.value;
+  const rate = rateInput === '' || rateInput == null ? null : Number(rateInput);
+  const priceMode = document.getElementById('invoice-vat-price-mode')?.value === 'inclusive'
+    ? 'inclusive'
+    : 'exclusive';
+  const taxableAmount = Math.max(0, Math.round(Number(subtotal || 0) - Number(discountAmount || 0)));
+  const validRate = Number.isFinite(rate) && rate >= 0 && rate <= 100;
+
+  if (enabled && importedInvoiceVatDetails
+      && Number(importedInvoiceVatDetails.rate) === rate
+      && importedInvoiceVatDetails.priceMode === priceMode
+      && Number(importedInvoiceVatDetails.taxBaseAmount) === taxableAmount) {
+    const currentLineTaxBases = (state.invoiceItems || []).map(item => Math.max(0, Math.round(
+      Number(item.quantity || 0) * Number(item.price ?? item.unitPrice ?? 0)
+      * (1 - Number(item.discountPercent || 0) / 100)
+    )));
+    const originalLineTaxBases = importedInvoiceVatDetails.lineTaxBases || [];
+    const lineBasesMatch = currentLineTaxBases.length === originalLineTaxBases.length
+      && currentLineTaxBases.every((amount, index) => amount === Number(originalLineTaxBases[index]));
+    if (lineBasesMatch) {
+      return {
+        ...importedInvoiceVatDetails,
+        buyerName,
+        buyerTaxCode,
+        buyerAddress,
+        buyerEmail,
+        taxAmount: Number(importedInvoiceVatDetails.taxAmount || 0),
+        totalWithVat: priceMode === 'exclusive'
+          ? taxableAmount + Number(importedInvoiceVatDetails.taxAmount || 0)
+          : taxableAmount
+      };
+    }
+  }
+
+  const taxBaseAmount = enabled && priceMode === 'inclusive' && validRate && rate > 0
+    ? Math.round(taxableAmount / (1 + rate / 100))
+    : taxableAmount;
+  const taxAmount = !enabled || !validRate
+    ? 0
+    : (priceMode === 'inclusive'
+      ? taxableAmount - taxBaseAmount
+      : Math.round(taxableAmount * rate / 100));
+
+  return {
+    ...(importedInvoiceVatDetails ? {
+      sourceInvoiceNumber: importedInvoiceVatDetails.sourceInvoiceNumber,
+      sourceInvoiceDate: importedInvoiceVatDetails.sourceInvoiceDate,
+      sourceBuyerCode: importedInvoiceVatDetails.sourceBuyerCode,
+      sourceCurrency: importedInvoiceVatDetails.sourceCurrency,
+      sourceFingerprint: importedInvoiceVatDetails.sourceFingerprint,
+      issuerName: importedInvoiceVatDetails.issuerName,
+      issuerTaxCode: importedInvoiceVatDetails.issuerTaxCode,
+      sourceLines: importedInvoiceVatDetails.sourceLines
+    } : {}),
+    enabled,
+    buyerName,
+    buyerTaxCode,
+    buyerAddress,
+    buyerEmail,
+    rate: enabled && validRate ? rate : 0,
+    priceMode,
+    taxBaseAmount: enabled ? taxBaseAmount : 0,
+    taxAmount: enabled ? taxAmount : 0,
+    totalWithVat: enabled
+      ? (priceMode === 'exclusive' ? taxableAmount + taxAmount : taxableAmount)
+      : 0
+  };
+}
+
+function renderInvoiceVatTotals(details) {
+  const taxBaseEl = document.getElementById('invoice-vat-tax-base');
+  const taxAmountEl = document.getElementById('invoice-vat-tax-amount');
+  const totalEl = document.getElementById('invoice-vat-total');
+  if (taxBaseEl) taxBaseEl.innerText = formatCurrency(details.taxBaseAmount || 0);
+  if (taxAmountEl) taxAmountEl.innerText = formatCurrency(details.taxAmount || 0);
+  if (totalEl) totalEl.innerText = formatCurrency(details.totalWithVat || 0);
+}
+
+function setInvoiceVatFields(details = {}, isReadOnly = false) {
+  const enabled = Boolean(details.enabled);
+  importedInvoiceVatDetails = enabled && details.roundingMode === 'line'
+    ? { ...details }
+    : null;
+  const toggle = document.getElementById('invoice-vat-enabled');
+  const fields = document.getElementById('invoice-vat-fields');
+  if (toggle) {
+    toggle.checked = enabled;
+    toggle.disabled = isReadOnly;
+  }
+  if (fields) fields.style.display = enabled ? '' : 'none';
+  const values = {
+    'invoice-vat-buyer-name': details.buyerName || details.buyer_name || '',
+    'invoice-vat-buyer-tax-code': details.buyerTaxCode || details.buyer_tax_code || '',
+    'invoice-vat-buyer-address': details.buyerAddress || details.buyer_address || '',
+    'invoice-vat-buyer-email': details.buyerEmail || details.buyer_email || '',
+    'invoice-vat-rate': details.rate ?? details.vatRate ?? details.vat_rate ?? '',
+    'invoice-vat-price-mode': details.priceMode || details.price_mode || 'exclusive'
+  };
+  Object.entries(values).forEach(([id, value]) => {
+    const input = document.getElementById(id);
+    if (!input) return;
+    input.value = value;
+    input.disabled = isReadOnly;
+  });
+}
+
+export function applyInvoiceVatDetailsToBuilder(details = {}, isReadOnly = false) {
+  setInvoiceVatFields(details, isReadOnly);
+  renderInvoiceVatTotals(readInvoiceVatDetails());
+}
 
 function abbreviateSalesPosition(position = '') {
   const raw = String(position || '').trim();
@@ -220,11 +342,6 @@ function canApproveManualInvoicePricing() {
   return ['admin', 'accounting'].includes(state.currentUser?.role);
 }
 
-function isTradeTermsDiscountPriceList(priceList = getSelectedInvoicePriceList()) {
-  const label = `${priceList?.name || ''} ${priceList?.code || ''}`.toLowerCase();
-  return label.includes('tt 20/07/2026') || label.includes('tt 20-07-2026') || label.includes('tt 20.07.2026');
-}
-
 function isUsingCustomerDefaultPriceList(customer) {
   if (!customer) return true;
   const selectedId = getSelectedInvoicePriceListId();
@@ -279,21 +396,57 @@ function shouldRequestAuthoritativePriceListOverride() {
   });
 }
 
-function getInvoiceProductFamilies() {
+function getCustomerAssignedBrandId(customer = null) {
+  const source = customer || state.customers.find(item => String(item.id) === String(state.activeCustomerId));
+  return String(source?.assignedBrandId || source?.assigned_brand_id
+    || state.activeCustomerBrandId || getBrandById(source?.assignedBrand || source?.assigned_brand || state.activeCustomerBrand)?.id
+    || '').trim();
+}
+
+function filterInvoiceItemsToAssignedBrand(brandId, brandName, customerLabel = 'Khách hàng') {
+  if (!isSalesBrandRestrictionEnabled(state.businessCapabilities)) return true;
+  if ((!brandId && (!brandName || brandName === 'Tất cả'))) return true;
+  const resolver = (item, name) => getBrandById(item?.brand || item?.productBrand || item?.product?.brand || name)?.id || '';
+  const { matching, excluded } = partitionItemsByAssignedBrand(
+    state.invoiceItems, brandId, brandName, resolver, isLegacyPaintWorkspace()
+  );
+  const invalidItems = excluded;
+  if (invalidItems.length === 0) return true;
+  const ok = confirm(`${customerLabel} chỉ được bán thương hiệu "${brandName}". Xóa ${invalidItems.length} dòng hàng khác thương hiệu khỏi đơn?`);
+  if (!ok) return false;
+  state.invoiceItems = matching;
+  return true;
+}
+
+function getInvoiceProductFamilies({ ignoreAssignedBrand = false } = {}) {
   let variants = (state.products || []).filter(product =>
-    product?.id &&
-    product.packageType &&
-    !product.isLegacy &&
+    isCatalogVariant(product) &&
     product.isActive !== false
   );
-  if (state.activeCustomerBrand && state.activeCustomerBrand !== 'Tất cả') {
-    variants = variants.filter(product => {
-      const brand = String(product.brand || '').toLowerCase().replace(/\s+/g, '');
-      const isFestiva = brand === 'festivanano' || brand === 'festiva';
-      return isFestiva || product.brand === state.activeCustomerBrand;
-    });
+  const assignedBrandId = getCustomerAssignedBrandId();
+  if (!ignoreAssignedBrand && isSalesBrandRestrictionEnabled(state.businessCapabilities)
+      && (assignedBrandId || (state.activeCustomerBrand && state.activeCustomerBrand !== 'Tất cả'))) {
+    const resolver = (product, name) => getBrandById(product?.brand || name)?.id || '';
+    variants = variants.filter(product => itemMatchesAssignedBrand(
+      product, assignedBrandId, state.activeCustomerBrand, resolver, isLegacyPaintWorkspace()
+    ));
   }
   return buildProductFamilies(variants);
+}
+
+function hasRestrictedInvoiceProductMatch(query) {
+  if (!isSalesBrandRestrictionEnabled(state.businessCapabilities)) return false;
+  const assignedBrandId = getCustomerAssignedBrandId();
+  if (!assignedBrandId && (!state.activeCustomerBrand || state.activeCustomerBrand === 'Tất cả')) return false;
+
+  const resolver = (product, name) => getBrandById(product?.brand || name)?.id || '';
+  const matches = searchProductFamilies(getInvoiceProductFamilies({ ignoreAssignedBrand: true }), query);
+  return matches.some(family => {
+    const variant = family.variants.find(item => String(item.id) === String(family.matchedVariantId));
+    return variant && !itemMatchesAssignedBrand(
+      variant, assignedBrandId, state.activeCustomerBrand, resolver, isLegacyPaintWorkspace()
+    );
+  });
 }
 
 function closeVariantPicker() {
@@ -301,36 +454,454 @@ function closeVariantPicker() {
   document.body.classList.remove('invoice-variant-open');
 }
 
+function escapeInvoiceImportHtml(value) {
+  return String(value ?? '').replace(/[&<>\"']/g, character => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[character]));
+}
+
+function importProductCode(product) {
+  return String(product?.variantCode || product?.code || '').trim();
+}
+
+function invoiceImportCandidates(item) {
+  const products = (state.products || []).filter(product => product?.isActive !== false && product?.id);
+  const exact = findInvoiceImportProductMatches(item, products);
+  const exactIds = new Set(exact.map(product => String(product.id)));
+  const codeNeedle = normalizeCatalogText(item.code);
+  const nameNeedle = normalizeCatalogText(item.name);
+  const fuzzy = products.filter(product => {
+    if (exactIds.has(String(product.id))) return false;
+    const code = normalizeCatalogText(importProductCode(product));
+    const name = normalizeCatalogText(product.name);
+    return (codeNeedle && (code.startsWith(codeNeedle) || codeNeedle.startsWith(code)))
+      || (nameNeedle && (name === nameNeedle || name.includes(nameNeedle) || nameNeedle.includes(name)));
+  }).sort((left, right) => {
+    const leftExactName = normalizeCatalogText(left.name) === nameNeedle ? 0 : 1;
+    const rightExactName = normalizeCatalogText(right.name) === nameNeedle ? 0 : 1;
+    return leftExactName - rightExactName
+      || importProductCode(left).localeCompare(importProductCode(right), 'vi');
+  });
+  return [...exact, ...fuzzy].filter((product, index, list) =>
+    list.findIndex(candidate => String(candidate.id) === String(product.id)) === index
+  ).slice(0, 15);
+}
+
+function invoiceImportOptionLabel(product) {
+  const code = importProductCode(product);
+  const details = [product.name, product.unitName || product.unit || '', product.brandName || product.brand || '']
+    .filter(Boolean).join(' · ');
+  return [code, details].filter(Boolean).join(' — ');
+}
+
+function ensureInvoiceExcelImportModal() {
+  let modal = document.getElementById('invoice-excel-import-preview-modal');
+  if (modal) return modal;
+  modal = document.createElement('div');
+  modal.id = 'invoice-excel-import-preview-modal';
+  modal.className = 'modal-overlay invoice-excel-import-modal';
+  modal.setAttribute('role', 'dialog');
+  modal.setAttribute('aria-modal', 'true');
+  modal.setAttribute('aria-labelledby', 'invoice-excel-import-title');
+  modal.innerHTML = `
+    <div class="modal-content invoice-excel-import-dialog">
+      <div class="modal-header">
+        <div><h3 class="modal-title" id="invoice-excel-import-title">Kiểm tra hóa đơn Excel</h3><small class="invoice-excel-import-filename"></small></div>
+        <button type="button" class="modal-close" data-invoice-import-close aria-label="Đóng">×</button>
+      </div>
+      <div class="modal-body invoice-excel-import-body">
+        <div class="invoice-excel-import-notice"><strong>Lưu thành đơn nháp.</strong> Chưa ghi doanh số, thu tiền hoặc công nợ cho đến khi kế toán mở và xác nhận từng hóa đơn.</div>
+        <div class="invoice-excel-import-summary" aria-live="polite"></div>
+        <div class="invoice-excel-import-groups"></div>
+        <div class="invoice-excel-import-results" aria-live="polite"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-invoice-import-close>Đóng</button>
+        <button type="button" class="btn btn-primary" data-invoice-import-save disabled>Lưu đơn nháp đã chọn</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+  return modal;
+}
+
+function invoiceImportGroupReady(group, mappings) {
+  if (!group || group.issues.length) return false;
+  return group.items.every(item => Boolean(mappings.get(item.sourceRowNumber)));
+}
+
+function invoiceImportCustomerCandidates(group) {
+  const taxCode = invoiceImportTaxCodeKey(group.buyerTaxCode);
+  const sourceCode = normalizeCatalogText(group.buyerCode);
+  const sourceName = normalizeCatalogText(group.buyerCompany || group.buyerName);
+  return (state.customers || []).filter(customer => customer?.isActive !== false && customer?.status !== 'inactive')
+    .map(customer => {
+      const customerTaxCode = invoiceImportTaxCodeKey(customer.taxCode || customer.tax_code || customer.taxId || customer.tax_id);
+      const customerCode = normalizeCatalogText(customer.code || customer.customerCode || customer.customer_code);
+      const customerName = normalizeCatalogText(customer.name);
+      const taxMatch = Boolean(taxCode && customerTaxCode === taxCode);
+      const codeMatch = Boolean(sourceCode && customerCode === sourceCode);
+      const nameMatch = Boolean(sourceName && customerName && (customerName === sourceName
+        || customerName.includes(sourceName) || sourceName.includes(customerName)));
+      return { customer, score: taxMatch ? 0 : codeMatch ? 1 : nameMatch ? 2 : 99 };
+    })
+    .filter(entry => entry.score < 99)
+    .sort((left, right) => left.score - right.score
+      || String(left.customer.name || '').localeCompare(String(right.customer.name || ''), 'vi'))
+    .slice(0, 15)
+    .map(entry => entry.customer);
+}
+
+function renderInvoiceExcelImportPreview() {
+  const modal = ensureInvoiceExcelImportModal();
+  const pending = pendingInvoiceExcelImport;
+  if (!pending) return;
+  modal.querySelector('.invoice-excel-import-filename').textContent = pending.fileName;
+  const groupHost = modal.querySelector('.invoice-excel-import-groups');
+  groupHost.innerHTML = pending.parsed.groups.map((group, index) => {
+    const ready = invoiceImportGroupReady(group, pending.mappings);
+    const selected = pending.selected.has(index);
+    const issueList = group.issues.length
+      ? `<ul class="invoice-import-issues">${group.issues.map(issue => `<li>${escapeInvoiceImportHtml(issue)}</li>`).join('')}</ul>`
+      : '';
+    const warningList = group.warnings.length
+      ? `<ul class="invoice-import-warnings">${group.warnings.map(warning => `<li>${escapeInvoiceImportHtml(warning)}</li>`).join('')}</ul>`
+      : '';
+    const rows = group.items.map(item => {
+      const selectedId = pending.mappings.get(item.sourceRowNumber) || '';
+      const candidates = invoiceImportCandidates(item);
+      const options = [`<option value="">— Chọn SKU khớp mã nguồn ${escapeInvoiceImportHtml(item.code)} —</option>`, ...candidates.map(product =>
+        `<option value="${escapeInvoiceImportHtml(product.id)}" ${String(product.id) === String(selectedId) ? 'selected' : ''}>${escapeInvoiceImportHtml(invoiceImportOptionLabel(product))}</option>`
+      )].join('');
+      return `<tr>
+        <td>${item.sourceRowNumber}</td><td>${escapeInvoiceImportHtml(item.code)}<small>${escapeInvoiceImportHtml(item.name)}</small></td>
+        <td>${escapeInvoiceImportHtml(item.quantity)} ${escapeInvoiceImportHtml(item.unit)}</td>
+        <td>${formatCurrency(item.unitPrice)}</td><td>${formatCurrency(item.lineAmount)}</td><td>${formatCurrency(item.taxAmount)}</td>
+        <td><select class="form-control invoice-import-product-select" data-source-row="${item.sourceRowNumber}" aria-label="Mã sản phẩm cho dòng ${item.sourceRowNumber}">${options}</select></td>
+      </tr>`;
+    }).join('');
+    const customerId = pending.customerMappings.get(index) || '';
+    const customerOptions = invoiceImportCustomerCandidates(group).map(customer => {
+      const customerCode = customer.code || customer.customerCode || customer.customer_code || '';
+      const customerTaxCode = customer.taxCode || customer.tax_code || customer.taxId || customer.tax_id || '';
+      const label = [customer.name, customerCode ? `Mã ${customerCode}` : '', customerTaxCode ? `MST ${customerTaxCode}` : '']
+        .filter(Boolean).join(' · ');
+      return `<option value="${escapeInvoiceImportHtml(customer.id)}" ${String(customer.id) === String(customerId) ? 'selected' : ''}>${escapeInvoiceImportHtml(label)}</option>`;
+    }).join('');
+    const blockingSummary = !group.issues.length && !ready
+      ? '<p class="invoice-import-mapping-needed">Chọn đúng SKU cho từng dòng trước khi lưu.</p>'
+      : '';
+    return `<details class="invoice-import-group" open>
+      <summary>
+        <label><input type="checkbox" class="invoice-import-group-checkbox" data-group-index="${index}" ${selected ? 'checked' : ''} ${!ready ? 'disabled' : ''}> Chọn</label>
+        <strong>Hóa đơn ${escapeInvoiceImportHtml(group.invoiceNumber || 'thiếu mã')}</strong>
+        <span>${escapeInvoiceImportHtml(group.date?.slice(0, 10) || 'Thiếu ngày')}</span>
+        <span>${group.items.length} dòng</span><span>Tổng ${formatCurrency(group.totalWithTax)}</span>
+        <span class="invoice-import-group-state ${ready ? 'is-ready' : 'is-blocked'}">${ready ? 'Sẵn sàng' : group.issues.length ? 'Có lỗi' : 'Chưa khớp SKU'}</span>
+      </summary>
+      <div class="invoice-import-group-content">
+        ${group.buyerCompany || group.buyerName ? `<p><strong>Người mua trên file:</strong> ${escapeInvoiceImportHtml(group.buyerCompany || group.buyerName)}${group.buyerCode ? ` · Mã nguồn ${escapeInvoiceImportHtml(group.buyerCode)}` : ''}${group.buyerTaxCode ? ` · MST ${escapeInvoiceImportHtml(group.buyerTaxCode)}` : ''}</p>` : '<p>File không có thông tin người mua; hóa đơn nháp sẽ để khách hàng chưa khớp.</p>'}
+        <div class="invoice-import-customer-map"><label for="invoice-import-customer-${index}">Liên kết khách hàng trong hệ thống</label><select class="form-control invoice-import-customer-select" id="invoice-import-customer-${index}" data-group-index="${index}"><option value="">Không liên kết — giữ thông tin người mua từ file</option>${customerOptions}</select><small>Chỉ tự chọn khi mã số thuế khớp duy nhất; có thể chọn thủ công từ danh sách gợi ý.</small></div>
+        <p><strong>Giá trị hàng:</strong> ${formatCurrency(group.netAmount)} · <strong>VAT ${group.rate}%:</strong> ${formatCurrency(group.taxAmount)} · <strong>Tổng:</strong> ${formatCurrency(group.totalWithTax)} (làm tròn thuế theo từng dòng)</p>
+        ${issueList}${warningList}${blockingSummary}
+        <div class="invoice-import-table-wrap"><table><thead><tr><th>Dòng</th><th>Mã / hàng trên file</th><th>SL</th><th>Đơn giá</th><th>Thành tiền</th><th>VAT</th><th>SKU trong danh mục</th></tr></thead><tbody>${rows}</tbody></table></div>
+      </div>
+    </details>`;
+  }).join('');
+  const selectedCount = pending.selected.size;
+  const readyCount = pending.parsed.groups.filter((group, index) => invoiceImportGroupReady(group, pending.mappings) && pending.selected.has(index)).length;
+  modal.querySelector('.invoice-excel-import-summary').textContent = `${pending.parsed.dataRowCount} dòng dữ liệu · ${pending.parsed.groups.length} hóa đơn · ${readyCount}/${selectedCount} hóa đơn đã chọn sẵn sàng. Hãy rà soát người mua, mã hàng và thuế trước khi lưu.`;
+  const saveButton = modal.querySelector('[data-invoice-import-save]');
+  saveButton.disabled = pending.saving || readyCount === 0 || readyCount !== selectedCount;
+  saveButton.textContent = pending.saving ? 'Đang lưu đơn nháp…' : `Lưu ${readyCount} đơn nháp đã chọn`;
+  safeCreateIcons();
+}
+
+async function sha256Hex(value) {
+  const bytes = new TextEncoder().encode(String(value));
+  const digest = await globalThis.crypto.subtle.digest('SHA-256', bytes);
+  return [...new Uint8Array(digest)].map(byte => byte.toString(16).padStart(2, '0')).join('');
+}
+
+function invoiceImportTaxCodeKey(value) {
+  return String(value || '').trim().replace(/[\s.-]/g, '').toLocaleUpperCase('vi');
+}
+
+function invoiceImportCustomerIdsByTaxCode(group) {
+  const taxCode = invoiceImportTaxCodeKey(group.buyerTaxCode);
+  if (!taxCode) return [];
+  return (state.customers || []).filter(customer => {
+    const candidate = invoiceImportTaxCodeKey(customer.taxCode || customer.tax_code || customer.taxId || customer.tax_id);
+    return candidate && candidate === taxCode && customer.isActive !== false && customer.status !== 'inactive';
+  });
+}
+
+function buildImportedInvoiceDraft(group, productByRow, stableId, fingerprint, marker, customerId = null) {
+  const date = group.date;
+  const items = group.items.map((sourceItem, index) => {
+    const product = productByRow.get(sourceItem.sourceRowNumber);
+    const productId = getProductId(product);
+    const productBrand = product.brand || product.brandName || '';
+    const revenue = getRevenueAttributes(productBrand, '', getUserCompanyId(state.currentUser), state.brands);
+    return {
+      id: `${stableId}-item-${index + 1}`,
+      productId,
+      productGroupId: product.productGroupId || product.baseProductId || null,
+      variantId: productId,
+      variantCode: importProductCode(product),
+      baseCode: product.baseCode || product.code || '',
+      productCode: importProductCode(product),
+      productName: product.name || sourceItem.name,
+      brand: productBrand,
+      brandId: product.brandId || null,
+      package: product.packagingName || product.packageType || '',
+      packagingName: product.packagingName || product.packageType || '',
+      unitName: sourceItem.unit || product.unitName || product.unit || '',
+      quantity: sourceItem.quantity,
+      discountType: 'percent',
+      discountValue: 0,
+      discountPercent: 0,
+      price: sourceItem.unitPrice,
+      unitPrice: sourceItem.unitPrice,
+      listPrice: sourceItem.unitPrice,
+      finalUnitPrice: sourceItem.unitPrice,
+      priceListId: null,
+      priceListNameSnapshot: 'Giá nguồn Excel, chờ kế toán xác nhận',
+      priceSource: 'manual_override',
+      manualPriceEntered: true,
+      notes: [`Nguồn Excel dòng ${sourceItem.sourceRowNumber}: ${sourceItem.code} — ${sourceItem.name}${sourceItem.unit ? ` (${sourceItem.unit})` : ''}`, sourceItem.notes].filter(Boolean).join(' · '),
+      productBrand: revenue.productBrand,
+      agencyBrand: revenue.agencyBrand,
+      revenueBrand: revenue.revenueBrand,
+      revenueCompany: revenue.revenueCompany
+    };
+  });
+  const netAmount = group.netAmount;
+  const taxAmount = group.taxAmount;
+  const customerName = group.buyerCompany || group.buyerName || 'Khách hàng vãng lai';
+  const sourceMarker = marker;
+  const details = {
+    enabled: true,
+    buyerName: group.buyerCompany || group.buyerName || '',
+    buyerTaxCode: group.buyerTaxCode || '',
+    buyerAddress: group.buyerAddress || '',
+    buyerEmail: group.buyerEmail || '',
+    issuerName: group.issuerName || '',
+    issuerTaxCode: group.issuerTaxCode || '',
+    sourceInvoiceNumber: group.invoiceNumber,
+    sourceInvoiceDate: date.slice(0, 10),
+    sourceBuyerCode: group.buyerCode || '',
+    sourceCurrency: group.currency,
+    sourceFingerprint: fingerprint,
+    rate: group.rate,
+    priceMode: 'exclusive',
+    roundingMode: 'line',
+    taxBaseAmount: netAmount,
+    taxAmount,
+    totalWithVat: netAmount + taxAmount,
+    lineTaxBases: group.lineTaxBases,
+    lineTaxAmounts: group.lineTaxAmounts,
+    sourceLines: group.items.map(item => ({
+      row: item.sourceRowNumber,
+      rowNumber: item.rowNumber,
+      code: item.code,
+      name: item.name,
+      unit: item.unit,
+      quantity: item.quantity,
+      unitPrice: item.unitPrice,
+      lineAmount: item.lineAmount,
+      taxRate: item.taxRate,
+      taxAmount: item.taxAmount,
+      lineType: item.lineType,
+      notes: item.notes
+    }))
+  };
+  const noteParts = [
+    `Nguồn Excel · Hóa đơn ${group.invoiceNumber} · Ngày ${date.slice(0, 10)}`,
+    group.paymentMethod ? `Hình thức thanh toán ghi trên file: ${group.paymentMethod} (chưa xác nhận đã thu)` : '',
+    sourceMarker,
+    group.items.map(item => item.notes).filter(Boolean).join(' | ')
+  ].filter(Boolean);
+  return {
+    id: `EXL-${stableId}`,
+    idempotencyKey: stableId,
+    customerId: customerId || null,
+    customerName,
+    notes: noteParts.join('\n'),
+    items,
+    date,
+    totalMarket: netAmount,
+    totalDiscount: 0,
+    subtotal: netAmount,
+    discountValue: 0,
+    discountType: 'amount',
+    discountAmount: 0,
+    otherFeeValue: group.rate,
+    otherFeeType: 'percent',
+    otherFeeAmount: taxAmount,
+    shippingFeeValue: 0,
+    shippingFeeAmount: 0,
+    totalPayable: netAmount + taxAmount,
+    paidAmount: 0,
+    amountDue: netAmount + taxAmount,
+    pricelistId: 'retail',
+    companyId: getUserCompanyId(state.currentUser) || state.saasContext?.organizationId || 'main',
+    priceListNameSnapshot: 'Giá nguồn Excel',
+    priceSelectedBy: state.currentUser?.username || 'accounting',
+    status: 'draft',
+    vatDetails: details
+  };
+}
+
+async function saveSelectedInvoiceImportDrafts(modal) {
+  const pending = pendingInvoiceExcelImport;
+  if (!pending || pending.saving) return;
+  const selectedIndexes = [...pending.selected].sort((left, right) => left - right);
+  if (!selectedIndexes.length || selectedIndexes.some(index => !invoiceImportGroupReady(pending.parsed.groups[index], pending.mappings))) {
+    showToast('Hãy chọn SKU cho mọi dòng và xử lý lỗi trước khi lưu.', 'warning');
+    return;
+  }
+  pending.saving = true;
+  modal.querySelector('.invoice-excel-import-results').textContent = 'Đang lưu từng hóa đơn nháp…';
+  renderInvoiceExcelImportPreview();
+  const outcomes = [];
+  for (const index of selectedIndexes) {
+    const group = pending.parsed.groups[index];
+    try {
+      const productByRow = new Map(group.items.map(item => [
+        item.sourceRowNumber,
+        state.products.find(product => String(product.id) === String(pending.mappings.get(item.sourceRowNumber)))
+      ]));
+      if ([...productByRow.values()].some(product => !product || product.isActive === false)) {
+        outcomes.push({ group, label: 'Lỗi: mã SKU đã đổi hoặc ngừng áp dụng.' });
+        continue;
+      }
+      const selectedCustomerId = pending.customerMappings.get(index) || '';
+      if (selectedCustomerId && !invoiceImportCustomerCandidates(group)
+        .some(customer => String(customer.id) === String(selectedCustomerId))) {
+        outcomes.push({ group, label: 'Lỗi: khách hàng đã đổi hoặc ngừng áp dụng.' });
+        continue;
+      }
+      const invoiceIdentity = buildInvoiceImportIdentity(group,
+        state.saasContext?.organizationId || getUserCompanyId(state.currentUser) || 'workspace');
+      const sourceUuid = stableInvoiceImportUuid(await sha256Hex(invoiceIdentity));
+      const contentFingerprint = await sha256Hex(buildInvoiceImportFingerprint(group));
+      const marker = `[excel-import:${sourceUuid}:${contentFingerprint}]`;
+      const order = buildImportedInvoiceDraft(group, productByRow, sourceUuid, contentFingerprint, marker, selectedCustomerId);
+      const result = await dbCreateImportedInvoiceDraft(order, marker);
+      if (result?.status === 'created') {
+        pending.selected.delete(index);
+        outcomes.push({ group, label: `Đã lưu nháp (${order.id}).` });
+      } else if (result?.status === 'duplicate') {
+        pending.selected.delete(index);
+        outcomes.push({ group, label: `Đã có bản nháp trùng (${result.id}).` });
+      } else if (result?.status === 'conflict') {
+        outcomes.push({ group, label: `Xung đột mã chứng từ (${result.id}); nội dung khác bản đã nhập.` });
+      } else {
+        outcomes.push({ group, label: 'Chưa lưu được; dữ liệu vẫn có thể thử lại.' });
+      }
+    } catch (error) {
+      console.error('Invoice Excel draft import failed:', error);
+      outcomes.push({ group, label: 'Lỗi khi xử lý chứng từ; dữ liệu vẫn có thể thử lại.' });
+    }
+  }
+  pending.saving = false;
+  const createdCount = outcomes.filter(item => item.label.startsWith('Đã lưu nháp')).length;
+  const duplicateCount = outcomes.filter(item => item.label.startsWith('Đã có bản nháp')).length;
+  const successes = createdCount + duplicateCount;
+  modal.querySelector('.invoice-excel-import-results').innerHTML = `<strong>Kết quả lưu:</strong><ul>${outcomes.map(outcome => `<li>Hóa đơn ${escapeInvoiceImportHtml(outcome.group.invoiceNumber)}: ${escapeInvoiceImportHtml(outcome.label)}</li>`).join('')}</ul>`;
+  if (successes) {
+    const dates = selectedIndexes.map(index => pending.parsed.groups[index].date).filter(Boolean).sort();
+    const start = dates[0];
+    const last = dates.at(-1);
+    const lastDate = new Date(`${last.slice(0, 10)}T12:00:00.000Z`);
+    lastDate.setUTCDate(lastDate.getUTCDate() + 1);
+    const historyLoaded = await dbLoadOrdersForHistoryRange(start, lastDate.toISOString());
+    const resultMessage = [
+      createdCount ? `đã lưu mới ${createdCount}` : '',
+      duplicateCount ? `đã nhận diện ${duplicateCount} bản nháp đã có` : ''
+    ].filter(Boolean).join(', ');
+    showToast(historyLoaded
+      ? `Đã xử lý: ${resultMessage}; chưa phát sinh doanh số hoặc công nợ.`
+      : `Đã ghi nhận: ${resultMessage}, nhưng chưa tải lại được lịch sử. Hãy thử làm mới lịch sử sau.`,
+    historyLoaded ? 'success' : 'warning');
+    switchTab('history-panel');
+    renderAll();
+  }
+  renderInvoiceExcelImportPreview();
+  if (successes && pending.selected.size === 0) modal.classList.remove('active');
+}
+
+function bindInvoiceExcelImportModal() {
+  const modal = ensureInvoiceExcelImportModal();
+  if (modal.dataset.bound === 'true') return modal;
+  modal.dataset.bound = 'true';
+  const close = () => {
+    if (pendingInvoiceExcelImport?.saving) return;
+    modal.classList.remove('active');
+  };
+  modal.querySelectorAll('[data-invoice-import-close]').forEach(button => button.addEventListener('click', close));
+  modal.addEventListener('click', event => { if (event.target === modal) close(); });
+  modal.addEventListener('change', event => {
+    if (!pendingInvoiceExcelImport) return;
+    const sourceRow = Number(event.target.dataset.sourceRow);
+    if (Number.isInteger(sourceRow) && event.target.matches('.invoice-import-product-select')) {
+      if (event.target.value) pendingInvoiceExcelImport.mappings.set(sourceRow, event.target.value);
+      else pendingInvoiceExcelImport.mappings.delete(sourceRow);
+      pendingInvoiceExcelImport.parsed.groups.forEach((group, index) => {
+        if (!invoiceImportGroupReady(group, pendingInvoiceExcelImport.mappings)) pendingInvoiceExcelImport.selected.delete(index);
+      });
+      renderInvoiceExcelImportPreview();
+      return;
+    }
+    const groupIndex = Number(event.target.dataset.groupIndex);
+    if (Number.isInteger(groupIndex) && event.target.matches('.invoice-import-customer-select')) {
+      if (event.target.value) pendingInvoiceExcelImport.customerMappings.set(groupIndex, event.target.value);
+      else pendingInvoiceExcelImport.customerMappings.delete(groupIndex);
+      renderInvoiceExcelImportPreview();
+      return;
+    }
+    if (Number.isInteger(groupIndex) && event.target.matches('.invoice-import-group-checkbox')) {
+      if (event.target.checked) pendingInvoiceExcelImport.selected.add(groupIndex);
+      else pendingInvoiceExcelImport.selected.delete(groupIndex);
+      renderInvoiceExcelImportPreview();
+    }
+  });
+  modal.querySelector('[data-invoice-import-save]')?.addEventListener('click', () => saveSelectedInvoiceImportDrafts(modal));
+  return modal;
+}
+
 function addVariantToInvoice(variant) {
-  if (!variant?.id || !variant.packageType || variant.isLegacy || variant.isActive === false) {
+  if (!isCatalogVariant(variant) || variant.isActive === false) {
     showToast('Quy cách này đã ngừng áp dụng hoặc không hợp lệ.', 'warning');
     return false;
   }
 
   const resolvedPrice = resolveProductPrice(variant);
-  if (!isUsableResolvedPrice(resolvedPrice)) {
+  const manualPriceMode = isManualInvoicePriceMode() && canApproveManualInvoicePricing();
+  if (!isUsableResolvedPrice(resolvedPrice) && !manualPriceMode) {
     showToast(`SKU "${variant.code}" chưa có giá trong bảng giá đang áp dụng.`, 'warning');
     return false;
   }
 
-  const price = Number(resolvedPrice.price);
+  const price = isUsableResolvedPrice(resolvedPrice) ? Number(resolvedPrice.price) : null;
   const snapshot = buildVariantSnapshot(variant);
   state.invoiceItems.push({
     product: variant,
     ...snapshot,
-    brand: variant.brand || 'Nano10*',
+    brand: variant.brand || '',
     package: snapshot.packagingName,
     packageWeight: snapshot.weightOrVolume,
     colorCode: '',
     colorPercent: 0,
     quantity: 1,
-    discountPercent: getActiveInvoiceDiscount(variant.brand),
+    discountPercent: manualPriceMode ? 0 : getActiveInvoiceDiscount(variant.brand),
     price,
     unitPrice: price,
     listPrice: price,
     priceListId: resolvedPrice.priceListId,
     priceListName: resolvedPrice.priceListName,
-    priceSource: resolvedPrice.source,
+    priceSource: manualPriceMode ? 'manual_override' : resolvedPrice.source,
+    manualPriceEntered: false,
     notes: ''
   });
 
@@ -365,19 +936,20 @@ function openVariantPicker(family, preferredVariantId = '') {
   options.innerHTML = family.variants.map(variant => {
     const price = resolveProductPrice(variant);
     const hasPrice = isUsableResolvedPrice(price);
+    const manualPriceAllowed = isManualInvoicePriceMode() && canApproveManualInvoicePricing();
     return `
       <button
         type="button"
         class="variant-choice ${variant.id === preferredVariantId ? 'highlighted' : ''}"
         data-variant-id="${variant.id}"
-        ${hasPrice ? '' : 'disabled'}
+        ${hasPrice || manualPriceAllowed ? '' : 'disabled'}
       >
         <span class="variant-choice-main">
           <span class="variant-choice-spec">${variantSpecification(variant)}</span>
           <span class="variant-choice-code">Mã SKU: ${variant.code}</span>
         </span>
         <span class="variant-choice-meta">
-          <span class="variant-choice-price">${hasPrice ? formatCurrency(Number(price.price)) : 'Chưa có giá'}</span>
+          <span class="variant-choice-price">${hasPrice ? formatCurrency(Number(price.price)) : manualPriceAllowed ? 'Nhập giá thủ công' : 'Chưa có giá'}</span>
         </span>
       </button>
     `;
@@ -411,6 +983,19 @@ export function applyActivePriceListToInvoice() {
   
   state.invoiceItems.forEach((item, index) => {
     item.discountPercent = getActiveInvoiceDiscount(item.brand);
+    if (isManualInvoicePriceMode() && canApproveManualInvoicePricing()) {
+      if (item.priceSource !== 'manual_override') {
+        item.price = null;
+        item.unitPrice = null;
+        item.listPrice = null;
+        item.manualPriceEntered = false;
+      }
+      item.discountPercent = 0;
+      item.priceSource = 'manual_override';
+      item.priceListId = null;
+      item.priceListName = '';
+      return;
+    }
     if (item.priceSource === 'manual_override' && isManualInvoicePriceMode()) return;
     const resolved = resolveProductPrice(item.product);
     if (resolved.source === 'manual_override') {
@@ -428,19 +1013,25 @@ export function applyActivePriceListToInvoice() {
       recalculateItemPriceWithColorMarkup(index);
     } else {
       item.priceSource = 'missing';
+      item.price = null;
+      item.unitPrice = null;
+      item.listPrice = null;
+      item.priceListId = null;
+      item.priceListName = '';
+      item.manualPriceEntered = false;
     }
   });
   
   const label = document.getElementById('invoice-pricelist-source-lbl');
   if (label) {
-    if (!activePriceList) {
+    if (isManualInvoicePriceMode() && canApproveManualInvoicePricing()) {
+      label.innerText = 'Nhập tay có xác nhận';
+      label.style.background = 'rgba(16, 185, 129, 0.1)';
+      label.style.color = '#10b981';
+    } else if (!activePriceList) {
       label.innerText = 'Chưa xác định';
       label.style.background = 'rgba(156, 163, 175, 0.1)';
       label.style.color = '#9ca3af';
-    } else if (plSelect.value === 'retail') {
-      label.innerText = 'Nhập tay';
-      label.style.background = 'rgba(16, 185, 129, 0.1)';
-      label.style.color = '#10b981';
     } else {
       const type = normalizePriceListType(activePriceList.type, activePriceList.customerId);
       label.innerText = type === PRICE_LIST_TYPES.DEALER_PRIVATE
@@ -494,12 +1085,7 @@ export function renderInvoiceTable() {
   const isReadOnly = saveBtn && saveBtn.style.display === 'none';
 
   function getProductFeatureBadge(product, name = '', brand = '') {
-    const text = (String(name || '') + ' ' + String(product?.category || '')).toLowerCase();
-    if (text.includes('lót') || text.includes('kháng kiềm')) return 'Kháng kiềm cao cấp';
-    if (text.includes('bóng') || text.includes('ngoại thất') || text.includes('phủ')) return 'Bền màu 8 năm';
-    if (text.includes('bột bả') || text.includes('trét') || text.includes('mutsu')) return 'Nội & Ngoại thất';
-    if (text.includes('chống thấm') || text.includes('ct-11a') || text.includes('festiva')) return 'Chống thấm co giãn';
-    return product?.category || brand || 'Sản phẩm chính hãng';
+    return product?.featureLabel || product?.feature || product?.category || brand || 'Sản phẩm';
   }
 
   function renderColorCellHtml(item, isPrimerOrPutty, disabledAttr) {
@@ -545,7 +1131,7 @@ export function renderInvoiceTable() {
 
     const effectiveUnitPrice = Math.round((item.price || 0) * (1 - (item.discountPercent || 0) / 100));
     const adjustmentCellHtml = manualPriceMode
-      ? `<input type="text" class="form-control-inline item-manual-price" value="${formatNumber(item.unitPrice ?? item.listPrice ?? item.price ?? 0)}" title="Nhập đơn giá gốc; phụ thu màu được cộng tự động" style="width: 80px; text-align: right;" ${disabledAttr}>`
+      ? `<input type="text" class="form-control-inline item-manual-price" value="${item.manualPriceEntered ? formatNumber(item.unitPrice) : ''}" placeholder="Nhập giá" title="Nhập đơn giá gốc; phụ thu màu được cộng tự động" aria-label="Đơn giá thủ công cho ${p.code || item.code || productName}" style="width: 100px; text-align: right;" ${disabledAttr}>`
       : `<div class="invoice-unit-price-cell"><span class="invoice-market-unit-price">${formatNumber(item.price || item.unitPrice || 0)}</span> <small class="currency-sub">đ</small></div>`;
 
     // Paint-specific behavior is active only through the tenant extension.
@@ -621,7 +1207,7 @@ export function renderInvoiceTable() {
     const item = state.invoiceItems[idx];
     const manualPriceInput = row?.querySelector('.item-manual-price');
     if (manualPriceInput) {
-      manualPriceInput.value = formatNumber(item.unitPrice ?? item.listPrice ?? item.price ?? 0);
+      manualPriceInput.value = item.manualPriceEntered ? formatNumber(item.unitPrice) : '';
     }
     const marketPrice = row?.querySelector('.invoice-market-unit-price');
     if (marketPrice) marketPrice.innerText = formatNumber(item.price || 0);
@@ -690,11 +1276,32 @@ export function renderInvoiceTable() {
     input.addEventListener('change', (e) => {
       const row = e.target.closest('tr');
       const idx = parseInt(row.getAttribute('data-index'));
-      const value = parseInt(String(e.target.value || '').replace(/\D/g, ''), 10) || 0;
-      const price = Math.max(0, value);
       const item = state.invoiceItems[idx];
-      item.unitPrice = price;
-      item.listPrice = price;
+      const rawValue = String(e.target.value || '').trim();
+      const digits = rawValue.replace(/\D/g, '');
+      const validInput = rawValue === '' || (/^[\d.,\s]+$/.test(rawValue) && digits !== '');
+      if (!validInput) {
+        showToast('Đơn giá nhập tay phải là số tiền không âm.', 'warning');
+        item.manualPriceEntered = false;
+        item.price = null;
+        item.unitPrice = null;
+        item.listPrice = null;
+        e.target.value = '';
+      } else if (rawValue === '') {
+        item.manualPriceEntered = false;
+        item.price = null;
+        item.unitPrice = null;
+        item.listPrice = null;
+      } else {
+        const price = Number(digits);
+        item.manualPriceEntered = Number.isSafeInteger(price) && price >= 0;
+        item.unitPrice = item.manualPriceEntered ? price : null;
+        item.listPrice = item.unitPrice;
+        if (!item.manualPriceEntered) {
+          showToast('Đơn giá vượt quá giới hạn hợp lệ.', 'warning');
+          e.target.value = '';
+        }
+      }
       item.discountPercent = 0;
       item.priceSource = 'manual_override';
       item.priceListId = null;
@@ -887,8 +1494,13 @@ export function calculateInvoiceTotals() {
   const shippingFeeData = parseDiscountOrFeeInput('invoice-shipping-fee-value', null);
   const shippingFeeAmount = Math.max(0, shippingFeeData.value || 0);
 
-  // Tiền cước khách nhờ thanh toán được cộng vào số còn phải thu.
-  const orderTotal = Math.max(0, subtotal - discountAmount);
+  const vatDetails = readInvoiceVatDetails(subtotal, discountAmount);
+  const vatAddedToPrice = vatDetails.enabled && vatDetails.priceMode === 'exclusive'
+    ? vatDetails.taxAmount
+    : 0;
+
+  // VAT được cộng vào tiền hàng khi giá chưa gồm thuế; thu khác/phí giao hàng tính riêng.
+  const orderTotal = Math.max(0, subtotal - discountAmount + vatAddedToPrice);
   const amountDue = Math.max(0, orderTotal + shippingFeeAmount);
 
   // Cập nhật lên UI với đúng ID trong index.html
@@ -898,6 +1510,8 @@ export function calculateInvoiceTotals() {
   const subtotalEl = document.getElementById('summary-subtotal');
   const discActualEl = document.getElementById('summary-discount-actual');
   const shippingFeeActualEl = document.getElementById('summary-shipping-fee-actual');
+  const vatSummaryRow = document.getElementById('summary-vat-row');
+  const vatSummaryAmount = document.getElementById('summary-vat-amount');
   const payableEl = document.getElementById('summary-final-total');
   const savingBadge = document.getElementById('summary-saving-badge');
   const crossedMarket = document.getElementById('summary-final-market-crossed');
@@ -908,7 +1522,14 @@ export function calculateInvoiceTotals() {
   if (subtotalEl) subtotalEl.innerText = formatCurrency(subtotal);
   if (discActualEl) discActualEl.innerText = `-${formatCurrency(discountAmount)}`;
   if (shippingFeeActualEl) shippingFeeActualEl.innerText = `+${formatCurrency(shippingFeeAmount)}`;
+  if (vatSummaryRow) vatSummaryRow.hidden = !vatDetails.enabled;
+  if (vatSummaryAmount) {
+    vatSummaryAmount.innerText = vatDetails.priceMode === 'inclusive'
+      ? `${formatCurrency(vatDetails.taxAmount)} (đã gồm)`
+      : `+${formatCurrency(vatDetails.taxAmount)}`;
+  }
   if (payableEl) payableEl.innerText = formatCurrency(amountDue);
+  renderInvoiceVatTotals(vatDetails);
 
   const totalCombinedDiscount = totalDiscount + discountAmount;
   if (savingBadge && crossedMarket) {
@@ -919,7 +1540,7 @@ export function calculateInvoiceTotals() {
       else savingBadge.innerText = `Khách tiết kiệm được ${savingPercent}% (${formatCurrency(totalCombinedDiscount)})`;
       savingBadge.style.display = 'inline-flex';
       
-      const crossedTotal = Math.round(amountDue + discountAmount);
+      const crossedTotal = Math.round(amountDue + discountAmount - vatAddedToPrice);
       crossedMarket.innerText = formatCurrency(crossedTotal);
       crossedMarket.style.display = 'inline';
     } else {
@@ -931,7 +1552,7 @@ export function calculateInvoiceTotals() {
   const summaryTextEl = document.getElementById('invoice-table-summary-text');
   if (summaryTextEl) {
     const totalPkg = state.invoiceItems.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0);
-    summaryTextEl.innerHTML = `Đang có <strong>${state.invoiceItems.length}</strong> loại sản phẩm trong đơn (<strong>${totalPkg}</strong> kiện / đơn vị đóng gói)`;
+    summaryTextEl.innerHTML = `Đang có <strong>${state.invoiceItems.length}</strong> mặt hàng trong đơn (<strong>${totalPkg}</strong> đơn vị bán)`;
   }
 }
 
@@ -957,7 +1578,11 @@ export async function addProductToInvoice() {
   }
 
   if (!family) {
-    showToast(`Không tìm thấy sản phẩm phù hợp với "${query}".`, 'danger');
+    if (hasRestrictedInvoiceProductMatch(query)) {
+      showToast('Kết quả phù hợp bị giới hạn theo thương hiệu được gán cho khách hàng.', 'warning');
+    } else {
+      showToast(`Không tìm thấy sản phẩm phù hợp với "${query}".`, 'danger');
+    }
     return;
   }
   openVariantPicker(family, matchedVariantId);
@@ -970,7 +1595,10 @@ export function compileActiveOrder(customerOverride = null) {
   }
   const missingPriceItem = state.invoiceItems.find(item => {
     const unitPrice = item.unitPrice ?? item.price;
-    return item.priceSource === 'missing' || !Number.isFinite(Number(unitPrice)) || Number(unitPrice) < 0;
+    return item.priceSource === 'missing'
+      || (isManualInvoicePriceMode() && item.priceSource === 'manual_override' && item.manualPriceEntered !== true)
+      || !Number.isFinite(Number(unitPrice))
+      || Number(unitPrice) < 0;
   });
   if (missingPriceItem) {
     showToast(`Sản phẩm "${missingPriceItem.product?.code || ''}" chưa có giá hợp lệ. Không thể chốt đơn.`, 'danger');
@@ -981,7 +1609,7 @@ export function compileActiveOrder(customerOverride = null) {
   let phone = 'N/A';
   let address = 'N/A';
   let custId = null;
-  let agencyBrand = 'Nano10*';
+  let agencyBrand = '';
   let customerManagerId = '';
   
   if (customerOverride) {
@@ -1008,6 +1636,17 @@ export function compileActiveOrder(customerOverride = null) {
       agencyBrand = qBrand.value;
     }
     customerManagerId = document.getElementById('quick-cust-manager')?.value || '';
+  } else if (state.isExternalCustomerMode) {
+    const externalName = document.getElementById('invoice-external-customer-name')?.value.trim() || '';
+    if (!externalName) {
+      showToast('Vui lòng nhập tên khách hàng ngoài danh sách.', 'danger');
+      document.getElementById('invoice-external-customer-name')?.focus();
+      return null;
+    }
+    customerName = externalName;
+    phone = document.getElementById('invoice-external-customer-phone')?.value.trim() || '';
+    address = document.getElementById('invoice-external-customer-address')?.value.trim() || '';
+    custId = null;
   } else if (state.activeCustomerId) {
     const cust = state.customers.find(c => c.id === state.activeCustomerId);
     if (cust) {
@@ -1055,8 +1694,30 @@ export function compileActiveOrder(customerOverride = null) {
 
   const shippingFeeData = parseDiscountOrFeeInput('invoice-shipping-fee-value', null);
   const shippingFeeAmount = Math.max(0, shippingFeeData.value || 0);
-
-  const totalPayable = Math.max(0, subtotal - discountAmount);
+  const vatDetails = readInvoiceVatDetails(subtotal, discountAmount);
+  if (vatDetails.enabled) {
+    if (!vatDetails.buyerName) {
+      showToast('Vui lòng nhập tên đơn vị hoặc người mua trên hóa đơn VAT.', 'warning');
+      document.getElementById('invoice-vat-buyer-name')?.focus();
+      return null;
+    }
+    const rateInput = document.getElementById('invoice-vat-rate')?.value;
+    if (rateInput === '' || !Number.isFinite(Number(rateInput)) || Number(rateInput) < 0 || Number(rateInput) > 100) {
+      showToast('Vui lòng nhập thuế suất VAT từ 0 đến 100%.', 'warning');
+      document.getElementById('invoice-vat-rate')?.focus();
+      return null;
+    }
+    const buyerEmailInput = document.getElementById('invoice-vat-buyer-email');
+    if (buyerEmailInput?.value.trim() && !buyerEmailInput.validity.valid) {
+      showToast('Email nhận hóa đơn chưa đúng định dạng.', 'warning');
+      buyerEmailInput.focus();
+      return null;
+    }
+  }
+  const vatAddedToPrice = vatDetails.enabled && vatDetails.priceMode === 'exclusive'
+    ? vatDetails.taxAmount
+    : 0;
+  const totalPayable = Math.max(0, subtotal - discountAmount + vatAddedToPrice);
   const paidAmount = 0;
   const amountDue = Math.max(0, totalPayable + shippingFeeAmount);
 
@@ -1097,7 +1758,7 @@ export function compileActiveOrder(customerOverride = null) {
 
   // Đóng gói các dòng hoá đơn để lưu cùng với thuộc tính doanh thu Multi-Company
   const itemsToSave = state.invoiceItems.map(item => {
-    const productBrand = item.brand || (item.product && item.product.brand) || 'Nano10*';
+    const productBrand = item.brand || (item.product && item.product.brand) || '';
     const revAttrs = getRevenueAttributes(productBrand, agencyBrand, companyId, state.brands);
     const variantSnapshot = buildVariantSnapshot(item.product);
     const snapshot = {
@@ -1159,6 +1820,8 @@ export function compileActiveOrder(customerOverride = null) {
     companyId: companyId,
     customerId: custId,
     customerName,
+    customerPhone: phone === 'N/A' ? '' : phone,
+    customerAddress: address === 'N/A' ? '' : address,
     notes: document.getElementById('invoice-notes').value.trim(),
     items: itemsToSave,
     date: orderDate,
@@ -1168,9 +1831,9 @@ export function compileActiveOrder(customerOverride = null) {
     discountValue: discData.value,
     discountType: discData.type,
     discountAmount: discountAmount,
-    otherFeeValue: 0,
-    otherFeeType: 'amount',
-    otherFeeAmount: 0,
+    otherFeeValue: vatDetails.enabled && vatDetails.priceMode === 'exclusive' ? vatDetails.rate : 0,
+    otherFeeType: vatDetails.enabled && vatDetails.priceMode === 'exclusive' ? 'percent' : 'amount',
+    otherFeeAmount: vatAddedToPrice,
     shippingFeeValue: shippingFeeAmount,
     shippingFeeAmount,
     paidAmount,
@@ -1180,6 +1843,8 @@ export function compileActiveOrder(customerOverride = null) {
     priceListOverride: shouldRequestAuthoritativePriceListOverride(),
     priceListNameSnapshot: state.pricelists.find(priceList => priceList.id === pricelistId)?.name || '',
     priceSelectedBy: state.currentUser ? state.currentUser.username : 'admin',
+    issuerProfileSnapshot: state.businessCapabilities?.settings?.branding?.invoice_issuers?.[String(companyId)] || null,
+    vatDetails: vatDetails.enabled ? vatDetails : null,
     customerManagerId,
     createdBy: state.currentUser ? state.currentUser.username : 'admin'
   };
@@ -1273,22 +1938,22 @@ export async function saveActiveOrder(status = 'settled') {
         }
         const qProvinceSelect = document.getElementById('quick-cust-province');
         const qProvince = qProvinceSelect ? qProvinceSelect.value : '';
-        if (!qProvince) {
+        if (isCustomerFieldRequired('province') && !qProvince) {
           showToast('Vui lòng chọn Tỉnh/Thành phố cho khách hàng mới!', 'danger');
           return null;
         }
 
         const qCode = generateUniqueCustomerCode(qProvince);
         const qAddress = document.getElementById('quick-cust-address').value.trim();
-        const qAssignedBrand = document.getElementById('quick-cust-assigned-brand').value;
-        if (!qAssignedBrand) {
-          showToast('Vui lòng chọn nhãn đại lý độc quyền!', 'warning');
+        const qAssignedBrand = document.getElementById('quick-cust-assigned-brand').value || 'Tất cả';
+        if (isCustomerFieldRequired('assigned_brand') && qAssignedBrand === 'Tất cả') {
+          showToast('Workspace này yêu cầu gán thương hiệu cho khách hàng.', 'warning');
           return null;
         }
 
         const qManagerSelect = document.getElementById('quick-cust-manager');
         const qManager = qManagerSelect ? qManagerSelect.value : '';
-        if (!qManager) {
+        if (!qManager && state.currentUser?.role === 'sale') {
           showToast('Vui lòng chọn nhân viên quản lý cho khách hàng mới!', 'danger');
           return null;
         }
@@ -1307,7 +1972,7 @@ export async function saveActiveOrder(status = 'settled') {
           totalTransaction: 0,
           notes: 'Thêm nhanh từ màn hình lên đơn',
           pricelistId: qPricelistId,
-          managedBy: qManager
+          managedBy: qManager || state.currentUser?.username || ''
         };
 
         const custSaved = await dbCreateQuickCustomer(newCustomer);
@@ -1354,6 +2019,11 @@ export async function saveActiveOrder(status = 'settled') {
         showToast('Lý do sửa đơn phải có ít nhất 3 ký tự.', 'warning');
         return null;
       }
+    }
+
+    if (status === 'settled' && !order.customerId && Number(order.amountDue) > 0) {
+      const debtNotice = 'Đơn hàng này chưa thu đủ tiền. Khoản còn phải thu sẽ được theo dõi riêng trên đơn hàng và không cộng vào công nợ của hồ sơ khách hàng. Bạn xác nhận chốt đơn?';
+      if (!window.confirm(debtNotice)) return null;
     }
 
     showToast('Đang lưu hóa đơn...', 'info');
@@ -1456,9 +2126,72 @@ export async function saveActiveOrder(status = 'settled') {
   }
 }
 
-export function resetInvoiceCustomer() {
+export function enableExternalCustomerMode({ name = '', phone = '', address = '', readOnly = false } = {}) {
+  const priceListSelect = document.getElementById('invoice-pricelist-select');
+  if (priceListSelect) {
+    priceListSelect.querySelectorAll('option[data-customer-assigned="true"]').forEach(option => option.remove());
+    priceListSelect.value = '';
+    priceListSelect.dataset.explicitOverride = 'false';
+    priceListSelect.disabled = false;
+  }
+  state.isExternalCustomerMode = true;
+  state.isQuickCustomerMode = false;
   state.activeCustomerId = '';
   state.activeCustomerBrand = 'Tất cả';
+  state.activeCustomerBrandId = '';
+
+  const idInput = document.getElementById('invoice-customer-id');
+  if (idInput) idInput.value = '';
+  const searchGroup = document.getElementById('invoice-customer-search-group');
+  if (searchGroup) searchGroup.style.display = 'none';
+  const infoCard = document.getElementById('invoice-customer-info-card');
+  if (infoCard) infoCard.style.display = 'none';
+  const panel = document.getElementById('invoice-external-customer-panel');
+  if (panel) panel.style.display = 'block';
+
+  const fields = [
+    ['invoice-external-customer-name', name],
+    ['invoice-external-customer-phone', phone],
+    ['invoice-external-customer-address', address]
+  ];
+  fields.forEach(([id, value]) => {
+    const input = document.getElementById(id);
+    if (!input) return;
+    input.value = value || '';
+    input.disabled = readOnly;
+  });
+  const clearButton = document.getElementById('btn-clear-invoice-customer');
+  if (clearButton) clearButton.style.display = readOnly ? 'none' : 'inline-flex';
+  const suggestions = document.getElementById('invoice-customer-suggestions');
+  if (suggestions) suggestions.style.display = 'none';
+  applyActivePriceListToInvoice();
+  syncInvoicePersistenceActions();
+  if (!readOnly) document.getElementById('invoice-external-customer-name')?.focus();
+}
+
+function disableExternalCustomerMode({ clearInputs = true } = {}) {
+  state.isExternalCustomerMode = false;
+  const panel = document.getElementById('invoice-external-customer-panel');
+  if (panel) panel.style.display = 'none';
+  const searchGroup = document.getElementById('invoice-customer-search-group');
+  if (searchGroup) searchGroup.style.display = '';
+  [
+    'invoice-external-customer-name',
+    'invoice-external-customer-phone',
+    'invoice-external-customer-address'
+  ].forEach(id => {
+    const input = document.getElementById(id);
+    if (!input) return;
+    input.disabled = false;
+    if (clearInputs) input.value = '';
+  });
+}
+
+export function resetInvoiceCustomer() {
+  disableExternalCustomerMode();
+  state.activeCustomerId = '';
+  state.activeCustomerBrand = 'Tất cả';
+  state.activeCustomerBrandId = '';
   
   const idInput = document.getElementById('invoice-customer-id');
   if (idInput) idInput.value = '';
@@ -1501,8 +2234,10 @@ export function resetInvoiceCustomer() {
 }
 
 export function prepareInvoiceCustomerReselection(searchValue = '', shouldFocus = true) {
+  disableExternalCustomerMode();
   state.activeCustomerId = '';
   state.activeCustomerBrand = 'Tất cả';
+  state.activeCustomerBrandId = '';
 
   const idInput = document.getElementById('invoice-customer-id');
   if (idInput) idInput.value = '';
@@ -1536,6 +2271,10 @@ export function resetInvoiceBuilder() {
   clearPendingOrderIdempotencyKey();
   state.invoiceItems = [];
   document.getElementById('invoice-notes').value = '';
+  setInvoiceVatFields({}, false);
+  renderInvoiceVatTotals({ taxBaseAmount: 0, taxAmount: 0, totalWithVat: 0 });
+  const vatSummaryRow = document.getElementById('summary-vat-row');
+  if (vatSummaryRow) vatSummaryRow.hidden = true;
   const productSearch = document.getElementById('invoice-product-search');
   if (productSearch) {
     productSearch.value = '';
@@ -1553,7 +2292,7 @@ export function resetInvoiceBuilder() {
   
   if (saveBtn) {
     saveBtn.style.display = 'inline-flex';
-    saveBtn.innerHTML = `<i data-lucide="check-square"></i> Thanh toán & Chốt đơn`;
+    saveBtn.innerHTML = `<i data-lucide="check-square"></i> Chốt đơn (ghi công nợ)`;
     saveBtn.removeAttribute('data-edit-order-id');
     saveBtn.removeAttribute('data-amend-order-id');
   }
@@ -1576,6 +2315,16 @@ export function enableQuickCustomerMode() {
   if (modal) {
     modal.style.display = 'flex';
   }
+
+  if (state.isExternalCustomerMode) {
+    const quickNameInput = document.getElementById('quick-cust-name');
+    const quickPhoneInput = document.getElementById('quick-cust-phone');
+    const quickAddressInput = document.getElementById('quick-cust-address');
+    if (quickNameInput) quickNameInput.value = document.getElementById('invoice-external-customer-name')?.value.trim() || '';
+    if (quickPhoneInput) quickPhoneInput.value = document.getElementById('invoice-external-customer-phone')?.value.trim() || '';
+    if (quickAddressInput) quickAddressInput.value = document.getElementById('invoice-external-customer-address')?.value.trim() || '';
+    disableExternalCustomerMode({ clearInputs: false });
+  }
   
   const searchInput = document.getElementById('invoice-customer-search');
   const quickNameInput = document.getElementById('quick-cust-name');
@@ -1585,12 +2334,11 @@ export function enableQuickCustomerMode() {
   
   const quickBrandSelect = document.getElementById('quick-cust-assigned-brand');
   if (quickBrandSelect) {
-    const isLegacyTenant = state.saasContext?.organizationId === '00000000-0000-4000-8000-000000000001';
     const brands = state.brands && state.brands.length > 0
       ? state.brands.map(b => b.name)
-      : (isLegacyTenant ? ['Nano10*', 'Hatacco nano', 'mutsutec', 'tdkaw', 'cova', 'festivanano'] : []);
+      : [];
     quickBrandSelect.innerHTML = `
-      <option value="Tất cả">Chọn thương hiệu</option>
+      <option value="Tất cả">Tất cả thương hiệu</option>
       ${brands.map(b => `<option value="${b}">${b}</option>`).join('')}
     `;
     quickBrandSelect.value = state.activeCustomerBrand || 'Tất cả';
@@ -1627,8 +2375,10 @@ export function submitQuickCustomerModal() {
   const qBrand = document.getElementById('quick-cust-assigned-brand')?.value || 'Tất cả';
   
   state.isQuickCustomerMode = true;
+  state.isExternalCustomerMode = false;
   state.activeCustomerId = '';
   state.activeCustomerBrand = qBrand;
+  state.activeCustomerBrandId = getBrandById(qBrand)?.id || '';
   
   // Update customer search display
   const searchInput = document.getElementById('invoice-customer-search');
@@ -1693,32 +2443,17 @@ export function disableQuickCustomerMode() {
 }
 
 export function handleQuickCustomerBrandChange(newBrand) {
-  if (newBrand && newBrand !== 'Tất cả') {
-    const invalidItems = state.invoiceItems.filter(item => {
-      const pBrandLower = (item.brand || '').toLowerCase().replace(/\s+/g, '');
-      const isFestiva = pBrandLower === 'festivanano' || pBrandLower === 'festiva';
-      if (isFestiva) return false;
-      return item.brand !== newBrand;
-    });
-    if (invalidItems.length > 0) {
-      const ok = confirm(`Khách hàng mới này được chỉ định thương hiệu "${newBrand}". Chọn thương hiệu này sẽ loại bỏ ${invalidItems.length} sản phẩm khác thương hiệu hiện có trong đơn hàng. Bạn có đồng ý không?`);
-      if (!ok) {
-        const quickBrandSelect = document.getElementById('quick-cust-assigned-brand');
-        if (quickBrandSelect) {
-          quickBrandSelect.value = state.activeCustomerBrand;
-          makeSelectSearchable('quick-cust-assigned-brand', 'Chọn thương hiệu', false);
-        }
-        return;
-      } else {
-        state.invoiceItems = state.invoiceItems.filter(item => {
-          const pBrandLower = (item.brand || '').toLowerCase().replace(/\s+/g, '');
-          const isFestiva = pBrandLower === 'festivanano' || pBrandLower === 'festiva';
-          return isFestiva || item.brand === newBrand;
-        });
-      }
+  const newBrandId = getBrandById(newBrand)?.id || '';
+  if (!filterInvoiceItemsToAssignedBrand(newBrandId, newBrand, 'Khách hàng mới')) {
+    const quickBrandSelect = document.getElementById('quick-cust-assigned-brand');
+    if (quickBrandSelect) {
+      quickBrandSelect.value = state.activeCustomerBrand;
+      makeSelectSearchable('quick-cust-assigned-brand', 'Chọn thương hiệu', false);
     }
+    return;
   }
   state.activeCustomerBrand = newBrand;
+  state.activeCustomerBrandId = newBrandId;
   
   // For quick customer, they have no preset brandDiscounts, so brand discounts default to 0.
   state.invoiceItems.forEach(item => {
@@ -1741,6 +2476,8 @@ export async function renderAndPrintOrder(order, type = 'retail') {
   const orderDebtSnapshot = type === 'agent' && order?.status === 'settled' && order?.customerId
     ? await dbFetchOrderDebtSnapshot(order.id, order.customerId)
     : null;
+  const vatDetails = order.vatDetails || order.vat_details || {};
+  const hasVatInvoice = Boolean(vatDetails.enabled) && type !== 'warehouse' && type !== 'processing';
   // Cập nhật tiêu đề hóa đơn và kích thước logo theo loại bản in
   const titleEl = document.querySelector('#print-invoice-template h1');
   const printLogoImg = document.querySelector('.print-logo-container img');
@@ -1755,6 +2492,9 @@ export async function renderAndPrintOrder(order, type = 'retail') {
     if (type === 'warehouse' || type === 'processing') {
       titleEl.innerText = 'PHIẾU XUẤT KHO';
       titleEl.style.fontSize = '17.6pt'; // Giảm 20% từ 22pt
+    } else if (hasVatInvoice) {
+      titleEl.innerText = 'HÓA ĐƠN GIÁ TRỊ GIA TĂNG';
+      titleEl.style.fontSize = '19pt';
     } else if (type === 'retail') {
       titleEl.innerText = 'HÓA ĐƠN';
       titleEl.style.fontSize = '22pt';
@@ -1820,35 +2560,26 @@ export async function renderAndPrintOrder(order, type = 'retail') {
   const notesEl = document.getElementById('print-invoice-notes');
   if (notesEl) notesEl.innerText = combinedNotes || 'N/A';
   
-  // Điền nhãn sơn và cập nhật thông tin nhà phân phối / công ty tương ứng
+  // Resolve issuer data from the order snapshot first, then workspace settings.
+  // Product brand remains descriptive metadata and never selects the issuer.
   const firstItem = order.items[0];
   let brandName = 'N/A';
   if (firstItem) {
     brandName = firstItem.brand || (firstItem.product && firstItem.product.brand) || 'N/A';
   }
-  // 1. Tìm cấu hình hãng sơn tương ứng trong danh sách state.brands
-  let brandConfig = state.brands ? state.brands.find(b => b.name.toLowerCase() === brandName.toLowerCase()) : null;
-  if (!brandConfig && state.brands) {
-    brandConfig = state.brands.find(b => brandName.toLowerCase().includes(b.name.toLowerCase()) || b.name.toLowerCase().includes(brandName.toLowerCase()));
-  }
-
-  // Cấu hình mặc định (fallback) nếu không tìm thấy thương hiệu trong bảng dữ liệu
-  const isLegacyCompatibilityTenant = state.saasContext?.organizationId === '00000000-0000-4000-8000-000000000001';
-  const defaultBrandConfig = isLegacyCompatibilityTenant ? {
-    name: brandName,
-    companyName: 'CÔNG TY CỔ PHẦN ABS JAPAN',
-    logoFilename: 'absjapan.png',
-    hotline: '088.603.7878 - 0961.030.923',
-    cskh: '0868.055.866',
-    email: 'nhamaysonnano@gmail.com',
-    addressMain: 'Tiên Kha - Phúc Thịnh - Hà Nội',
-    addressFactory: 'TDP Cầu Giao - P.Phúc Thuận - T.Thái Nguyên',
-    addressBusiness: '228 Hoàng Hữu Nam - P.Long Bình - Hồ Chí Minh',
-    invoiceWarehouseText: 'Xuất Tại kho số 03 Chi nhánh Thái Nguyên',
-    salesPhone: ''
-  } : {
-    name: brandName || 'Thương hiệu',
-    companyName: state.saasContext?.organizationName || 'DOANH NGHIỆP',
+  const issuerSnapshot = order.issuerProfileSnapshot || order.issuer_profile_snapshot || null;
+  const companyId = String(order.companyId || order.company_id || '').trim();
+  const issuerSettings = state.businessCapabilities?.settings?.branding?.invoice_issuers || {};
+  const configuredIssuer = issuerSettings[companyId] || null;
+  const legacyIssuer = isLegacyPaintWorkspace()
+    ? (state.brands || []).find(brand => String(brand.companyId || '') === companyId)
+    : null;
+  const profile = issuerSnapshot || configuredIssuer || legacyIssuer || {};
+  const isLegacyCompatibilityTenant = isLegacyPaintWorkspace();
+  const defaultIssuer = {
+    companyName: isLegacyCompatibilityTenant
+      ? (getCompanyName(companyId, state.companies) || state.saasContext?.organizationName || 'DOANH NGHIỆP')
+      : (state.saasContext?.organizationName || 'DOANH NGHIỆP'),
     logoFilename: '',
     hotline: '',
     cskh: '',
@@ -1856,15 +2587,31 @@ export async function renderAndPrintOrder(order, type = 'retail') {
     addressMain: '',
     addressFactory: '',
     addressBusiness: '',
-    invoiceWarehouseText: 'Xuất tại kho',
-    salesPhone: ''
+    invoiceWarehouseText: '',
   };
 
-  const config = brandConfig || defaultBrandConfig;
-  const logoSrc = config.logoFilename;
+  const config = {
+    name: brandName,
+    companyName: profile.legal_name || profile.companyName || profile.company_name || defaultIssuer.companyName,
+    taxCode: profile.tax_code || profile.taxCode || '',
+    logoFilename: profile.logo_url || profile.logoFilename || profile.logo_filename || defaultIssuer.logoFilename,
+    hotline: profile.hotline || defaultIssuer.hotline,
+    cskh: profile.customer_service_phone || profile.cskh || defaultIssuer.cskh,
+    email: profile.email || defaultIssuer.email,
+    addressMain: profile.address || profile.address_main || profile.addressMain || defaultIssuer.addressMain,
+    addressFactory: profile.factory_address || profile.address_factory || profile.addressFactory || defaultIssuer.addressFactory,
+    addressBusiness: profile.business_address || profile.address_business || profile.addressBusiness || defaultIssuer.addressBusiness,
+    invoiceWarehouseText: profile.invoice_warehouse_text || profile.invoiceWarehouseText || defaultIssuer.invoiceWarehouseText,
+    salesPhone: profile.sales_phone || profile.salesPhone || defaultIssuer.salesPhone
+  };
+  const logoSrc = String(config.logoFilename || '').trim();
 
   let logoPromise = Promise.resolve();
   if (printLogoImg) {
+    if (!logoSrc) {
+      printLogoImg.style.display = 'none';
+      if (printLogoSvg) printLogoSvg.style.display = 'block';
+    } else {
     logoPromise = new Promise((resolve) => {
       let resolved = false;
       const done = () => {
@@ -1898,6 +2645,7 @@ export async function renderAndPrintOrder(order, type = 'retail') {
       // Giới hạn thời gian tối đa 800ms để in luôn nếu mạng quá chậm
       setTimeout(done, 800);
     });
+    }
   }
 
   await logoPromise;
@@ -1905,28 +2653,43 @@ export async function renderAndPrintOrder(order, type = 'retail') {
   // Điền các trường thông tin chi tiết của công ty lên hóa đơn
   const companyAddressMainEl = document.getElementById('print-company-address-main');
   if (companyAddressMainEl) companyAddressMainEl.innerText = config.addressMain;
+  const setCompanyLineVisibility = (id, value) => {
+    const row = document.getElementById(id);
+    if (row) row.style.display = String(value || '').trim() ? '' : 'none';
+  };
+  setCompanyLineVisibility('print-company-address-main-row', config.addressMain);
 
   const companyAddressFactoryEl = document.getElementById('print-company-address-factory');
   if (companyAddressFactoryEl) companyAddressFactoryEl.innerText = config.addressFactory;
+  setCompanyLineVisibility('print-company-address-factory-row', config.addressFactory);
 
   const companyCskhEl = document.getElementById('print-company-cskh');
   if (companyCskhEl) companyCskhEl.innerText = config.cskh;
+  setCompanyLineVisibility('print-company-cskh-row', config.cskh);
 
   const companyEmailEl = document.getElementById('print-company-email');
   if (companyEmailEl) companyEmailEl.innerText = config.email;
+  setCompanyLineVisibility('print-company-email-row', config.email);
 
   const companyLargeEl = document.getElementById('print-company-name-large');
   if (companyLargeEl) {
     companyLargeEl.innerText = config.companyName;
     companyLargeEl.style.display = type === 'retail' ? 'none' : '';
+    if (hasVatInvoice) companyLargeEl.style.display = '';
     if (type === 'processing') companyLargeEl.style.display = 'none';
   }
+
+  const issuerTaxCodeEl = document.getElementById('print-issuer-tax-code');
+  const issuerTaxCodeRow = document.getElementById('print-issuer-tax-code-row');
+  if (issuerTaxCodeEl) issuerTaxCodeEl.innerText = config.taxCode;
+  if (issuerTaxCodeRow) issuerTaxCodeRow.style.display = hasVatInvoice && config.taxCode ? '' : 'none';
 
   const sellerNameEl = document.getElementById('print-seller-name');
   if (sellerNameEl) sellerNameEl.innerText = config.companyName;
 
   const hotlineEl = document.getElementById('print-company-hotline');
   if (hotlineEl) hotlineEl.innerText = config.hotline;
+  setCompanyLineVisibility('print-company-hotline-row', config.hotline);
 
   const sellerHotlineEl = document.getElementById('print-seller-hotline');
   if (sellerHotlineEl) sellerHotlineEl.innerText = config.hotline;
@@ -1962,9 +2725,10 @@ export async function renderAndPrintOrder(order, type = 'retail') {
   if (creatorEl) creatorEl.innerText = creatorName || 'admin';
   if (salesPhoneEl) salesPhoneEl.innerText = config.salesPhone || config.hotline || 'N/A';
   if (salesPhoneGroupEl) salesPhoneGroupEl.style.display = type === 'warehouse' ? '' : 'none';
-  if (warehouseTextEl) warehouseTextEl.innerText = config.invoiceWarehouseText || 'Xuất Tại kho số 03 Chi nhánh Thái Nguyên';
+  const warehouseText = String(config.invoiceWarehouseText || '').trim();
+  if (warehouseTextEl) warehouseTextEl.innerText = warehouseText;
   if (warehouseRowEl) {
-    warehouseRowEl.style.display = type === 'retail' ? 'none' : '';
+    warehouseRowEl.style.display = type === 'retail' || !warehouseText ? 'none' : '';
     if (type === 'processing') warehouseRowEl.style.display = 'none';
   }
   if (processingReasonRowEl) processingReasonRowEl.style.display = type === 'processing' ? '' : 'none';
@@ -2002,19 +2766,41 @@ export async function renderAndPrintOrder(order, type = 'retail') {
   if (order.customerId) {
     const cust = orderCustomer;
     if (cust) {
-      if (addressEl) addressEl.innerText = cust.address || 'N/A';
-      if (phoneEl) phoneEl.innerText = formatPhoneNumber(cust.phone) || 'N/A';
+      if (addressEl) addressEl.innerText = cust.address || order.customerAddress || 'N/A';
+      if (phoneEl) phoneEl.innerText = formatPhoneNumber(cust.phone || order.customerPhone) || 'N/A';
       if (groupEl) groupEl.innerText = cust.managedBy || 'N/A';
     } else {
-      if (addressEl) addressEl.innerText = 'N/A';
-      if (phoneEl) phoneEl.innerText = 'N/A';
+      if (addressEl) addressEl.innerText = order.customerAddress || 'N/A';
+      if (phoneEl) phoneEl.innerText = formatPhoneNumber(order.customerPhone) || 'N/A';
       if (groupEl) groupEl.innerText = 'N/A';
     }
   } else {
-    if (addressEl) addressEl.innerText = 'N/A';
-    if (phoneEl) phoneEl.innerText = 'N/A';
+    if (addressEl) addressEl.innerText = order.customerAddress || 'N/A';
+    if (phoneEl) phoneEl.innerText = formatPhoneNumber(order.customerPhone) || 'N/A';
     if (groupEl) groupEl.innerText = 'N/A';
   }
+
+  const printVatBuyer = {
+    'print-vat-buyer-name': vatDetails.buyerName || vatDetails.buyer_name || '',
+    'print-vat-buyer-tax-code': vatDetails.buyerTaxCode || vatDetails.buyer_tax_code || '',
+    'print-vat-buyer-address': vatDetails.buyerAddress || vatDetails.buyer_address || '',
+    'print-vat-buyer-email': vatDetails.buyerEmail || vatDetails.buyer_email || ''
+  };
+  Object.entries(printVatBuyer).forEach(([id, value]) => {
+    const element = document.getElementById(id);
+    if (element) element.innerText = value;
+  });
+  const printVatBuyerRow = document.getElementById('print-vat-buyer-row');
+  if (printVatBuyerRow) printVatBuyerRow.style.display = hasVatInvoice ? '' : 'none';
+  [
+    ['print-vat-buyer-name-row', printVatBuyer['print-vat-buyer-name']],
+    ['print-vat-buyer-tax-code-row', printVatBuyer['print-vat-buyer-tax-code']],
+    ['print-vat-buyer-address-row', printVatBuyer['print-vat-buyer-address']],
+    ['print-vat-buyer-email-row', printVatBuyer['print-vat-buyer-email']]
+  ].forEach(([id, value]) => {
+    const row = document.getElementById(id);
+    if (row) row.style.display = hasVatInvoice && String(value || '').trim() ? '' : 'none';
+  });
 
   const table = document.getElementById('print-invoice-table');
   
@@ -2195,8 +2981,18 @@ export async function renderAndPrintOrder(order, type = 'retail') {
 
     const printSubtotal = order.subtotal !== undefined ? order.subtotal : (isRetail ? sumSubTotal - order.totalDiscount : sumSubTotal);
     const printDiscount = order.discountAmount || 0;
-    const printOtherFee = order.otherFeeAmount || 0;
+    const printOtherFee = hasVatInvoice ? 0 : (order.otherFeeAmount || 0);
     const printShippingFee = order.shippingFeeAmount || order.shippingFeeValue || 0;
+    const printVatRows = hasVatInvoice ? `
+        <tr>
+          <td colspan="${summaryLabelColspan}" style="font-weight: bold; text-align: left; padding: 4px 8px;">Giá trị tính VAT sau chiết khấu</td>
+          <td style="text-align: right; font-weight: bold; padding: 4px 8px;">${formatNumber(vatDetails.taxBaseAmount || 0)}</td>
+        </tr>
+        <tr>
+          <td colspan="${summaryLabelColspan}" style="font-weight: bold; text-align: left; padding: 4px 8px;">Thuế suất VAT (${Number(vatDetails.rate || 0)}%)${vatDetails.priceMode === 'inclusive' ? ' — đã nằm trong giá' : ''}</td>
+          <td style="text-align: right; font-weight: bold; padding: 4px 8px;">${formatNumber(vatDetails.taxAmount || 0)}</td>
+        </tr>
+      ` : '';
 
     table.innerHTML = `
       <thead>
@@ -2222,6 +3018,8 @@ export async function renderAndPrintOrder(order, type = 'retail') {
           <td colspan="${summaryLabelColspan}" style="font-weight: bold; text-align: left; padding: 4px 8px;">Chiết khấu bán hàng${order.discountType === 'percent' && order.discountValue > 0 ? ` (${order.discountValue}%)` : ''}</td>
           <td style="text-align: right; font-weight: bold; padding: 4px 8px;">-${formatNumber(printDiscount)}</td>
         </tr>
+
+        ${printVatRows}
         
         ${printOtherFee > 0 ? `
         <tr>
@@ -2457,7 +3255,10 @@ export function setupInvoiceCreator() {
       const matches = searchProductFamilies(getInvoiceProductFamilies(), query).slice(0, 30);
 
       if (matches.length === 0) {
-        suggestionsList.innerHTML = `<li class="suggestion-item" style="color: var(--text-muted); cursor: default;">Không tìm thấy sản phẩm</li>`;
+        const restrictedMatch = hasRestrictedInvoiceProductMatch(query);
+        suggestionsList.innerHTML = `<li class="suggestion-item" style="color: var(--text-muted); cursor: default;">${restrictedMatch
+          ? 'Kết quả phù hợp bị giới hạn theo thương hiệu được gán cho khách hàng.'
+          : 'Không tìm thấy sản phẩm'}</li>`;
       } else {
         suggestionsList.innerHTML = matches.map(family => {
           const matchedVariant = family.variants.find(variant => variant.id === family.matchedVariantId);
@@ -2519,7 +3320,7 @@ export function setupInvoiceCreator() {
   if (resetBtn) {
     resetBtn.addEventListener('click', () => {
       const hasItems = state.invoiceItems.length > 0;
-      const hasCustomer = state.activeCustomerId !== '' || state.isQuickCustomerMode;
+      const hasCustomer = state.activeCustomerId !== '' || state.isQuickCustomerMode || state.isExternalCustomerMode;
       const hasNotes = document.getElementById('invoice-notes') && document.getElementById('invoice-notes').value.trim() !== '';
       
       if (hasItems || hasCustomer || hasNotes) {
@@ -2586,19 +3387,54 @@ export function setupInvoiceCreator() {
       const file = e.target.files?.[0];
       if (!file) return;
       try {
+        if (!['admin', 'accounting'].includes(state.currentUser?.role)) {
+          showToast('Chỉ Admin hoặc Kế toán được nhập hóa đơn Excel.', 'danger');
+          return;
+        }
+        if (!isCloudActive) {
+          showToast('Cần kết nối Cloud để lưu các hóa đơn nhập thành đơn nháp.', 'warning');
+          return;
+        }
         if (!globalThis.XLSX) {
           showToast('Thư viện Excel đang tải, vui lòng thử lại sau giây lát.', 'warning');
           return;
         }
         const data = await file.arrayBuffer();
         const workbook = XLSX.read(data, { type: 'array' });
-        const sheet = workbook.Sheets[workbook.SheetNames[0]];
-        const rows = XLSX.utils.sheet_to_json(sheet);
-        if (!rows || rows.length === 0) {
-          showToast('File Excel không có dữ liệu.', 'warning');
+        const usableSheets = (workbook.SheetNames || []).map(name => ({
+          name,
+          rows: XLSX.utils.sheet_to_json(workbook.Sheets[name], { header: 1, defval: null, raw: true, blankrows: true })
+        })).filter(sheet => sheet.rows.some(row => Array.isArray(row) && row.some(value => value !== null && String(value).trim() !== '')));
+        if (usableSheets.length !== 1) {
+          showToast(usableSheets.length ? 'File có nhiều sheet chứa dữ liệu. Hãy giữ lại một sheet hóa đơn để tránh nhập nhầm.' : 'File Excel không có dữ liệu.', 'warning');
           return;
         }
-        showToast(`Đã nạp file Excel "${file.name}" thành công (${rows.length} dòng).`, 'success');
+        const parsed = parseInvoiceImportRows(usableSheets[0].rows);
+        if (parsed.error) {
+          showToast(`Không nhận diện được bảng hóa đơn: ${parsed.error}`, 'warning');
+          return;
+        }
+        if (!parsed.dataRowCount || !parsed.groups.length) {
+          showToast('File Excel không có dòng hóa đơn để xem trước.', 'warning');
+          return;
+        }
+        const mappings = new Map();
+        parsed.groups.forEach(group => group.items.forEach(item => {
+          const matches = findInvoiceImportProductMatches(item, state.products || []);
+          if (matches.length === 1) mappings.set(item.sourceRowNumber, matches[0].id);
+        }));
+        const customerMappings = new Map();
+        parsed.groups.forEach((group, index) => {
+          const matches = invoiceImportCustomerIdsByTaxCode(group);
+          if (matches.length === 1) customerMappings.set(index, matches[0].id);
+        });
+        const selected = new Set(parsed.groups
+          .map((group, index) => invoiceImportGroupReady(group, mappings) ? index : -1)
+          .filter(index => index >= 0));
+        pendingInvoiceExcelImport = { parsed, mappings, customerMappings, selected, fileName: file.name, saving: false };
+        const modal = bindInvoiceExcelImportModal();
+        modal.classList.add('active');
+        renderInvoiceExcelImportPreview();
       } catch (err) {
         showToast('Lỗi khi đọc file Excel: ' + (err.message || err), 'danger');
       } finally {
@@ -2631,6 +3467,53 @@ export function setupInvoiceCreator() {
     });
   }
 
+  const vatToggle = document.getElementById('invoice-vat-enabled');
+  const vatFields = document.getElementById('invoice-vat-fields');
+  const vatRateInput = document.getElementById('invoice-vat-rate');
+  const vatPriceMode = document.getElementById('invoice-vat-price-mode');
+  if (vatToggle && vatFields && !vatToggle.dataset.bound) {
+    vatToggle.dataset.bound = 'true';
+    vatToggle.addEventListener('change', () => {
+      vatFields.style.display = vatToggle.checked ? '' : 'none';
+      if (vatToggle.checked) {
+        const selectedCustomer = state.customers.find(customer => String(customer.id) === String(state.activeCustomerId));
+        const quickName = state.isQuickCustomerMode
+          ? document.getElementById('quick-cust-name')?.value.trim()
+          : '';
+        const externalName = state.isExternalCustomerMode
+          ? document.getElementById('invoice-external-customer-name')?.value.trim()
+          : '';
+        const externalAddress = state.isExternalCustomerMode
+          ? document.getElementById('invoice-external-customer-address')?.value.trim()
+          : '';
+        const buyerNameInput = document.getElementById('invoice-vat-buyer-name');
+        const buyerAddressInput = document.getElementById('invoice-vat-buyer-address');
+        if (buyerNameInput && !buyerNameInput.value.trim()) {
+          buyerNameInput.value = selectedCustomer?.name
+            || quickName
+            || externalName
+            || document.getElementById('invoice-customer-search')?.value.trim()
+            || '';
+        }
+        if (buyerAddressInput && !buyerAddressInput.value.trim()) {
+          buyerAddressInput.value = selectedCustomer?.address
+            || (state.isQuickCustomerMode ? document.getElementById('quick-cust-address')?.value.trim() : '')
+            || externalAddress
+            || '';
+        }
+      }
+      calculateInvoiceTotals();
+    });
+  }
+  if (vatRateInput && !vatRateInput.dataset.bound) {
+    vatRateInput.dataset.bound = 'true';
+    vatRateInput.addEventListener('input', calculateInvoiceTotals);
+  }
+  if (vatPriceMode && !vatPriceMode.dataset.bound) {
+    vatPriceMode.dataset.bound = 'true';
+    vatPriceMode.addEventListener('change', calculateInvoiceTotals);
+  }
+
   // Sự kiện tìm kiếm khách hàng trong invoice panel
   setupInvoiceCustomerSearch();
 
@@ -2638,6 +3521,14 @@ export function setupInvoiceCreator() {
   const quickToggleBtn = document.getElementById('btn-quick-customer-toggle');
   if (quickToggleBtn) {
     quickToggleBtn.addEventListener('click', enableQuickCustomerMode);
+  }
+
+  const externalCustomerBtn = document.getElementById('btn-invoice-external-customer');
+  if (externalCustomerBtn) {
+    externalCustomerBtn.addEventListener('click', () => {
+      const name = document.getElementById('invoice-customer-search')?.value.trim() || '';
+      enableExternalCustomerMode({ name });
+    });
   }
 
   const quickCancelBtn = document.getElementById('btn-quick-customer-cancel');
@@ -2693,15 +3584,17 @@ function setupInvoiceCustomerSearch() {
 
   clearBtn?.addEventListener('click', () => prepareInvoiceCustomerReselection());
 
-  // Lắng nghe sự kiện để tìm kiếm gợi ý khách hàng giống như tìm sản phẩm
-  const suggestions = document.createElement('ul');
+  // Keep the autocomplete outside the input wrapper: that wrapper clips its
+  // contents for the rounded search-field treatment.
+  const searchGroup = document.getElementById('invoice-customer-search-group') || custSearchInput.parentNode;
+  const suggestions = document.getElementById('invoice-customer-suggestions') || document.createElement('ul');
   suggestions.className = 'suggestions-list';
   suggestions.id = 'invoice-customer-suggestions';
   suggestions.style.display = 'none';
-  custSearchInput.parentNode.appendChild(suggestions);
+  if (suggestions.parentNode !== searchGroup) searchGroup.appendChild(suggestions);
 
   custSearchInput.addEventListener('input', () => {
-    if (state.isQuickCustomerMode) return; // Không cần gợi ý ở chế độ khách lẻ
+    if (state.isQuickCustomerMode || state.isExternalCustomerMode) return; // Không gợi ý trong chế độ khách riêng của đơn
 
     const selectedName = custSearchInput.dataset.selectedCustomerName || '';
     if (state.activeCustomerId && custSearchInput.value.trim() !== selectedName) {
@@ -2758,8 +3651,16 @@ function setupInvoiceCustomerSearch() {
 }
 
 async function selectInvoiceCustomer(customer) {
+  disableExternalCustomerMode();
+  const assignedBrandName = customer.assignedBrand || customer.assigned_brand || 'Tất cả';
+  const assignedBrandId = String(customer.assignedBrandId || customer.assigned_brand_id
+    || getBrandById(assignedBrandName)?.id || '').trim();
+  if (isSalesBrandRestrictionEnabled(state.businessCapabilities)
+      && !filterInvoiceItemsToAssignedBrand(assignedBrandId, assignedBrandName, `Khách hàng "${customer.name}"`)) return false;
+
   state.activeCustomerId = customer.id;
-  state.activeCustomerBrand = customer.assignedBrand;
+  state.activeCustomerBrand = assignedBrandName;
+  state.activeCustomerBrandId = assignedBrandId;
 
   const assignedReference = customer.pricelistId || customer.defaultPriceListId || '';
   let applicablePricing = getApplicablePriceList(
@@ -2871,6 +3772,14 @@ document.addEventListener('loadDraftOrder', (e) => {
     renderInvoiceTable();
     return;
   }
+
+  state.invoiceItems.forEach(item => {
+    if (item.priceSource === 'manual_override' && item.manualPriceEntered === undefined) {
+      const price = item.unitPrice ?? item.listPrice ?? item.price;
+      item.manualPriceEntered = price !== null && price !== undefined
+        && Number.isFinite(Number(price)) && Number(price) >= 0;
+    }
+  });
 
   // Editable drafts/copies/amendments must be recalculated from the currently
   // applicable database price list. Otherwise the lines and source badge keep

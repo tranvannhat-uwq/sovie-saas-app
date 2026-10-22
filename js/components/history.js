@@ -1,9 +1,9 @@
 import { state } from '../state.js';
-import { showToast, formatCurrency, formatNumber, safeCreateIcons, formatDateTime, isSameUser, getManagerDisplayName, getCustomerName, getUserById, getUserDisplayName, getCompanyName, normalizeCompanyId, getCompanyIdByBrand, getCanonicalBrandName } from '../utils.js';
+import { showToast, formatCurrency, formatNumber, safeCreateIcons, formatDateTime, isSameUser, getManagerDisplayName, getCustomerName, getUserById, getUserDisplayName, getCompanyName, normalizeCompanyId, getCompanyIdByBrand, getCanonicalBrandName, isLegacyPaintWorkspace } from '../utils.js';
 import { dbDeleteOrder, dbDeleteAllOrders, dbRecordSalesReturn, dbCancelSalesReturn, dbCancelOrder, dbRefreshCustomerFinancialState, dbUpdateOrderNotes, dbLoadOrdersForHistoryRange, cacheOrdersLocally, isCloudActive } from '../services/supabase.js';
 import { ensurePanelCloudData, renderAll } from '../main.js';
 import { tenantStorage } from '../services/tenant-storage.js';
-import { openPrintTypeModal, resetInvoiceBuilder, syncInvoiceBusinessDateControl } from './invoice.js';
+import { applyInvoiceVatDetailsToBuilder, enableExternalCustomerMode, openPrintTypeModal, resetInvoiceBuilder, syncInvoiceBusinessDateControl } from './invoice.js';
 import { openHistoryOrderExportModal } from './customers.js';
 import {
   getOrderFinancialBreakdown,
@@ -16,6 +16,7 @@ import { matchesHistoryOrderStatuses } from '../domain/order-status.js';
 import { currentBusinessDateInputValue, orderDateToInputValue } from '../domain/order-business-date.js';
 import { normalizeOrderItemsForEditing, resolveOrderCustomerForEditing } from '../domain/order-edit.js';
 import { getApplicablePriceList, normalizePriceListType, PRICE_LIST_TYPES } from '../domain/pricing.js';
+import { isBrandCatalogEnabled } from '../domain/business-capabilities.js';
 
 const selectedHistoryOrderIdsForExport = new Set();
 let pendingSalesReturnKey = '';
@@ -66,7 +67,8 @@ function clearHistorySecondaryFilters() {
   if (brand) brand.value = 'all';
   if (creator) creator.value = '';
   const statusControls = [...document.querySelectorAll('.history-status-filter-check')];
-  statusControls.forEach(control => { control.checked = true; });
+  const defaultStatuses = new Set(['settled', 'draft']);
+  statusControls.forEach(control => { control.checked = defaultStatuses.has(control.value); });
   state.historyPage = 1;
   historyRenderCache = null;
   if (statusControls[0]) statusControls[0].dispatchEvent(new Event('change', { bubbles: true }));
@@ -449,8 +451,9 @@ function populateHistoryCompanyAndBrandFilters() {
 function orderMatchesHistoryCompany(order, companyId) {
   if (!companyId || companyId === 'all') return true;
   const selectedCompanyId = normalizeCompanyId(companyId);
-  if (normalizeCompanyId(order.companyId || order.company_id) === selectedCompanyId) return true;
-
+  const transactionCompanyId = normalizeCompanyId(order.companyId || order.company_id);
+  if (transactionCompanyId) return transactionCompanyId === selectedCompanyId;
+  if (!isLegacyPaintWorkspace()) return false;
   return (order.items || []).some(item => {
     const itemCompany = item.revenueCompany || item.companyId || item.company_id ||
       getCompanyIdByBrand(item.revenueBrand || item.agencyBrand || item.productBrand || item.brand, state.brands);
@@ -471,6 +474,18 @@ function orderMatchesHistoryBrand(order, brandName) {
 
 export function setupHistoryPanel() {
   const searchInput = document.getElementById('history-search-input');
+
+  // Browsers may restore form controls from a previous page session and
+  // override the checked attributes in index.html. Set defaults once per
+  // document, then preserve the user's choices while they move between panels.
+  const statusFilter = document.getElementById('history-status-filter');
+  if (statusFilter && statusFilter.dataset.defaultsInitialized !== 'true') {
+    const defaultStatuses = new Set(['settled', 'draft']);
+    statusFilter.querySelectorAll('.history-status-filter-check').forEach(checkbox => {
+      checkbox.checked = defaultStatuses.has(checkbox.value);
+    });
+    statusFilter.dataset.defaultsInitialized = 'true';
+  }
   
   const onFilterChange = () => {
     state.historyPage = 1;
@@ -822,7 +837,9 @@ export function renderHistoryOrders({ reuseFiltered = false } = {}) {
   const filterFrom = filterFromInput ? filterFromInput.value : '';
   const filterTo = filterToInput ? filterToInput.value : '';
   const selectedCompany = companyFilterSelect ? companyFilterSelect.value : 'all';
-  const selectedBrand = brandFilterSelect ? brandFilterSelect.value : 'all';
+  const selectedBrand = isBrandCatalogEnabled(state.businessCapabilities, state.brands, state.products)
+    ? (brandFilterSelect ? brandFilterSelect.value : 'all')
+    : 'all';
   const statusControls = [...document.querySelectorAll('.history-status-filter-check')];
   const selectedStatuses = statusControls.filter(checkbox => checkbox.checked).map(checkbox => checkbox.value);
   const selectedCreator = creatorFilterSelect ? creatorFilterSelect.value : '';
@@ -893,9 +910,9 @@ export function renderHistoryOrders({ reuseFiltered = false } = {}) {
     filterCounts.company++;
     if (!orderMatchesHistoryBrand(o, selectedBrand)) return false;
     filterCounts.brand++;
-    // No boxes or all boxes selected means no status restriction.
-    if (selectedStatuses.length > 0 && selectedStatuses.length < statusControls.length
-      && !matchesHistoryOrderStatuses(o.status, selectedStatuses)) return false;
+    // No checked statuses means no order status is selected and should show
+    // an empty result. Selecting all available groups naturally matches all.
+    if (statusControls.length > 0 && !matchesHistoryOrderStatuses(o.status, selectedStatuses)) return false;
     filterCounts.status++;
     
     // 3. Lọc theo nhân viên quản lý đại lý (Tìm kiếm tương đối)
@@ -1218,6 +1235,17 @@ export function renderHistoryOrders({ reuseFiltered = false } = {}) {
       } else {
         statusBadge = `<span class="status-badge status-completed"><i data-lucide="check-circle-2"></i> Đã chốt</span>`;
       }
+
+      const normalizedCardStatus = String(order.status || '').toLowerCase();
+      const historyCardStatus = ['cancelled', 'canceled'].includes(normalizedCardStatus)
+        ? 'cancelled'
+        : normalizedCardStatus === 'draft'
+          ? 'draft'
+          : normalizedCardStatus === 'partially_returned'
+            ? 'partially-returned'
+            : normalizedCardStatus === 'returned'
+              ? 'returned'
+              : 'settled';
         
       const creatorName = getUserDisplayName(order.createdBy, 'Không xác định', state.users);
 
@@ -1258,7 +1286,7 @@ export function renderHistoryOrders({ reuseFiltered = false } = {}) {
       }
 
       return `
-        <div class="glass-panel order-card history-order-card">
+        <div class="glass-panel order-card history-order-card" data-order-status="${historyCardStatus}">
           <label class="history-card-export-select" title="Chọn đơn để xuất Excel">
             <input type="checkbox" class="history-export-checkbox" data-id="${order.id}" ${selectedHistoryOrderIdsForExport.has(String(order.id)) ? 'checked' : ''}>
           </label>
@@ -1626,6 +1654,7 @@ function loadDraftOrderIntoInvoice(order, isReadOnly = false, isCopy = false) {
     if (cust) {
       state.activeCustomerId = cust.id;
       state.activeCustomerBrand = cust.assignedBrand;
+      state.activeCustomerBrandId = cust.assignedBrandId || cust.assigned_brand_id || '';
       document.getElementById('invoice-customer-id').value = cust.id;
       document.getElementById('invoice-customer-search').value = cust.name;
       document.getElementById('invoice-customer-search').dataset.selectedCustomerName = cust.name;
@@ -1650,21 +1679,13 @@ function loadDraftOrderIntoInvoice(order, isReadOnly = false, isCopy = false) {
   } else {
     // Khách lẻ chỉ là tên snapshot trên đơn, không phải chế độ tạo nhanh
     // khách hàng mới (chế độ đó còn yêu cầu tỉnh, nhãn và quản lý).
-    state.activeCustomerId = '';
-    state.activeCustomerBrand = 'Tất cả';
     state.isQuickCustomerMode = false;
-    const customerIdInput = document.getElementById('invoice-customer-id');
-    if (customerIdInput) customerIdInput.value = '';
-    const customerSearchInput = document.getElementById('invoice-customer-search');
-    if (customerSearchInput) {
-      customerSearchInput.value = customerContext.customerName;
-      customerSearchInput.disabled = isReadOnly;
-      customerSearchInput.removeAttribute('data-selected-customer-name');
-    }
-    const customerInfoCard = document.getElementById('invoice-customer-info-card');
-    if (customerInfoCard) customerInfoCard.style.display = 'none';
-    const clearCustomerButton = document.getElementById('btn-clear-invoice-customer');
-    if (clearCustomerButton) clearCustomerButton.style.display = isReadOnly ? 'none' : 'inline-flex';
+    enableExternalCustomerMode({
+      name: customerContext.customerName,
+      phone: order.customerPhone || order.customer_phone || '',
+      address: order.customerAddress || order.customer_address || '',
+      readOnly: isReadOnly
+    });
   }
   
   // Tải các mặt hàng
@@ -1724,6 +1745,9 @@ function loadDraftOrderIntoInvoice(order, isReadOnly = false, isCopy = false) {
   if (shippingFeeValInput) {
     shippingFeeValInput.value = formatNumber(order.shippingFeeValue || order.shippingFeeAmount || 0);
   }
+
+  const vatDetails = order.vatDetails || order.vat_details || {};
+  applyInvoiceVatDetailsToBuilder(vatDetails, isReadOnly);
   
   // Đổi tiêu đề và trạng thái nút chốt đơn trên giao diện lập hóa đơn
   const saveBtn = document.getElementById('btn-save-order');

@@ -67,9 +67,17 @@ test('full restore refuses non-empty targets and requires explicit staging confi
 
 test('financial cancellation refresh is scoped to the affected customer', () => {
   assert.match(service, /export async function dbRefreshCustomerFinancialState\(customerId, \{ includeHistory = true \} = \{\}\)/);
-  assert.match(service, /\.eq\('customer_id', customerId\)/);
   assert.match(service, /fetchCustomerDebtRows\(customerId\)/);
-  assert.match(service, /\.range\(from, from \+ pageSize - 1\)/);
+  const debtHistoryFetch = service.slice(
+    service.indexOf('async function fetchCustomerDebtRows'),
+    service.indexOf('function mapCashbookTransaction')
+  );
+  assert.match(debtHistoryFetch, /collectAllPages\(async \(from, to\)/);
+  assert.match(debtHistoryFetch, /\.eq\('customer_id', customerId\)/);
+  assert.match(debtHistoryFetch, /\.order\('created_at', \{ ascending: true \}\)/);
+  assert.match(debtHistoryFetch, /\.order\('id', \{ ascending: true \}\)/);
+  assert.match(debtHistoryFetch, /\.range\(from, to\)/);
+  assert.match(debtHistoryFetch, /getRowKey: row => row\?\.id/);
 });
 
 test('standalone UI harnesses do not bootstrap the full authenticated app', () => {

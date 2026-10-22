@@ -107,6 +107,15 @@ Run these files in order on a staging clone first:
 99. `0099_dashboard_customer_filter.sql`
 100. `0100_manual_trial_activation.sql`
 101. `0101_rpc_executor_dependency_permissions.sql`
+102. `0102_enforce_assigned_brand_on_orders.sql`
+103. `0103_workspace_sales_policy_and_neutral_defaults.sql`
+104. `0104_authoritative_catalog_order_policy.sql`
+105. `0105_optional_workspace_brands_and_invoice_issuer.sql`
+106. `0106_workspace_domain_login_binding.sql`
+107. `0107_order_vat_invoice_details.sql`
+108. `0108_centralized_login_and_pause_custom_domains.sql`
+109. `0109_order_only_external_customer_snapshots.sql`
+110. `0110_add_bag_catalog_unit.sql`
 
 Every file is additive and records its version in `public.schema_migrations`.
 Apply each version once; the migration table is the source of truth for the
@@ -118,6 +127,12 @@ staging project with `npm run db:apply-trial-activation`; the script asks for a
 staging-only connection URI and password interactively, checks the project ref,
 reloads PostgREST's schema and verifies the deployed function before reporting
 success.
+
+Migration `0108` centralizes workspace access at `sovie.vn` and pauses customer
+custom-domain management. It preserves existing domain rows, revokes customer
+execution of domain-binding/provisioning RPCs, and sets custom-domain plan
+limits to zero. Apply it after deploying the frontend that redirects all other
+hosts to `sovie.vn` and resolves the active workspace from account membership.
 
 The clean-database target is a clean **Supabase** project (the chain depends on
 `auth.users` and `auth.uid()`), not generic PostgreSQL. Migration `0001` stops
@@ -621,3 +636,66 @@ business RPCs. It grants the complete reachable function graph only to the
 roles, and restores authoritative order confirmation through the price-list
 effectiveness check. Run
 `migrations/tests/saas_rpc_dependency_permissions_integration.sql` on staging.
+
+Migration `0102` enforces the sales module's workspace-specific assigned-brand
+policy on order and draft writes. It validates customer and product ownership
+against the row's workspace, permits explicitly marked service lines, and runs
+when the workspace changes. A missing customer or cross-workspace SKU is an
+error rather than an unrestricted order. Run the order pricing, amendment, and
+tenant-boundary integration checks after deployment.
+
+Migration `0103` preserves the current assigned-brand behavior for existing
+workspaces while leaving new workspaces unrestricted by default; Owners and
+Admins can change the setting through `rpc_set_sales_brand_restriction()`.
+It also drops the original paint-company column defaults and normalizes the
+old ABS company IDs to the current workspace on new or edited orders. It does
+not rewrite historical product or order data. Run the workspace capability,
+order pricing, and tenant-boundary integration checks after deployment.
+
+Migration `0104` makes catalog `item_kind` authoritative for service lines in
+both orders and drafts, so browser-supplied service flags cannot bypass the
+workspace brand policy. Unlinked custom service lines require an explicit
+`allow_unlinked_service_lines` setting in the workspace sales module. The
+Owner/Admin policy RPC also records tenant-scoped before/after activity data.
+Apply after `0103`; then run the sales-policy, order-pricing, and activity-log
+integration checks on staging.
+
+Migration `0105` makes product brand nullable, gives unbranded SKUs a unique
+workspace-scoped code, and separates brand catalog visibility from the
+optional brand-based sales restriction. It adds audited Owner/Admin settings
+for the brand catalog and issuer profiles per company/branch, then snapshots
+the selected issuer on new orders and drafts. It also updates Dashboard company
+attribution to use the transaction's company; brand-based company attribution
+is retained only in the legacy paint workspace's client compatibility path.
+Apply after `0104` and run generic-catalog, issuer-print, order-pricing, and
+tenant-boundary checks before rollout.
+
+Migration `0106` binds the selected workspace to the exact active hostname with
+active SSL during login and session recovery. Tenant members without membership
+in that workspace are rejected, and the context returned to the browser contains
+only the workspace mapped to the current hostname. Users without a workspace
+can still enter onboarding; platform staff keep their separate platform access.
+
+Migration `0107` adds a JSON VAT invoice snapshot to drafts and confirmed orders.
+It wraps the existing authoritative order confirmation so the buyer identity,
+selected rate, VAT breakdown, and VAT-inclusive/exclusive mode are stored in the
+same transaction as the confirmed order. It also verifies imported VAT rounded
+per line against each confirmed, accounting-approved manual price, then records
+the exact source tax sum in the order total. Apply after `0106` before deploying
+the VAT-enabled web client. Run the login-domain and order-pricing integration
+checks on staging before rollout.
+
+Migration `0108` centralizes login on `sovie.vn` and pauses customer-managed
+custom domains without deleting existing domain records.
+
+Migration `0109` adds phone and address snapshots to orders and drafts, provides
+an order-only external-customer contact flow without creating customer
+profiles, and keeps unlinked order balances on the order rather than a customer
+ledger. It wraps confirmation and amendment responses with the saved contact
+snapshot while preserving their authoritative transactions and executor-only
+internal RPCs. Apply after `0108` before deploying the updated web client.
+
+Migration `0110` adds the generic `bag` unit ("Bao", symbol `bao`) to
+`public.catalog_units`, updates `public.provision_generic_catalog` to seed `bag`
+for new organizations, backfills existing organizations, and updates legacy
+products whose unit name or packaging unit is `bao` to use unit code `bag`.

@@ -126,7 +126,7 @@ Deno.serve(async (request) => {
   const supabaseUrl = Deno.env.get('SUPABASE_URL');
   const anonKey = Deno.env.get('SUPABASE_ANON_KEY');
   const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-  const appUrl = String(Deno.env.get('APP_URL') || 'https://sovie.vn').replace(/\/$/, '');
+  const appUrl = 'https://sovie.vn';
   const authorization = request.headers.get('Authorization');
   if (!supabaseUrl || !anonKey || !serviceRoleKey) {
     return jsonResponse({ error: 'Supabase function chưa được cấu hình đầy đủ.' }, 500);

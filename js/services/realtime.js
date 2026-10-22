@@ -27,6 +27,7 @@ import {
   tableProductsName,
   tableSalesReturnItemsName,
   tableSalesReturnsName,
+  tableSuppliersName,
   tableStartingBalancesName
 } from './supabase.js';
 
@@ -65,6 +66,7 @@ async function flushRealtimeEvents() {
     const orderChanges = new Map();
     const customerChanges = new Map();
     const salesReturnChanges = new Map();
+    let suppliersChanged = false;
 
     batch.forEach(event => {
       if (event.kind === 'order') {
@@ -103,6 +105,8 @@ async function flushRealtimeEvents() {
           : null;
         const returnId = row.return_id || existingReturn?.id;
         if (returnId) salesReturnChanges.set(String(returnId), false);
+      } else if (event.kind === 'supplier') {
+        suppliersChanged = true;
       }
     });
 
@@ -119,6 +123,10 @@ async function flushRealtimeEvents() {
     }
     for (const [returnId, deleted] of salesReturnChanges) {
       await dbRefreshSalesReturnById(returnId, { deleted });
+    }
+
+    if (suppliersChanged) {
+      await fetchCloudData({ onlyDomains: ['suppliers', 'purchases'], hydrateCustomerHistory: false });
     }
 
     if (typeof realtimeRender === 'function' && state.currentUser) realtimeRender();
@@ -215,6 +223,8 @@ export async function startRealtimeSync(renderCallback) {
     payload => queueRealtimeEvent({ kind: 'priceListItem', payload }));
   channel = subscribeTable(channel, tableBrandsName,
     payload => queueRealtimeEvent({ kind: 'brand', payload }));
+  channel = subscribeTable(channel, tableSuppliersName,
+    payload => queueRealtimeEvent({ kind: 'supplier', payload }));
 
   realtimeChannel = channel;
   channel.subscribe(status => {
@@ -222,9 +232,23 @@ export async function startRealtimeSync(renderCallback) {
     realtimeStatus = status;
     if (status === 'SUBSCRIBED') {
       const health = getCloudReadHealth();
+      const labels = {
+        products: 'Sản phẩm', orders: 'Đơn hàng', customers: 'Khách hàng',
+        pricelists: 'Bảng giá', users: 'Người dùng', brands: 'Thương hiệu',
+        cashbook: 'Sổ quỹ', startingBalances: 'Số dư đầu kỳ', suppliers: 'Nhà cung cấp',
+        purchases: 'Phiếu mua', salesReturns: 'Trả hàng'
+      };
+      const details = health.failedDomains.map(domain => {
+        const failure = health.failureDetails?.[domain] || {};
+        const request = failure.request ? ` · ${failure.request}` : '';
+        const code = failure.code ? ` · ${failure.code}` : '';
+        const message = failure.message ? ` · ${failure.message}` : '';
+        return `${labels[domain] || domain}${request}${code}${message}`;
+      });
       updateDbStatusUI(
         health.status === 'degraded' ? 'cloud_degraded' : 'cloud',
-        health.status === 'degraded' ? 'Cloud đã nối • Lỗi đọc dữ liệu' : 'Đám mây • Trực tiếp'
+        health.status === 'degraded' ? `Cloud đã nối • Lỗi đọc: ${health.failedDomains.map(domain => `${labels[domain] || domain}${health.failureDetails?.[domain]?.code ? ` (${health.failureDetails[domain].code})` : ''}`).join(', ')}` : 'Đám mây • Trực tiếp',
+        health.status === 'degraded' ? details.join('\n') : ''
       );
     } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
       updateDbStatusUI('connecting', 'Đang nối lại dữ liệu trực tiếp...');

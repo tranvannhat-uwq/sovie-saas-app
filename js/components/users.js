@@ -1,11 +1,12 @@
 import { state, resetTenantBusinessState } from '../state.js';
-import { showToast, safeCreateIcons, isSameUser, getCompanyNameById } from '../utils.js';
+import { showToast, safeCreateIcons, isSameUser, getCompanyNameById, getDefaultCompanyId, resolveWorkspaceCompanyId } from '../utils.js';
 import { dbSaveUser, dbDeleteUser, isCloudActive, supabaseClient, fetchCloudData, clearSupabaseAuthStorage, getMaintenanceStatus, loadSaasContext, clearTenantStorageContext, transferSaasOrganizationOwnership } from '../services/supabase.js';
 import { startRealtimeSync, stopRealtimeSync } from '../services/realtime.js';
 import { renderAll, switchTab } from '../main.js';
 import { populateManagedByDropdown } from './customers.js';
 import { openWorkspaceOnboarding, renderWorkspaceSwitcher, renderSubscriptionAccessNotice } from './workspaces.js';
 import { clearPlatformAdminState, hydratePlatformAdmin } from './platform-admin.js';
+import { canonicalAppUrl } from '../domain/app-origin.js';
 import {
   LOGIN_ERROR,
   classifySupabaseError,
@@ -132,7 +133,10 @@ function getAvailableCompaniesForUserForm() {
 
   if (state.companies && state.companies.length > 0) {
     if (orgName && !isLegacyTenant) {
-      const customCompanies = state.companies.filter(c => c.id !== 'ABS_NORTH' && c.id !== 'ABS_SOUTH' && c.id !== 'EMP_USA');
+      const isLegacyPaintWorkspace = state.saasContext?.organizationId === '00000000-0000-4000-8000-000000000001';
+      const customCompanies = isLegacyPaintWorkspace
+        ? state.companies.filter(c => !['ABS_NORTH', 'ABS_SOUTH', 'EMP_USA'].includes(String(c.id).toUpperCase()))
+        : state.companies;
       if (customCompanies.length > 0) return customCompanies;
       return [{ id: state.saasContext.organizationId || 'main', name: orgName }];
     }
@@ -287,11 +291,8 @@ export async function requestPasswordReset() {
   const button = document.getElementById('btn-forgot-password');
   if (button) button.disabled = true;
   try {
-    const redirectUrl = new URL(window.location.origin);
-    redirectUrl.pathname = window.location.pathname || '/';
-    redirectUrl.searchParams.set('type', 'recovery');
     const { error } = await supabaseClient.auth.resetPasswordForEmail(email, {
-      redirectTo: redirectUrl.toString()
+      redirectTo: canonicalAppUrl('/', { type: 'recovery' })
     });
     if (error) throw error;
     showToast('Nếu email tồn tại, SoVie đã gửi liên kết đặt lại mật khẩu. Hãy kiểm tra cả thư rác.', 'success');
@@ -409,7 +410,7 @@ export async function saveUser() {
       return;
     }
     
-    const companyId = document.getElementById('user-company') ? document.getElementById('user-company').value : 'ABS_NORTH';
+    const companyId = document.getElementById('user-company') ? document.getElementById('user-company').value : getDefaultCompanyId();
     user = {
       id: 'u-' + Date.now(),
       username,
@@ -433,7 +434,7 @@ export async function saveUser() {
       return;
     }
     
-    const companyId = document.getElementById('user-company') ? document.getElementById('user-company').value : 'ABS_NORTH';
+    const companyId = document.getElementById('user-company') ? document.getElementById('user-company').value : getDefaultCompanyId();
     user = {
       ...existingUser,
       username,
@@ -759,7 +760,7 @@ export async function handleLogin(e) {
         organizationId: '',
         organizationName: '',
         organizationSlug: '',
-        companyId: profile.company_id || 'ABS_NORTH',
+        companyId: profile.company_id || 'main',
         isExternal: profile.is_external === true,
         isActive: profile.is_active !== false
       };
@@ -778,7 +779,7 @@ export async function handleLogin(e) {
       organizationId: tenantContext.organizationId,
       organizationName: tenantContext.organizationName,
       organizationSlug: tenantContext.organizationSlug,
-      companyId: profile.company_id || 'ABS_NORTH',
+      companyId: resolveWorkspaceCompanyId(profile.company_id, tenantContext.organizationId),
       isExternal: profile.is_external === true,
       isActive: profile.is_active !== false
     };
@@ -1037,7 +1038,7 @@ export function applyUserPermissions(user) {
       .col-delete-prod { display: none !important; }
       .delete-order-btn { display: none !important; }
       #btn-clear-history { display: none !important; }
-      #btn-open-add-pricelist-modal, #btn-import-pricelist-excel, #btn-save-price-matrix { display: none !important; }
+      #btn-open-add-pricelist-modal, #btn-import-pricelist-excel, #btn-download-pricelist-template, #btn-save-price-matrix { display: none !important; }
       #btn-open-add-brand-modal, .edit-brand-btn, .delete-brand-btn { display: none !important; }
       #brands-panel th:last-child, #brands-panel td:last-child { display: none !important; }
       #dash-btn-add-product { display: none !important; }

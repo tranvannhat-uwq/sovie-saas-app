@@ -21,7 +21,7 @@ test('password setup modal adapts its copy and success message for recovery', ()
 test('login offers a privacy-safe Supabase password recovery request', () => {
   assert.match(html, /id="btn-forgot-password"/);
   assert.match(users, /auth\.resetPasswordForEmail\(email/);
-  assert.match(users, /redirectTo: redirectUrl\.toString\(\)/);
+  assert.match(users, /redirectTo: canonicalAppUrl\('\/', \{ type: 'recovery' \}\)/);
   assert.match(users, /Nếu email tồn tại/);
   assert.match(main, /event === 'PASSWORD_RECOVERY'/);
   assert.match(main, /openInvitationPasswordSetup\('recovery'\)/);

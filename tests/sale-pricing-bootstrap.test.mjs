@@ -38,6 +38,8 @@ test('scoped item loader filters on price_list_id and keeps pagination', () => {
   const end = service.indexOf('function mapAuthorizedPriceList', start);
   const loader = service.slice(start, end);
   assert.match(loader, /\.in\('price_list_id', chunk\)/);
+  assert.match(loader, /\.select\(PRICE_LIST_ITEM_READ_COLUMNS\)/);
+  assert.doesNotMatch(loader, /count:\s*'exact'/);
   assert.match(loader, /collectAllPages/);
   assert.match(loader, /uniqueIds\.length === 0/);
 });
@@ -45,7 +47,12 @@ test('scoped item loader filters on price_list_id and keeps pagination', () => {
 test('dealer-specific pricing remains an exact on-demand request', () => {
   assert.match(service, /export async function dbLoadCustomerAssignedPricing\(customer\)/);
   assert.match(service, /rpc_get_customer_assigned_pricing/);
-  assert.match(service, /\.eq\('price_list_id', priceList\.id\)/);
+  const assignedPricingLoader = service.slice(
+    service.indexOf('export async function dbLoadCustomerAssignedPricing(customer)'),
+    service.indexOf('\nfunction parseDebtHistory', service.indexOf('export async function dbLoadCustomerAssignedPricing(customer)'))
+  );
+  assert.match(assignedPricingLoader, /fetchPriceListItemsForIds\(\[priceList\.id\]\)/);
+  assert.match(service, /\.in\('price_list_id', chunk\)/);
   assert.match(invoice, /const assignedListNeedsScopedItems = Boolean\(/);
   assert.match(invoice, /!canUserViewPriceList\(state\.currentUser, applicablePricing\.priceList\)/);
   assert.match(invoice, /applicablePricing\.selectionSource !== 'customer_default' \|\| assignedListNeedsScopedItems/);

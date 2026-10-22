@@ -29,23 +29,33 @@ Mã nguồn được sao chép từ hệ thống web hiện tại để giữ ng
 ### Mã nguồn và nơi triển khai website
 
 - Mã nguồn SaaS nằm trong repository `tranvannhat-uwq/sovie-saas-app`, nhánh `main`.
-- `sovie.vn` và các tên miền workspace như `test.sovie.vn` được phục vụ bởi
-  Cloudflare Worker `sovie-saas-staging`. Cấu hình được lưu trong `wrangler.jsonc`.
-- GitHub Pages có quy trình triển khai riêng, nhưng push GitHub **chưa tự cập nhật
-  Worker**. Sau khi push, chạy lệnh sau trong `saas-app` bằng tài khoản Cloudflare
-  đã đăng nhập:
+- `sovie.vn` là địa chỉ đăng nhập và sử dụng duy nhất. Các subdomain workspace
+  và custom domain cũ được chuyển hướng về `https://sovie.vn`; mã workspace chỉ
+  dùng để nhận diện doanh nghiệp sau khi đăng nhập. Cloudflare Worker
+  `sovie-saas-staging` phục vụ website theo cấu hình `wrangler.jsonc`.
+- GitHub Actions trong `.github/workflows/deploy-worker.yml` chạy kiểm tra phát
+  hành (`npm run release:check`) cho pull request vào `main`, rồi tự triển khai
+  Worker sau mỗi lần push/merge thành công vào `main`. Push lên nhánh tính năng
+  chưa cập nhật website; hãy merge thay đổi vào `main` sau khi kiểm tra.
+- Trong GitHub, vào **Settings → Secrets and variables → Actions** và thêm
+  `CLOUDFLARE_API_TOKEN` cùng `CLOUDFLARE_ACCOUNT_ID`. Tạo token Cloudflare theo
+  quyền tùy chỉnh **Workers Scripts: Edit** trên account SoVie và
+  **Workers Routes: Edit** chỉ trên zone `sovie.vn`; không đặt token trong mã
+  nguồn. Màn hình tạo token hiện giới hạn quyền Scripts ở cấp account.
+- Có thể triển khai thủ công khi cần bằng lệnh sau trong `saas-app` với tài khoản
+  Cloudflare đã đăng nhập:
 
 ```powershell
 npm run deploy
 ```
 
 - Lệnh này build thư mục `dist` rồi đưa tài nguyên tĩnh lên Worker đang phục vụ
-  tên miền. Sau đó kiểm tra nội dung thực tế tại `sovie.vn` và một tên miền workspace.
+  tên miền. Sau đó kiểm tra trang đăng nhập và chuyển workspace tại `sovie.vn`.
 - `product-billing-app` dùng repository `tranvannhat-uwq/phan-mem-hoa-don`
   và tên miền `chamsockhachhang.store`; không đổi custom domain hoặc `CNAME`
   của repository đó khi triển khai SaaS.
 
-- Chuỗi migration trong mã nguồn hiện có đến `0101`; trạng thái staging được ghi nhận gần nhất trong [docs/SAAS_STAGING_READINESS.md](docs/SAAS_STAGING_READINESS.md) chỉ xác nhận đến `0097`. Đối chiếu `public.schema_migrations` trên staging trước khi áp dụng `0098`–`0101`; repository không tự xác nhận các migration mới hơn đã được triển khai.
+- Chuỗi migration trong mã nguồn hiện có đến `0110`. Trước khi phát hành, đối chiếu `public.schema_migrations` trên staging và chỉ áp dụng các phiên bản còn thiếu theo đúng thứ tự; `0109` bổ sung thông tin khách bên ngoài vào đơn và `0110` thêm đơn vị Bao. Trong Supabase Auth, đặt Site URL là `https://sovie.vn` và Redirect URLs gồm `https://sovie.vn/**` (cộng địa chỉ localhost dùng khi phát triển).
 - Bản web SaaS được ghim vào Supabase staging clone `mqxqswwssmemkimnolfu`; cấu hình production không còn nằm trong `js/config.js`.
 - Dữ liệu hiện tại được giữ trong workspace tương thích `legacy-weblendon`.
 - 35 bảng nghiệp vụ và 39 RPC callable đã được cách ly tenant và kiểm thử trên staging; migrations `0063`–`0066` đã bật tạo/chuyển workspace, trial Starter, quota, quản trị membership, lời mời email và chuyển quyền Owner nguyên tử.

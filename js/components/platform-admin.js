@@ -4,6 +4,8 @@ import { safeCreateIcons, showToast } from '../utils.js';
 
 let platformDataLoaded = false;
 let platformPlansLoaded = false;
+let platformHydrationPromise = null;
+let platformStateEpoch = 0;
 let slugEditedManually = false;
 let selectedPlatformOrganizationId = '';
 let platformPlanCatalog = [];
@@ -71,23 +73,42 @@ async function hydratePlatformPlans({ force = false } = {}) {
 }
 
 export async function hydratePlatformAdmin({ force = false } = {}) {
+  if (platformHydrationPromise) return platformHydrationPromise;
   if (platformDataLoaded && !force) return state.platformRole || null;
+  const stateEpoch = platformStateEpoch;
+  const hydration = (async () => {
+    let deniedByServer = false;
+    try {
+      const data = await getPlatformCustomerAccounts();
+      if (stateEpoch !== platformStateEpoch) return null;
+      state.platformRole = String(data?.platformRole || '');
+      state.platformOrganizations = Array.isArray(data?.organizations) ? data.organizations : [];
+      state.platformSummary = data?.summary || null;
+      // A negative staff check is a valid result. Cache it until logout or an
+      // explicit refresh so ordinary tenant views do not repeat it.
+      platformDataLoaded = true;
+    } catch (error) {
+      if (error?.code !== '42501') console.warn('Could not load platform customer accounts:', error);
+      deniedByServer = error?.code === '42501';
+      if (stateEpoch !== platformStateEpoch) return null;
+      state.platformRole = '';
+      state.platformOrganizations = [];
+      state.platformSummary = null;
+      // A denied RPC is authoritative and must never grant a role. A later
+      // explicit refresh can retry if the staff membership has changed.
+      platformDataLoaded = deniedByServer;
+    }
+    if (stateEpoch !== platformStateEpoch) return null;
+    updatePlatformVisibility();
+    renderPlatformAdmin();
+    return state.platformRole || null;
+  })();
+  platformHydrationPromise = hydration;
   try {
-    const data = await getPlatformCustomerAccounts();
-    state.platformRole = String(data?.platformRole || '');
-    state.platformOrganizations = Array.isArray(data?.organizations) ? data.organizations : [];
-    state.platformSummary = data?.summary || null;
-    platformDataLoaded = Boolean(state.platformRole);
-  } catch (error) {
-    if (error?.code !== '42501') console.warn('Could not load platform customer accounts:', error);
-    state.platformRole = '';
-    state.platformOrganizations = [];
-    state.platformSummary = null;
-    platformDataLoaded = false;
+    return await hydration;
+  } finally {
+    if (platformHydrationPromise === hydration) platformHydrationPromise = null;
   }
-  updatePlatformVisibility();
-  renderPlatformAdmin();
-  return state.platformRole || null;
 }
 
 function filteredOrganizations() {
@@ -124,13 +145,13 @@ function renderDetail(organization) {
   detail.innerHTML = `
     <div class="platform-detail-heading">
       <div class="platform-account-avatar">${escapeHtml((organization.name || 'S').charAt(0).toUpperCase())}</div>
-      <div><span>Hồ sơ doanh nghiệp</span><h3>${escapeHtml(organization.name)}</h3><p>${escapeHtml(organization.slug)}.sovie.vn</p></div>
+      <div><span>Hồ sơ doanh nghiệp</span><h3>${escapeHtml(organization.name)}</h3><p>Mã workspace: ${escapeHtml(organization.slug)}</p></div>
     </div>
     <div class="platform-detail-grid">
       <div><span>Chủ tài khoản</span><strong>${escapeHtml(organization.ownerName || 'Chưa xác định')}</strong><small>${escapeHtml(organization.ownerEmail || '—')}${organization.ownerMembershipStatus === 'invited' ? ' · Đang chờ nhận lời mời' : ''}</small></div>
       <div><span>Gói dịch vụ</span><strong>${escapeHtml(organization.planName || organization.planId || 'Chưa có')}</strong><small>${escapeHtml(statusLabel(organization.subscriptionStatus))}</small></div>
       <div><span>Nhân sự</span><strong>${escapeHtml(organization.activeMemberCount || 0)} đang hoạt động</strong><small>${escapeHtml(organization.memberCount || 0)} tài khoản tổng cộng</small></div>
-      <div><span>Tên miền</span><strong>${escapeHtml(organization.domain || `${organization.slug}.sovie.vn`)}</strong><small>${escapeHtml(statusLabel(organization.domainStatus))} · SSL ${escapeHtml(organization.sslStatus || 'pending')}</small></div>
+      <div><span>Mã workspace</span><strong>${escapeHtml(organization.slug)}</strong><small>Mọi tài khoản đăng nhập tại sovie.vn</small></div>
       <div><span>Kỳ dịch vụ</span><strong>${escapeHtml(formatDate(organization.currentPeriodEnd))}</strong><small>${organization.readOnlyEndsAt ? `Chỉ đọc đến ${escapeHtml(formatDate(organization.readOnlyEndsAt))}` : 'Không có thời hạn chỉ đọc'}</small></div>
     </div>
     ${canManage ? `<div class="platform-lifecycle-actions">
@@ -162,11 +183,11 @@ export function renderPlatformAdmin() {
   }
   tbody.innerHTML = organizations.map(organization => `
     <tr class="platform-account-row" data-organization-id="${escapeHtml(organization.id)}" tabindex="0">
-      <td><div class="platform-account-cell"><span class="platform-account-avatar">${escapeHtml((organization.name || 'S').charAt(0).toUpperCase())}</span><div><strong>${escapeHtml(organization.name)}</strong><small>${escapeHtml(organization.slug)}.sovie.vn</small></div></div></td>
+      <td><div class="platform-account-cell"><span class="platform-account-avatar">${escapeHtml((organization.name || 'S').charAt(0).toUpperCase())}</span><div><strong>${escapeHtml(organization.name)}</strong><small>Mã workspace: ${escapeHtml(organization.slug)}</small></div></div></td>
       <td><strong>${escapeHtml(organization.ownerName || 'Chưa xác định')}</strong><small>${escapeHtml(organization.ownerEmail || '—')}${organization.ownerMembershipStatus === 'invited' ? ' · Chờ xác nhận' : ''}</small></td>
       <td><span class="platform-status is-${escapeHtml(organization.subscriptionStatus || organization.status)}">${escapeHtml(organization.planName || organization.planId || 'Chưa có')} · ${escapeHtml(statusLabel(organization.subscriptionStatus || organization.status))}</span></td>
       <td><strong>${escapeHtml(organization.activeMemberCount || 0)}</strong><small>/${escapeHtml(organization.memberCount || 0)} tài khoản</small></td>
-      <td><strong>${escapeHtml(organization.domain || `${organization.slug}.sovie.vn`)}</strong><small>SSL ${escapeHtml(organization.sslStatus || 'pending')}</small></td>
+      <td><strong>${escapeHtml(organization.slug)}</strong><small>Đăng nhập tại sovie.vn</small></td>
       <td><strong>${escapeHtml(formatDate(organization.createdAt))}</strong><small>${escapeHtml(statusLabel(organization.status))}</small></td>
     </tr>`).join('');
 
@@ -226,7 +247,7 @@ async function openPlatformLifecycleModal(action, organization) {
   document.getElementById('platform-lifecycle-organization-id').value = organization.id;
   document.getElementById('platform-lifecycle-action').value = action;
   document.getElementById('platform-lifecycle-modal-title').textContent = config.title;
-  document.getElementById('platform-lifecycle-customer-summary').innerHTML = `<strong>${escapeHtml(organization.name)}</strong><small>${escapeHtml(organization.slug)}.sovie.vn · ${escapeHtml(organization.planName || organization.planId || 'Chưa có')} · ${escapeHtml(statusLabel(organization.subscriptionStatus || organization.status))}</small>`;
+  document.getElementById('platform-lifecycle-customer-summary').innerHTML = `<strong>${escapeHtml(organization.name)}</strong><small>Mã ${escapeHtml(organization.slug)} · ${escapeHtml(organization.planName || organization.planId || 'Chưa có')} · ${escapeHtml(statusLabel(organization.subscriptionStatus || organization.status))}</small>`;
   const planGroup = document.getElementById('platform-lifecycle-plan-group');
   const trialGroup = document.getElementById('platform-lifecycle-trial-group');
   const confirmationGroup = document.getElementById('platform-lifecycle-confirmation-group');
@@ -302,7 +323,6 @@ function fillPlatformPlanForm(plan) {
   document.getElementById('platform-plan-branches').value = Number(limits.branches || 1);
   document.getElementById('platform-plan-warehouses').value = Number(limits.warehouses || 1);
   document.getElementById('platform-plan-orders').value = Number(limits.monthly_orders || 1);
-  document.getElementById('platform-plan-domains').value = Number(limits.custom_domains || 0);
   document.getElementById('platform-plan-sort-order').value = Number(plan.sortOrder ?? 100);
   document.getElementById('platform-plan-active').checked = Boolean(plan.isActive);
   document.getElementById('platform-plan-public').checked = Boolean(plan.isPublic);
@@ -454,20 +474,20 @@ async function validatePlatformSlug() {
   const input = document.getElementById('platform-customer-slug');
   const slug = String(input?.value || '').trim().toLowerCase();
   if (!input?.checkValidity()) {
-    setSlugStatus('Tên miền cần 3–64 ký tự: chữ thường, số hoặc dấu gạch ngang.', 'danger');
+    setSlugStatus('Mã workspace cần 3–64 ký tự: chữ thường, số hoặc dấu gạch ngang.', 'danger');
     return false;
   }
-  setSlugStatus('Đang kiểm tra tên miền...');
+  setSlugStatus('Đang kiểm tra mã workspace...');
   try {
     const result = await validateSaasOrganizationSlug(slug);
     if (!result?.available) {
-      setSlugStatus(result?.reserved ? 'Tên miền này được hệ thống giữ lại.' : 'Tên miền này đã được sử dụng.', 'danger');
+      setSlugStatus(result?.reserved ? 'Mã workspace này được hệ thống giữ lại.' : 'Mã workspace này đã được sử dụng.', 'danger');
       return false;
     }
-    setSlugStatus(`${slug}.sovie.vn đang khả dụng.`, 'success');
+    setSlugStatus(`Mã ${slug} đang khả dụng. Tài khoản đăng nhập tại sovie.vn.`, 'success');
     return true;
   } catch (error) {
-    setSlugStatus(error?.message || 'Không thể kiểm tra tên miền.', 'danger');
+    setSlugStatus(error?.message || 'Không thể kiểm tra mã workspace.', 'danger');
     return false;
   }
 }
@@ -617,6 +637,8 @@ export function setupPlatformAdmin() {
 }
 
 export function clearPlatformAdminState() {
+  platformStateEpoch += 1;
+  platformHydrationPromise = null;
   platformDataLoaded = false;
   platformPlansLoaded = false;
   state.platformRole = '';

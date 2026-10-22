@@ -23,6 +23,7 @@ test('active membership is the authoritative tenant and role', () => {
   assert.equal(context.organizationId, 'org-b');
   assert.equal(context.organizationRole, 'owner');
   assert.equal(context.applicationRole, 'admin');
+  assert.deepEqual(context.organizations.map(item => item.id), ['org-a', 'org-b']);
 });
 
 test('missing membership and invalid roles fail closed', () => {
@@ -33,8 +34,10 @@ test('missing membership and invalid roles fail closed', () => {
   }));
 });
 
-test('both login and recovered sessions load SaaS context before business data', () => {
+test('central login loads every active workspace membership before business data', () => {
   assert.match(service, /supabaseClient\.rpc\('rpc_my_saas_context'\)/);
+  assert.doesNotMatch(service, /rpc_bind_login_to_workspace_domain/);
+  assert.doesNotMatch(service, /applyLoginDomainContext/);
   assert.ok(users.indexOf('await loadSaasContext({ allowMissingOrganization: true })') < users.indexOf('await fetchCloudData({'));
   assert.ok(main.indexOf('await loadSaasContext({ allowMissingOrganization: true })') < main.indexOf('await fetchCloudData({'));
   assert.match(users, /role: tenantContext\.applicationRole/);

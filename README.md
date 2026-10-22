@@ -55,7 +55,7 @@ npm run deploy
   và tên miền `chamsockhachhang.store`; không đổi custom domain hoặc `CNAME`
   của repository đó khi triển khai SaaS.
 
-- Chuỗi migration trong mã nguồn hiện có đến `0108`. SQL Editor ghi nhận staging `mqxqswwssmemkimnolfu` đã áp dụng `0107`; cần áp dụng `0108_centralized_login_and_pause_custom_domains.sql` sau khi phát hành giao diện mới. Trong Supabase Auth, đặt Site URL là `https://sovie.vn` và Redirect URLs gồm `https://sovie.vn/**` (cộng địa chỉ localhost dùng khi phát triển).
+- Chuỗi migration trong mã nguồn hiện có đến `0110`. Trước khi phát hành, đối chiếu `public.schema_migrations` trên staging và chỉ áp dụng các phiên bản còn thiếu theo đúng thứ tự; `0109` bổ sung thông tin khách bên ngoài vào đơn và `0110` thêm đơn vị Bao. Trong Supabase Auth, đặt Site URL là `https://sovie.vn` và Redirect URLs gồm `https://sovie.vn/**` (cộng địa chỉ localhost dùng khi phát triển).
 - Bản web SaaS được ghim vào Supabase staging clone `mqxqswwssmemkimnolfu`; cấu hình production không còn nằm trong `js/config.js`.
 - Dữ liệu hiện tại được giữ trong workspace tương thích `legacy-weblendon`.
 - 35 bảng nghiệp vụ và 39 RPC callable đã được cách ly tenant và kiểm thử trên staging; migrations `0063`–`0066` đã bật tạo/chuyển workspace, trial Starter, quota, quản trị membership, lời mời email và chuyển quyền Owner nguyên tử.

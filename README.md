@@ -33,9 +33,17 @@ Mã nguồn được sao chép từ hệ thống web hiện tại để giữ ng
   và custom domain cũ được chuyển hướng về `https://sovie.vn`; mã workspace chỉ
   dùng để nhận diện doanh nghiệp sau khi đăng nhập. Cloudflare Worker
   `sovie-saas-staging` phục vụ website theo cấu hình `wrangler.jsonc`.
-- GitHub Pages có quy trình triển khai riêng, nhưng push GitHub **chưa tự cập nhật
-  Worker**. Sau khi push, chạy lệnh sau trong `saas-app` bằng tài khoản Cloudflare
-  đã đăng nhập:
+- GitHub Actions trong `.github/workflows/deploy-worker.yml` chạy kiểm tra phát
+  hành (`npm run release:check`) cho pull request vào `main`, rồi tự triển khai
+  Worker sau mỗi lần push/merge thành công vào `main`. Push lên nhánh tính năng
+  chưa cập nhật website; hãy merge thay đổi vào `main` sau khi kiểm tra.
+- Trong GitHub, vào **Settings → Secrets and variables → Actions** và thêm
+  `CLOUDFLARE_API_TOKEN` cùng `CLOUDFLARE_ACCOUNT_ID`. Tạo token Cloudflare theo
+  quyền tùy chỉnh **Workers Scripts: Edit** trên account SoVie và
+  **Workers Routes: Edit** chỉ trên zone `sovie.vn`; không đặt token trong mã
+  nguồn. Màn hình tạo token hiện giới hạn quyền Scripts ở cấp account.
+- Có thể triển khai thủ công khi cần bằng lệnh sau trong `saas-app` với tài khoản
+  Cloudflare đã đăng nhập:
 
 ```powershell
 npm run deploy

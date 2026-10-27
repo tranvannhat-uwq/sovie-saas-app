@@ -352,6 +352,12 @@ export function setupSupplierManagement() {
       closeModal();
       renderSuppliersTable();
       populateSupplierDatalist();
+      const savedSupplier = state.suppliers.find(supplier =>
+        String(supplier.code || '').trim().toLocaleUpperCase('vi') === code
+      );
+      document.dispatchEvent(new CustomEvent('sovie:supplier-saved', {
+        detail: { id: savedSupplier?.id || supplierData.id || saved?.supplier?.id || '', code }
+      }));
       showToast(id ? 'Cập nhật nhà cung cấp thành công!' : wasInactive ? 'Đã kích hoạt lại nhà cung cấp!' : 'Thêm nhà cung cấp thành công!');
     });
   }

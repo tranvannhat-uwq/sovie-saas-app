@@ -10838,6 +10838,92 @@ button.btn,
   box-shadow: 0 4px 12px 0 rgba(0, 111, 253, 0.28) !important;
 }
 
+#app-layout .purchase-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+#app-layout .purchase-actions .btn,
+#app-layout .purchase-supplier-select-wrap .btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  white-space: nowrap;
+}
+
+.purchase-supplier-select-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.purchase-supplier-select-wrap .form-control {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.purchase-excel-modal {
+  z-index: 1600;
+}
+
+.purchase-excel-dialog {
+  width: min(1120px, calc(100vw - 32px));
+  max-height: min(90vh, calc(100dvh - 2rem));
+  display: flex;
+  flex-direction: column;
+}
+
+.purchase-excel-dialog .modal-body {
+  min-height: 0;
+  overflow: auto;
+}
+
+.purchase-excel-warning {
+  margin: 1rem 0;
+  padding: 0.85rem 1rem;
+  border: 1px solid #fcd34d;
+  border-radius: 10px;
+  color: #78350f;
+  background: #fffbeb;
+  line-height: 1.5;
+}
+
+.purchase-excel-errors {
+  color: #b91c1c;
+  padding-left: 1.25rem;
+}
+
+.purchase-excel-preview-table {
+  min-width: 760px;
+}
+
+@media (max-width: 900px) {
+  #app-layout .purchase-page .purchase-toolbar {
+    align-items: flex-start !important;
+    flex-direction: column;
+  }
+
+  #app-layout .purchase-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 520px) {
+  .purchase-supplier-select-wrap {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .purchase-supplier-select-wrap .btn {
+    width: 100%;
+  }
+}
+
 /* 4-item KPI summary cards */
 #app-layout .purchase-summary-bar {
   display: grid !important;

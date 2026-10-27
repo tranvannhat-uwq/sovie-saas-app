@@ -1,8 +1,24 @@
 import { state } from '../state.js';
 import { showToast, formatCurrency, safeCreateIcons, formatPhoneNumber } from '../utils.js';
-import { dbSaveSupplier, dbDeleteSupplier, dbSaveSuppliersBulk, getCloudReadHealth } from '../services/supabase.js';
+import { dbSaveSupplier, dbDeleteSupplier, getCloudReadHealth } from '../services/supabase.js';
 import { ensurePanelCloudData, renderAll } from '../main.js';
 import { tenantStorage } from '../services/tenant-storage.js';
+import { filterSuppliersForExport, parseSupplierRows, suggestNextSupplierCode } from '../domain/supplier-excel.js';
+
+const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
+
+function getXLSX() {
+  const library = globalThis.XLSX;
+  if (!library?.utils || !library.writeFile) {
+    showToast('Không tải được thư viện Excel. Hãy tải lại trang rồi thử lại.', 'danger');
+    return null;
+  }
+  return library;
+}
+
+function getKnownSuppliers() {
+  return [...(state.supplierDirectory || []), ...(state.suppliers || [])];
+}
 
 function toNumber(value) {
   if (value === null || value === undefined || value === '') return 0;
@@ -122,9 +138,12 @@ export function renderSuppliersTable() {
 
   if (getCloudReadHealth().failedDomains.includes('suppliers')) {
     const addButton = document.getElementById('btn-open-add-supplier-modal');
-    if (addButton) {
-      addButton.disabled = true;
-      addButton.title = 'Tải lại danh sách trước khi thêm để tránh tạo trùng nhà cung cấp.';
+    const importButton = document.getElementById('btn-open-supplier-excel-modal');
+    const exportButton = document.getElementById('btn-export-suppliers-excel');
+    for (const button of [addButton, importButton, exportButton]) {
+      if (!button) continue;
+      button.disabled = true;
+      button.title = 'Tải lại danh sách nhà cung cấp từ Cloud trước khi tiếp tục.';
     }
     tableBody.innerHTML = `
       <tr><td colspan="6" role="alert" class="text-center py-4">
@@ -138,9 +157,10 @@ export function renderSuppliersTable() {
     return;
   }
   const addButton = document.getElementById('btn-open-add-supplier-modal');
-  if (addButton) {
-    addButton.disabled = false;
-    addButton.removeAttribute('title');
+  for (const button of [addButton, document.getElementById('btn-open-supplier-excel-modal'), document.getElementById('btn-export-suppliers-excel')]) {
+    if (!button) continue;
+    button.disabled = false;
+    button.removeAttribute('title');
   }
   
   console.log("[SUPPLIERS] RENDER INPUT:", state.suppliers?.length || 0);
@@ -148,16 +168,7 @@ export function renderSuppliersTable() {
   const searchInput = document.getElementById('supplier-search-input');
   const searchVal = searchInput ? searchInput.value.toLowerCase().trim() : '';
   
-  const filtered = (state.suppliers || []).filter(s => {
-    if (!s) return false;
-    const sCode = (s.code || s.id || '').toLowerCase();
-    const sName = (s.name || '').toLowerCase();
-    const sPhone = (s.phone || '');
-    return sCode.includes(searchVal) || sName.includes(searchVal) || sPhone.includes(searchVal);
-  });
-  
-  // Sắp xếp theo tên nhà cung cấp
-  filtered.sort((a, b) => a.name.localeCompare(b.name));
+  const filtered = filterSuppliersForExport(state.suppliers, searchVal);
   
   const ITEMS_PER_PAGE = 20;
   const totalItems = filtered.length;
@@ -284,8 +295,7 @@ export function setupSupplierManagement() {
       document.getElementById('supplier-debt').disabled = false;
       
       // Auto-generate code if empty
-      const nextNum = state.suppliers.length + 1;
-      document.getElementById('supplier-code').value = 'NCC' + String(nextNum).padStart(3, '0');
+      document.getElementById('supplier-code').value = suggestNextSupplierCode(getKnownSuppliers());
       
       modal.classList.add('active');
     });
@@ -303,22 +313,32 @@ export function setupSupplierManagement() {
       e.preventDefault();
       
       const id = document.getElementById('supplier-id').value;
-      const code = document.getElementById('supplier-code').value.trim();
+      const code = document.getElementById('supplier-code').value.trim().toUpperCase();
       const name = document.getElementById('supplier-name').value.trim();
       const phone = document.getElementById('supplier-phone').value.trim();
       const address = document.getElementById('supplier-address').value.trim();
-      const debt = parseFloat(document.getElementById('supplier-debt').value) || 0;
+      const debt = Number(document.getElementById('supplier-debt').value || 0);
       const notes = document.getElementById('supplier-notes').value.trim();
 
-      // Kiểm tra trùng mã
-      const isDupCode = state.suppliers.some(s => s.code.toLowerCase() === code.toLowerCase() && s.id !== id);
-      if (isDupCode) {
+      if (!code || !name) {
+        showToast('Vui lòng nhập mã và tên nhà cung cấp.', 'warning');
+        return;
+      }
+      if (!Number.isFinite(debt) || debt < 0) {
+        showToast('Công nợ ban đầu phải là số không âm.', 'warning');
+        return;
+      }
+
+      const sameCode = getKnownSuppliers().find(s => String(s.code || '').trim().toUpperCase() === code && String(s.id) !== String(id));
+      if (sameCode && sameCode.isActive !== false) {
         showToast('Mã nhà cung cấp đã tồn tại!', 'danger');
         return;
       }
 
+      const wasInactive = Boolean(sameCode && sameCode.isActive === false && !id);
+
       const supplierData = {
-        id: id || null,
+        id: id || sameCode?.id || null,
         code,
         name,
         phone,
@@ -332,7 +352,7 @@ export function setupSupplierManagement() {
       closeModal();
       renderSuppliersTable();
       populateSupplierDatalist();
-      showToast(id ? 'Cập nhật nhà cung cấp thành công!' : 'Thêm nhà cung cấp thành công!');
+      showToast(id ? 'Cập nhật nhà cung cấp thành công!' : wasInactive ? 'Đã kích hoạt lại nhà cung cấp!' : 'Thêm nhà cung cấp thành công!');
     });
   }
 
@@ -371,7 +391,7 @@ export function setupSupplierManagement() {
   if (dropzone && fileInput) {
     dropzone.onclick = (e) => {
       // Tránh kích hoạt click 2 lần khi nhấp trúng nút browseBtn hoặc bản thân fileInput
-      if (e.target === browseBtn || browseBtn.contains(e.target) || e.target === fileInput) {
+      if (e.target === browseBtn || browseBtn?.contains(e.target) || e.target === fileInput) {
         return;
       }
       e.stopPropagation();
@@ -424,6 +444,8 @@ export function setupSupplierManagement() {
   if (downloadTemplateBtn) {
     downloadTemplateBtn.addEventListener('click', downloadSupplierExcelTemplate);
   }
+  const exportBtn = document.getElementById('btn-export-suppliers-excel');
+  if (exportBtn) exportBtn.addEventListener('click', exportSuppliersExcel);
 }
 
 function openEditSupplierModal(idx) {
@@ -474,26 +496,49 @@ let supplierExcelImportData = [];
 let isSelectingFile = false;
 
 export function downloadSupplierExcelTemplate() {
-  const headers = [[
-    "Mã nhà cung cấp", "Tên nhà cung cấp", "Email", "Điện thoại", "Địa chỉ"
-  ]];
-  
-  const sampleRows = [
-    ['NCC001', 'Công ty Cổ phần ABS JAPAN', 'ctyabs@lendon.com', '0886037878', 'Tiên Kha - Phúc Thịnh - Hà Nội'],
-    ['NCC002', 'Công ty TNHH Bao Bì Nam Hải', '', '0904947217', 'Phúc Thuận - Thái Nguyên']
-  ];
-
-  const sheetData = headers.concat(sampleRows);
+  const XLSX = getXLSX();
+  if (!XLSX) return;
   const wb = XLSX.utils.book_new();
-  const ws = XLSX.utils.aoa_to_sheet(sheetData);
-  
-  ws['!cols'] = [
-    { wch: 20 }, { wch: 40 }, { wch: 25 }, { wch: 15 }, { wch: 45 }
-  ];
-  
-  XLSX.utils.book_append_sheet(wb, ws, "Danh Sach Nha Cung Cap");
-  XLSX.writeFile(wb, "Mau_Danh_Sach_Nha_Cung_Cap.xlsx");
+  const ws = XLSX.utils.aoa_to_sheet([['Mã nhà cung cấp', 'Tên nhà cung cấp', 'Điện thoại', 'Địa chỉ', 'Ghi chú']]);
+  ws['!cols'] = [{ wch: 22 }, { wch: 40 }, { wch: 18 }, { wch: 45 }, { wch: 35 }];
+  ws['!autofilter'] = { ref: 'A1:E1' };
+  XLSX.utils.book_append_sheet(wb, ws, 'Danh Sach Nha Cung Cap');
+  XLSX.writeFile(wb, 'Mau_Danh_Sach_Nha_Cung_Cap.xlsx');
   showToast("Đã tải xuống file Excel mẫu nhà cung cấp thành công!");
+}
+
+export function exportSuppliersExcel() {
+  if (getCloudReadHealth().failedDomains.includes('suppliers')) {
+    showToast('Danh sách nhà cung cấp chưa tải được từ Cloud; hãy tải lại trước khi xuất.', 'danger');
+    return;
+  }
+  const XLSX = getXLSX();
+  if (!XLSX) return;
+  const searchVal = document.getElementById('supplier-search-input')?.value || '';
+  const suppliers = filterSuppliersForExport(state.suppliers, searchVal);
+  if (!suppliers.length) {
+    showToast('Không có nhà cung cấp nào để xuất.', 'warning');
+    return;
+  }
+  const headers = ['Mã nhà cung cấp', 'Tên nhà cung cấp', 'Điện thoại', 'Địa chỉ', 'Công nợ đầu kỳ (đ)', 'Nợ cần trả hiện tại (đ)', 'Tổng mua (đ)', 'Ghi chú'];
+  const rows = suppliers.map(supplier => {
+    const metrics = calculateSupplierMetrics(supplier);
+    return [supplier.code || '', supplier.name || '', supplier.phone || '', supplier.address || '', toNumber(supplier.openingDebt), metrics.payableDebt, metrics.totalPurchase, supplier.notes || ''];
+  });
+  const worksheet = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+  worksheet['!cols'] = [{ wch: 22 }, { wch: 40 }, { wch: 18 }, { wch: 45 }, { wch: 22 }, { wch: 24 }, { wch: 18 }, { wch: 40 }];
+  worksheet['!autofilter'] = { ref: `A1:H${rows.length + 1}` };
+  for (let rowIndex = 2; rowIndex <= rows.length + 1; rowIndex += 1) {
+    for (const column of ['E', 'F', 'G']) {
+      const cell = worksheet[`${column}${rowIndex}`];
+      if (cell) cell.z = '#,##0';
+    }
+  }
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, 'Danh Sach Nha Cung Cap');
+  const stamp = new Date().toISOString().slice(0, 10).replaceAll('-', '');
+  XLSX.writeFile(workbook, `DanhSachNhaCungCap_${stamp}.xlsx`);
+  showToast(`Đã xuất ${rows.length} nhà cung cấp theo bộ lọc hiện tại.`);
 }
 
 export function openSupplierExcelModal() {
@@ -522,92 +567,37 @@ export function closeSupplierExcelModal() {
 
 function handleSupplierExcelFile(file) {
   if (!file) return;
+  supplierExcelImportData = [];
+  const XLSX = getXLSX();
+  if (!XLSX) return;
   
   const reader = new FileReader();
   reader.onload = function(e) {
     try {
       const data = new Uint8Array(e.target.result);
-      const workbook = XLSX.read(data, { type: 'array' });
+      const workbook = XLSX.read(data, { type: 'array', cellDates: false });
       const sheetName = workbook.SheetNames[0];
       const worksheet = workbook.Sheets[sheetName];
-      const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+      const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' });
       
       if (rows.length === 0) {
         showToast("Tập tin Excel trống!", "danger");
         return;
       }
       
-      const headers = rows[0].map(h => (h || '').toString().trim());
-      
-      // Map columns
-      const colMap = {
-        code: headers.findIndex(h => h.toLowerCase().includes('mã nhà cung cấp') || h.toLowerCase().includes('ma ncc') || h.toLowerCase() === 'mã' || h.toLowerCase() === 'code'),
-        name: headers.findIndex(h => h.toLowerCase().includes('tên nhà cung cấp') || h.toLowerCase().includes('ten ncc') || h.toLowerCase() === 'tên' || h.toLowerCase() === 'name'),
-        email: headers.findIndex(h => h.toLowerCase() === 'email' || h.toLowerCase().includes('thư điện tử')),
-        phone: headers.findIndex(h => h.toLowerCase().includes('điện thoại') || h.toLowerCase().includes('sđt') || h.toLowerCase().includes('phone') || h.toLowerCase().includes('di động')),
-        address: headers.findIndex(h => h.toLowerCase().includes('địa chỉ') || h.toLowerCase().includes('dia chi') || h.toLowerCase() === 'address')
-      };
-      
-      // Fallback map if columns are not matched (try to find by position)
-      if (colMap.name === -1) {
-        colMap.code = 0;
-        colMap.name = 1;
-        colMap.email = 2;
-        colMap.phone = 3;
-        colMap.address = 4;
-      }
-      
-      // Re-verify name column
-      if (colMap.name === -1 || !headers[colMap.name]) {
-        showToast("Tập tin không có cột tên nhà cung cấp hợp lệ!", "danger");
-        return;
-      }
-      
-      supplierExcelImportData = [];
-      const previewRows = [];
-      
-      for (let i = 1; i < rows.length; i++) {
-        const row = rows[i];
-        if (!row || row.length === 0) continue;
-        
-        let name = colMap.name !== -1 && row[colMap.name] ? row[colMap.name].toString().trim() : '';
-        if (!name) continue; // skip rows without name
-        
-        let code = colMap.code !== -1 && row[colMap.code] ? row[colMap.code].toString().trim() : '';
-        let email = colMap.email !== -1 && row[colMap.email] ? row[colMap.email].toString().trim() : '';
-        let phone = colMap.phone !== -1 && row[colMap.phone] ? row[colMap.phone].toString().trim() : '';
-        let address = colMap.address !== -1 && row[colMap.address] ? row[colMap.address].toString().trim() : '';
-        
-        // Auto-generate code if empty
-        if (!code) {
-          const nextNum = state.suppliers.length + supplierExcelImportData.length + 1;
-          code = 'NCC' + String(nextNum).padStart(3, '0');
-        }
-        
-        // Build notes: if email exists, save email to notes
-        let notesList = [];
-        if (email) notesList.push(`Email: ${email}`);
-        notesList.push('Imported from Excel');
-        const notes = notesList.join(' | ');
-        
-        const supplierObj = {
-          id: 'supplier-' + Date.now() + '-' + i + '-' + Math.floor(Math.random() * 1000),
-          code: code,
-          name: name,
-          phone: phone,
-          address: address,
-          debt: 0,
-          notes: notes
-        };
-        
-        supplierExcelImportData.push(supplierObj);
-        if (previewRows.length < 5) {
-          previewRows.push({ ...supplierObj, email: email });
-        }
-      }
-      
-      if (supplierExcelImportData.length === 0) {
-        showToast("Không tìm thấy dòng dữ liệu hợp lệ trong file!", "warning");
+      const parsed = parseSupplierRows(rows);
+      supplierExcelImportData = parsed.records;
+      const previewRows = supplierExcelImportData.slice(0, 5);
+      if (parsed.errors.length || supplierExcelImportData.length === 0) {
+        const previewBody = document.getElementById('supplier-excel-preview-table-body');
+        if (previewBody) previewBody.innerHTML = '';
+        showToast(parsed.errors.slice(0, 3).join(' ') || 'Không tìm thấy dòng dữ liệu hợp lệ trong file.', 'danger');
+        const summaryEl = document.getElementById('supplier-excel-preview-summary');
+        if (summaryEl) summaryEl.textContent = parsed.errors.join(' ');
+        const container = document.getElementById('supplier-excel-preview-container');
+        if (container) container.style.display = 'block';
+        const submitBtn = document.getElementById('btn-save-supplier-excel-submit');
+        if (submitBtn) submitBtn.disabled = true;
         return;
       }
       
@@ -617,18 +607,17 @@ function handleSupplierExcelFile(file) {
         previewBody.innerHTML = previewRows.map((s, idx) => `
           <tr>
             <td style="text-align: center;">${idx + 1}</td>
-            <td style="font-weight: 600; color: #fff;">${s.code}</td>
-            <td style="font-weight: bold; color: #22c55e;">${s.name}</td>
-            <td>${s.email || '<span style="color: var(--text-muted);">-</span>'}</td>
-            <td>${s.phone || '<span style="color: var(--text-muted);">-</span>'}</td>
-            <td>${s.address || '<span style="color: var(--text-muted);">-</span>'}</td>
+            <td style="font-weight: 600;">${escapeHtml(s.code)}</td>
+            <td style="font-weight: bold;">${escapeHtml(s.name)}</td>
+            <td>${escapeHtml(s.phone || '-')}</td>
+            <td>${escapeHtml(s.address || '-')}</td>
           </tr>
         `).join('');
       }
       
       const summaryEl = document.getElementById('supplier-excel-preview-summary');
       if (summaryEl) {
-        summaryEl.innerText = `Hiển thị 5 trên tổng số ${supplierExcelImportData.length} nhà cung cấp đọc được từ tệp.`;
+        summaryEl.textContent = `Đã đọc ${supplierExcelImportData.length} nhà cung cấp hợp lệ. Hiển thị ${previewRows.length} dòng đầu tiên; trùng mã hiện có sẽ được cập nhật, không thay đổi công nợ.`;
       }
       
       const container = document.getElementById('supplier-excel-preview-container');
@@ -657,75 +646,41 @@ function handleSupplierExcelFile(file) {
 
 async function processSupplierExcelImport() {
   if (supplierExcelImportData.length === 0) return;
-  
-  const modeVal = document.querySelector('input[name="supplier-import-mode"]:checked');
-  const mode = modeVal ? modeVal.value : 'merge';
-  if (mode === 'overwrite') {
-    showToast('Không hỗ trợ ghi đè/xóa hàng loạt nhà cung cấp. Hãy dùng chế độ gộp.', 'warning');
+  if (getCloudReadHealth().failedDomains.includes('suppliers')) {
+    showToast('Danh sách nhà cung cấp chưa tải được từ Cloud; hãy tải lại trước khi nhập để tránh trùng mã.', 'danger');
     return;
   }
-  
+  const submitButton = document.getElementById('btn-save-supplier-excel-submit');
+  if (submitButton) submitButton.disabled = true;
   try {
-    const authoritativeResult = await dbSaveSuppliersBulk(supplierExcelImportData);
-    if (!authoritativeResult) return;
-    closeSupplierExcelModal();
+    let created = 0;
+    let updated = 0;
+    let saved = 0;
+    for (const supplier of supplierExcelImportData) {
+      const existing = getKnownSuppliers().find(item => String(item.code || '').trim().toUpperCase() === supplier.code);
+      const result = await dbSaveSupplier({
+        ...supplier,
+        id: existing?.id || null,
+        openingDebt: existing ? Number(existing.openingDebt || 0) : 0
+      });
+      if (!result) break;
+      saved += 1;
+      if (existing) updated += 1;
+      else created += 1;
+    }
+    if (saved === supplierExcelImportData.length) {
+      closeSupplierExcelModal();
+      showToast(`Đã nhập ${saved} nhà cung cấp (${created} thêm mới, ${updated} cập nhật). Công nợ và lịch sử mua hàng được giữ nguyên.`, 'success');
+    } else if (saved > 0) {
+      showToast(`Đã lưu ${saved}/${supplierExcelImportData.length} nhà cung cấp trước khi gặp lỗi. Có thể nhập lại cùng tệp; các mã đã có sẽ được cập nhật an toàn.`, 'warning');
+    }
     renderSuppliersTable();
     populateSupplierDatalist();
     renderAll();
-    showToast(`Đã nhập thành công ${authoritativeResult.saved} nhà cung cấp!`, 'success');
-    return;
-    showToast("Đang lưu nhà cung cấp vào hệ thống...", "info");
-    
-    if (mode === 'overwrite') {
-      if (confirm("Chế độ ghi đè sẽ xóa toàn bộ nhà cung cấp hiện tại. Bạn chắc chắn muốn tiếp tục?")) {
-        // Clear all suppliers first
-        // delete from cloud
-        for (const s of state.suppliers) {
-          await dbDeleteSupplier(s.id);
-        }
-        state.suppliers = [];
-      } else {
-        return;
-      }
-    }
-    
-    for (const s of supplierExcelImportData) {
-      // Check duplicate code if merging
-      if (mode === 'merge') {
-        const dupIdx = state.suppliers.findIndex(os => os.code.toLowerCase() === s.code.toLowerCase());
-        if (dupIdx > -1) {
-          // Update existing keeping old ID and debt
-          s.id = state.suppliers[dupIdx].id;
-          s.debt = state.suppliers[dupIdx].debt;
-          
-          // merge notes if needed
-          if (state.suppliers[dupIdx].notes && !s.notes.includes(state.suppliers[dupIdx].notes)) {
-            s.notes = state.suppliers[dupIdx].notes + ' | ' + s.notes;
-          }
-          
-          state.suppliers[dupIdx] = s;
-        } else {
-          state.suppliers.push(s);
-        }
-      } else {
-        // overwrite mode: just push
-        state.suppliers.push(s);
-      }
-    }
-    
-    // Save suppliers to cloud in one batch
-    const bulkSaved = await dbSaveSuppliersBulk(supplierExcelImportData);
-    if (!bulkSaved) return;
-    
-    closeSupplierExcelModal();
-    
-    renderSuppliersTable();
-    populateSupplierDatalist();
-    renderAll();
-    
-    showToast(`Đã nhập thành công ${supplierExcelImportData.length} nhà cung cấp!`, "success");
   } catch (err) {
     console.error(err);
     showToast("Lỗi khi nhập danh sách nhà cung cấp: " + err.message, "danger");
+  } finally {
+    if (submitButton) submitButton.disabled = supplierExcelImportData.length === 0;
   }
 }

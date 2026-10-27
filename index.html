@@ -2481,6 +2481,9 @@
               <button class="btn btn-secondary btn-sm" id="btn-download-supplier-excel-template">
                 <i data-lucide="download"></i> Tải file mẫu
               </button>
+              <button class="btn btn-secondary btn-sm" id="btn-export-suppliers-excel">
+                <i data-lucide="file-down"></i> Xuất Excel
+              </button>
               <button class="btn btn-indigo btn-sm" id="btn-open-supplier-excel-modal">
                 <i data-lucide="file-up"></i> Nhập Excel
               </button>
@@ -4255,16 +4258,8 @@
           <button type="button" class="btn btn-secondary btn-sm" id="btn-browse-supplier-excel">Chọn tệp</button>
         </div>
         
-        <div class="import-options" style="display: flex; gap: 1.5rem; margin: 1.25rem 0; font-size: 0.875rem; align-items: center; justify-content: center; flex-wrap: wrap; border-bottom: 1px dashed var(--border-color); padding-bottom: 1rem;">
-          <span style="font-weight: 600; color: var(--text-secondary);">Chế độ nhập:</span>
-          <label style="display: flex; align-items: center; gap: 0.35rem; cursor: pointer; ">
-            <input type="radio" name="supplier-import-mode" value="merge" checked style="accent-color: var(--color-primary);"> 
-            Gộp thêm (Giữ lại nhà cung cấp cũ, trùng mã sẽ cập nhật)
-          </label>
-          <label style="display: flex; align-items: center; gap: 0.35rem; cursor: pointer; ">
-            <input type="radio" name="supplier-import-mode" value="overwrite" style="accent-color: var(--color-primary);"> 
-            Ghi đè toàn bộ (Xóa danh sách cũ trước khi nhập)
-          </label>
+        <div class="import-options" style="margin: 1.25rem 0; font-size: 0.875rem; border-bottom: 1px dashed var(--border-color); padding-bottom: 1rem; color: var(--text-secondary);">
+          Chỉ nhập thêm hoặc cập nhật theo <strong>mã nhà cung cấp</strong>. Nhà cung cấp không có trong tệp vẫn được giữ; số dư công nợ và lịch sử mua hàng không bị ghi đè.
         </div>
 
         <div id="supplier-excel-preview-container" style="display: none; border-top: 1px dashed var(--border-color); padding-top: 1rem; margin-top: 1rem;">
@@ -4278,7 +4273,6 @@
                   <th style="width: 50px; text-align: center;">STT</th>
                   <th>Mã NCC</th>
                   <th>Tên nhà cung cấp</th>
-                  <th>Email</th>
                   <th>Số điện thoại</th>
                   <th>Địa chỉ</th>
                 </tr>

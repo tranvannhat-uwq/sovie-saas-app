@@ -638,10 +638,6 @@ function attachEvents(panel) {
   attachRowEvents(panel);
   const modal = panel.querySelector('#purchase-entry-modal');
   const close = () => modal?.classList.remove('active');
-  panel.querySelector('#btn-add-purchase-supplier')?.addEventListener('click', () => {
-    purchaseSupplierSelectionPending = true;
-    document.getElementById('btn-open-add-supplier-modal')?.click();
-  });
   panel.querySelector('#btn-add-purchase-supplier-inline')?.addEventListener('click', () => {
     purchaseSupplierSelectionPending = true;
     document.getElementById('btn-open-add-supplier-modal')?.click();
@@ -865,9 +861,6 @@ export function renderPurchasesPanel(panel) {
             </button>
             <button type="button" class="btn btn-secondary btn-sm" id="btn-open-purchase-excel-import" ${purchasesReadFailed || suppliersReadFailed ? 'disabled title="Tải lại dữ liệu Cloud trước khi nhập."' : ''}>
               <i data-lucide="file-up"></i> Nhập Excel
-            </button>
-            <button type="button" class="btn btn-secondary btn-sm" id="btn-add-purchase-supplier" ${suppliersReadFailed ? 'disabled title="Tải lại danh sách nhà cung cấp trước."' : ''}>
-              <i data-lucide="user-plus"></i> Thêm nhà cung cấp
             </button>
             <button class="purchase-primary-btn btn btn-primary" id="btn-open-purchase-modal" ${purchasesReadFailed || suppliersReadFailed || !hasSuppliers ? 'disabled' : ''}>
               <i data-lucide="plus"></i> Tạo phiếu mua

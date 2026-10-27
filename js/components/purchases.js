@@ -8,9 +8,23 @@ import {
   getCloudReadHealth
 } from '../services/supabase.js';
 import { ensurePanelCloudData, switchTab } from '../main.js';
+import { filterPurchasesForExport, parsePurchaseImportRows } from '../domain/purchase-excel.js';
 
 let pendingPurchaseKey = '';
 const pendingSupplierPaymentKeys = new Map();
+let purchaseExcelImportData = [];
+let activePurchasePanel = null;
+let supplierSavedListenerInstalled = false;
+let purchaseSupplierSelectionPending = false;
+
+function getXLSX() {
+  const library = globalThis.XLSX;
+  if (!library?.utils || !library.writeFile) {
+    showToast('Không tải được thư viện Excel. Hãy tải lại trang rồi thử lại.', 'danger');
+    return null;
+  }
+  return library;
+}
 
 function financeRole() {
   return state.currentUser?.role === 'admin' || state.currentUser?.role === 'accounting';
@@ -141,6 +155,275 @@ function itemRow(item = {}) {
     </tr>`;
 }
 
+function purchaseExcelImportModal() {
+  return `
+    <div class="modal-overlay purchase-excel-modal" id="purchase-excel-modal">
+      <div class="modal-content purchase-excel-dialog">
+        <div class="modal-header">
+          <div><h3 class="modal-title">Nhập phiếu mua từ Excel</h3><small>Mỗi mã nhóm phiếu sẽ tạo một phiếu mua; nhiều dòng cùng mã được gom thành một phiếu.</small></div>
+          <button type="button" class="modal-close" id="btn-close-purchase-excel">×</button>
+        </div>
+        <div class="modal-body">
+          <div class="upload-dropzone" id="purchase-excel-dropzone">
+            <div class="upload-icon"><i data-lucide="file-up"></i></div>
+            <p class="upload-text">Kéo thả tệp Excel (.xlsx, .xls) hoặc CSV vào đây</p>
+            <input type="file" id="purchase-excel-file-input" accept=".xlsx,.xls,.csv" hidden>
+            <button type="button" class="btn btn-secondary btn-sm" id="btn-browse-purchase-excel">Chọn tệp</button>
+          </div>
+          <div class="purchase-excel-warning">
+            Khi xác nhận, mỗi mã nhóm sẽ tạo phiếu mua thực tế và cập nhật công nợ; khoản thanh toán ngay sẽ tạo phiếu chi. Mã nhóm được dùng để chống tạo trùng khi nhập lại cùng dữ liệu.
+          </div>
+          <div id="purchase-excel-preview-container" hidden>
+            <div class="table-responsive">
+              <table class="table purchase-excel-preview-table">
+                <thead><tr><th>Mã nhóm</th><th>Nhà cung cấp</th><th>Số hóa đơn</th><th>Số dòng</th><th>Tổng tiền</th><th>Trả ngay</th></tr></thead>
+                <tbody id="purchase-excel-preview-body"></tbody>
+              </table>
+            </div>
+            <p id="purchase-excel-preview-summary" role="status" aria-live="polite"></p>
+            <ul id="purchase-excel-errors" class="purchase-excel-errors" role="alert"></ul>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" id="btn-cancel-purchase-excel">Đóng</button>
+          <button type="button" class="btn btn-primary" id="btn-save-purchase-excel" disabled>Tạo phiếu mua</button>
+        </div>
+      </div>
+    </div>`;
+}
+
+function populatePurchaseSupplierSelect(panel, preferredId = '') {
+  const select = panel?.querySelector('#purchase-supplier-select');
+  if (!select) return;
+  const selectedId = preferredId || select.value;
+  select.innerHTML = `<option value="">-- Chọn nhà cung cấp --</option>${(state.suppliers || [])
+    .filter(supplier => supplier?.isActive !== false)
+    .map(supplier => `<option value="${escapeHtml(supplier.id)}">${escapeHtml(supplier.name)} (${escapeHtml(supplier.code)})</option>`).join('')}`;
+  if (selectedId && [...select.options].some(option => option.value === String(selectedId))) select.value = String(selectedId);
+}
+
+function installSupplierSavedListener() {
+  if (supplierSavedListenerInstalled || typeof document === 'undefined') return;
+  supplierSavedListenerInstalled = true;
+  for (const id of ['btn-cancel-supplier-modal', 'btn-close-supplier-modal']) {
+    document.getElementById(id)?.addEventListener('click', () => { purchaseSupplierSelectionPending = false; });
+  }
+  document.addEventListener('sovie:supplier-saved', event => {
+    const panel = activePurchasePanel;
+    if (!purchaseSupplierSelectionPending || !panel?.querySelector('#purchase-supplier-select')) return;
+    purchaseSupplierSelectionPending = false;
+    const saved = (state.suppliers || []).find(supplier =>
+      (event.detail?.id && String(supplier.id) === String(event.detail.id)) ||
+      (event.detail?.code && String(supplier.code).trim().toLocaleUpperCase('vi') === String(event.detail.code).trim().toLocaleUpperCase('vi'))
+    );
+    populatePurchaseSupplierSelect(panel, saved?.id || '');
+    const createButton = panel.querySelector('#btn-open-purchase-modal');
+    const failedDomains = getCloudReadHealth().failedDomains;
+    if (createButton) {
+      createButton.disabled = failedDomains.includes('purchases') || failedDomains.includes('suppliers') ||
+        !(state.suppliers || []).some(supplier => supplier?.isActive !== false);
+    }
+    if (saved) showToast('Đã thêm nhà cung cấp vào danh sách của phiếu mua.', 'success');
+  });
+}
+
+function getFilteredPurchases(panel) {
+  return filterPurchasesForExport(
+    state.purchases,
+    panel?.dataset.purchaseSearch || '',
+    panel?.dataset.purchaseStatus || 'all'
+  );
+}
+
+export function downloadPurchaseExcelTemplate() {
+  const XLSX = getXLSX();
+  if (!XLSX) return;
+  const workbook = XLSX.utils.book_new();
+  const headers = [
+    'Mã nhóm phiếu', 'Mã nhà cung cấp', 'Số hóa đơn đầu vào', 'Ngày mua',
+    'Mã hàng hóa/dịch vụ', 'Tên hàng hóa/dịch vụ', 'Đơn vị tính', 'Số lượng',
+    'Đơn giá', 'Thanh toán ngay (đ)', 'Phương thức chi', 'Ghi chú'
+  ];
+  const worksheet = XLSX.utils.aoa_to_sheet([headers]);
+  worksheet['!cols'] = [{ wch: 20 }, { wch: 20 }, { wch: 24 }, { wch: 18 }, { wch: 24 }, { wch: 34 }, { wch: 16 }, { wch: 14 }, { wch: 18 }, { wch: 22 }, { wch: 20 }, { wch: 35 }];
+  worksheet['!autofilter'] = { ref: 'A1:L1' };
+  XLSX.utils.book_append_sheet(workbook, worksheet, 'Nhap Phieu Mua');
+  const guide = XLSX.utils.aoa_to_sheet([
+    ['HƯỚNG DẪN NHẬP PHIẾU MUA'],
+    ['Mỗi dòng là một mặt hàng/dịch vụ. Lặp lại Mã nhóm phiếu cho các dòng thuộc cùng một phiếu.'],
+    ['Mã nhóm phiếu phải ổn định và duy nhất cho mỗi phiếu nguồn; dùng lại mã cùng dữ liệu sẽ không tạo phiếu trùng.'],
+    ['Mã nhà cung cấp phải khớp nhà cung cấp đang hoạt động trong workspace. Có thể thêm nhà cung cấp ở màn hình Phiếu mua.'],
+    ['Ngày mua chấp nhận dd/mm/yyyy hoặc yyyy-mm-dd. Số lượng phải lớn hơn 0; đơn giá và thanh toán ngay không âm.'],
+    ['Phương thức chi: Tiền mặt, Ngân hàng hoặc Ví điện tử. Để trống thì mặc định Tiền mặt.'],
+    ['Các trường thông tin phiếu nên lặp lại trên mọi dòng của cùng mã nhóm. Tổng tối đa 100 dòng hàng cho mỗi phiếu.'],
+    ['Lưu file sẽ tạo phiếu mua, ghi công nợ và tạo phiếu chi nếu có thanh toán ngay. Mã phiếu trên hệ thống được tự sinh.']
+  ]);
+  guide['!cols'] = [{ wch: 120 }];
+  XLSX.utils.book_append_sheet(workbook, guide, 'Huong Dan');
+  XLSX.writeFile(workbook, 'Mau_Nhap_Phieu_Mua.xlsx');
+  showToast('Đã tải file Excel mẫu phiếu mua.');
+}
+
+export function exportPurchasesExcel(panel = activePurchasePanel) {
+  if (getCloudReadHealth().failedDomains.includes('purchases')) {
+    showToast('Danh sách phiếu mua chưa tải được từ Cloud; hãy tải lại trước khi xuất.', 'danger');
+    return;
+  }
+  const XLSX = getXLSX();
+  if (!XLSX) return;
+  const purchases = getFilteredPurchases(panel);
+  if (!purchases.length) {
+    showToast('Không có phiếu mua nào phù hợp để xuất.', 'warning');
+    return;
+  }
+  const workbook = XLSX.utils.book_new();
+  const summaryHeaders = ['Mã phiếu mua', 'Ngày mua', 'Số hóa đơn đầu vào', 'Mã nhà cung cấp', 'Tên nhà cung cấp', 'Tổng tiền (đ)', 'Đã thanh toán (đ)', 'Còn nợ (đ)', 'Trạng thái', 'Người tạo', 'Ghi chú'];
+  const summaryRows = purchases.map(purchase => [
+    purchase.code || '', purchase.purchaseDate || purchase.date || '', purchase.invoiceNumber || '',
+    purchase.supplierCode || '', purchase.supplierName || '', purchaseTotal(purchase),
+    Number(purchase.paidAmount || 0), Number(purchase.balanceDue || 0), statusLabel(purchase.status),
+    purchase.createdBy || '', purchase.notes || ''
+  ]);
+  const summarySheet = XLSX.utils.aoa_to_sheet([summaryHeaders, ...summaryRows]);
+  summarySheet['!cols'] = [{ wch: 26 }, { wch: 24 }, { wch: 26 }, { wch: 20 }, { wch: 36 }, { wch: 20 }, { wch: 22 }, { wch: 20 }, { wch: 18 }, { wch: 24 }, { wch: 42 }];
+  summarySheet['!autofilter'] = { ref: 'A1:K' + (summaryRows.length + 1) };
+  for (let row = 2; row <= summaryRows.length + 1; row += 1) {
+    for (const column of ['F', 'G', 'H']) {
+      const cell = summarySheet[column + row];
+      if (cell) cell.z = '#,##0';
+    }
+  }
+  XLSX.utils.book_append_sheet(workbook, summarySheet, 'Phieu Mua');
+
+  const itemHeaders = ['Mã phiếu mua', 'Mã nhóm phiếu trên hệ thống', 'Mã nhà cung cấp', 'Tên nhà cung cấp', 'Số hóa đơn đầu vào', 'Mã hàng hóa/dịch vụ', 'Tên hàng hóa/dịch vụ', 'Đơn vị tính', 'Số lượng', 'Đơn giá (đ)', 'Thành tiền (đ)'];
+  const itemRows = purchases.flatMap(purchase => (purchase.items || []).map(item => [
+    purchase.code || '', purchase.code || '', purchase.supplierCode || '', purchase.supplierName || '',
+    purchase.invoiceNumber || '', item.code || '', item.name || '', item.unit || '',
+    Number(item.quantity || 0), Number(item.unitPrice || 0), Number(item.lineTotal ?? (Number(item.quantity || 0) * Number(item.unitPrice || 0)))
+  ]));
+  const itemSheet = XLSX.utils.aoa_to_sheet([itemHeaders, ...itemRows]);
+  itemSheet['!cols'] = [{ wch: 26 }, { wch: 26 }, { wch: 20 }, { wch: 36 }, { wch: 26 }, { wch: 24 }, { wch: 34 }, { wch: 16 }, { wch: 14 }, { wch: 18 }, { wch: 20 }];
+  itemSheet['!autofilter'] = { ref: 'A1:K' + (itemRows.length + 1) };
+  for (let row = 2; row <= itemRows.length + 1; row += 1) {
+    for (const column of ['I', 'J', 'K']) {
+      const cell = itemSheet[column + row];
+      if (cell) cell.z = '#,##0.##';
+    }
+  }
+  XLSX.utils.book_append_sheet(workbook, itemSheet, 'Chi Tiet Hang');
+  const stamp = new Date().toISOString().slice(0, 10).replaceAll('-', '');
+  XLSX.writeFile(workbook, 'DanhSachPhieuMua_' + stamp + '.xlsx');
+  showToast('Đã xuất ' + purchases.length + ' phiếu mua và ' + itemRows.length + ' dòng hàng theo bộ lọc hiện tại.');
+}
+
+function openPurchaseExcelModal(panel) {
+  const modal = panel.querySelector('#purchase-excel-modal');
+  if (!modal) return;
+  purchaseExcelImportData = [];
+  panel.querySelector('#purchase-excel-file-input').value = '';
+  panel.querySelector('#purchase-excel-preview-container').hidden = true;
+  panel.querySelector('#purchase-excel-preview-body').innerHTML = '';
+  panel.querySelector('#purchase-excel-preview-summary').textContent = '';
+  panel.querySelector('#purchase-excel-errors').innerHTML = '';
+  panel.querySelector('#btn-save-purchase-excel').disabled = true;
+  panel.querySelector('#purchase-excel-dropzone').className = 'upload-dropzone';
+  modal.classList.add('active');
+  safeCreateIcons();
+}
+
+function closePurchaseExcelModal(panel) {
+  panel.querySelector('#purchase-excel-modal')?.classList.remove('active');
+}
+
+function renderPurchaseExcelPreview(panel, parsed) {
+  const container = panel.querySelector('#purchase-excel-preview-container');
+  const body = panel.querySelector('#purchase-excel-preview-body');
+  const summary = panel.querySelector('#purchase-excel-preview-summary');
+  const errors = panel.querySelector('#purchase-excel-errors');
+  if (!container || !body || !summary || !errors) return;
+  container.hidden = false;
+  body.innerHTML = parsed.purchases.slice(0, 12).map(purchase => `
+    <tr><td>${escapeHtml(purchase.groupCode)}</td><td>${escapeHtml(purchase.supplierName)} (${escapeHtml(purchase.supplierCode)})</td>
+      <td>${escapeHtml(purchase.invoiceNumber || '-')}</td><td>${purchase.items.length}</td>
+      <td>${formatCurrency(purchase.totalAmount)}</td><td>${formatCurrency(purchase.paidAmount)}</td></tr>`).join('');
+  summary.textContent = parsed.purchases.length
+    ? 'Đọc được ' + parsed.purchases.length + ' phiếu; xem trước tối đa 12 phiếu. ' + (parsed.errors.length ? 'Cần sửa lỗi trước khi lưu.' : 'Kiểm tra dữ liệu rồi chọn Tạo phiếu mua.')
+    : 'Chưa có phiếu mua hợp lệ để xem trước.';
+  errors.innerHTML = parsed.errors.slice(0, 30).map(error => '<li>' + escapeHtml(error) + '</li>').join('');
+  if (parsed.errors.length > 30) errors.innerHTML += '<li>Và ' + (parsed.errors.length - 30) + ' lỗi khác. Hãy sửa file rồi tải lại.</li>';
+  panel.querySelector('#btn-save-purchase-excel').disabled = Boolean(parsed.errors.length || !parsed.purchases.length);
+}
+
+function handlePurchaseExcelFile(panel, file) {
+  if (!file) return;
+  purchaseExcelImportData = [];
+  const XLSX = getXLSX();
+  if (!XLSX) return;
+  const reader = new FileReader();
+  reader.onload = event => {
+    try {
+      const workbook = XLSX.read(new Uint8Array(event.target.result), { type: 'array', cellDates: false });
+      const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(firstSheet, { header: 1, defval: '', raw: true, blankrows: false });
+      const parsed = parsePurchaseImportRows(rows, state.suppliers);
+      purchaseExcelImportData = parsed.errors.length ? [] : parsed.purchases;
+      renderPurchaseExcelPreview(panel, parsed);
+      panel.querySelector('#purchase-excel-dropzone').classList.toggle('success-uploaded', parsed.purchases.length > 0 && !parsed.errors.length);
+      showToast(parsed.errors.length ? 'Tệp có lỗi; chưa thể lưu phiếu mua.' : 'Đã đọc được ' + parsed.purchases.length + ' phiếu mua.', parsed.errors.length ? 'danger' : 'success');
+    } catch (error) {
+      console.error('Read purchase Excel failed:', error);
+      purchaseExcelImportData = [];
+      renderPurchaseExcelPreview(panel, { purchases: [], errors: ['Không đọc được tệp Excel: ' + (error.message || 'tệp không hợp lệ') + '.'] });
+      showToast('Không đọc được tệp Excel phiếu mua.', 'danger');
+    } finally {
+      panel.querySelector('#purchase-excel-file-input').value = '';
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+async function processPurchaseExcelImport(panel) {
+  if (!purchaseExcelImportData.length) return;
+  const failedDomains = getCloudReadHealth().failedDomains;
+  if (failedDomains.includes('purchases') || failedDomains.includes('suppliers')) {
+    showToast('Phiếu mua hoặc nhà cung cấp chưa tải được từ Cloud; hãy tải lại trước khi nhập.', 'danger');
+    return;
+  }
+  const button = panel.querySelector('#btn-save-purchase-excel');
+  if (button) button.disabled = true;
+  let saved = 0;
+  let alreadyRecorded = 0;
+  try {
+    for (const purchase of purchaseExcelImportData) {
+      const result = await dbCreatePurchase({
+        supplierId: purchase.supplierId,
+        invoiceNumber: purchase.invoiceNumber,
+        purchaseDate: purchase.purchaseDate,
+        paidAmount: purchase.paidAmount,
+        paymentMethod: purchase.paymentMethod,
+        notes: purchase.notes,
+        idempotencyKey: 'purchase-excel:' + (state.saasContext?.organizationId || 'default') + ':' + purchase.groupCode,
+        items: purchase.items
+      });
+      if (!result) break;
+      saved += 1;
+      if (result.already_recorded) alreadyRecorded += 1;
+    }
+    if (saved === purchaseExcelImportData.length) {
+      closePurchaseExcelModal(panel);
+      showToast('Đã xử lý ' + saved + ' phiếu mua (' + (saved - alreadyRecorded) + ' tạo mới, ' + alreadyRecorded + ' đã được ghi nhận trước đó).', 'success');
+    } else if (saved > 0) {
+      showToast('Đã xử lý ' + saved + '/' + purchaseExcelImportData.length + ' phiếu trước khi gặp lỗi. Có thể nhập lại cùng tệp; mã nhóm giúp tránh tạo trùng.', 'warning');
+    }
+    renderPurchasesPanel(panel);
+  } catch (error) {
+    console.error('Import purchase Excel failed:', error);
+    showToast('Lỗi khi nhập phiếu mua: ' + (error.message || 'không xác định') + '. Có thể nhập lại tệp để tiếp tục an toàn.', 'danger');
+  } finally {
+    if (button?.isConnected) button.disabled = !purchaseExcelImportData.length;
+  }
+}
+
 function purchaseModal() {
   return `
     <div class="modal-overlay" id="purchase-entry-modal">
@@ -153,10 +436,13 @@ function purchaseModal() {
           <div class="modal-body purchase-entry-modal-body">
             <div class="form-group">
               <label class="form-label">Nhà cung cấp *</label>
-              <select class="form-control" id="purchase-supplier-select" required>
-                <option value="">-- Chọn nhà cung cấp --</option>
-                ${state.suppliers.map(supplier => `<option value="${escapeHtml(supplier.id)}">${escapeHtml(supplier.name)} (${escapeHtml(supplier.code)})</option>`).join('')}
-              </select>
+              <div class="purchase-supplier-select-wrap">
+                <select class="form-control" id="purchase-supplier-select" required>
+                  <option value="">-- Chọn nhà cung cấp --</option>
+                  ${state.suppliers.filter(supplier => supplier?.isActive !== false).map(supplier => `<option value="${escapeHtml(supplier.id)}">${escapeHtml(supplier.name)} (${escapeHtml(supplier.code)})</option>`).join('')}
+                </select>
+                <button type="button" class="btn btn-secondary btn-sm" id="btn-add-purchase-supplier-inline"><i data-lucide="user-plus"></i> Thêm NCC</button>
+              </div>
             </div>
             <div class="form-group">
               <label class="form-label">Số hóa đơn đầu vào</label>
@@ -343,7 +629,7 @@ function attachRowEvents(panel) {
     panel.querySelector('#btn-open-purchase-modal')?.click();
   });
   panel.querySelector('#btn-empty-add-supplier')?.addEventListener('click', () => {
-    switchTab('suppliers-panel');
+    purchaseSupplierSelectionPending = true;
     document.getElementById('btn-open-add-supplier-modal')?.click();
   });
 }
@@ -352,6 +638,14 @@ function attachEvents(panel) {
   attachRowEvents(panel);
   const modal = panel.querySelector('#purchase-entry-modal');
   const close = () => modal?.classList.remove('active');
+  panel.querySelector('#btn-add-purchase-supplier')?.addEventListener('click', () => {
+    purchaseSupplierSelectionPending = true;
+    document.getElementById('btn-open-add-supplier-modal')?.click();
+  });
+  panel.querySelector('#btn-add-purchase-supplier-inline')?.addEventListener('click', () => {
+    purchaseSupplierSelectionPending = true;
+    document.getElementById('btn-open-add-supplier-modal')?.click();
+  });
   panel.querySelector('#btn-open-purchase-modal')?.addEventListener('click', () => {
     const failedDomains = getCloudReadHealth().failedDomains;
     if (failedDomains.includes('purchases') || failedDomains.includes('suppliers')) {
@@ -372,6 +666,49 @@ function attachEvents(panel) {
   });
   panel.querySelector('#btn-close-purchase-entry')?.addEventListener('click', close);
   panel.querySelector('#btn-cancel-purchase-entry')?.addEventListener('click', close);
+  panel.querySelector('#btn-download-purchase-excel-template')?.addEventListener('click', downloadPurchaseExcelTemplate);
+  panel.querySelector('#btn-export-purchases-excel')?.addEventListener('click', () => exportPurchasesExcel(panel));
+  panel.querySelector('#btn-open-purchase-excel-import')?.addEventListener('click', () => {
+    const failedDomains = getCloudReadHealth().failedDomains;
+    if (failedDomains.includes('purchases') || failedDomains.includes('suppliers')) {
+      showToast('Phiếu mua hoặc nhà cung cấp chưa tải được từ Cloud; hãy tải lại trước khi nhập.', 'warning');
+      return;
+    }
+    openPurchaseExcelModal(panel);
+  });
+  const excelModal = panel.querySelector('#purchase-excel-modal');
+  const excelInput = panel.querySelector('#purchase-excel-file-input');
+  const excelDropzone = panel.querySelector('#purchase-excel-dropzone');
+  const browseExcelButton = panel.querySelector('#btn-browse-purchase-excel');
+  const closeExcel = () => closePurchaseExcelModal(panel);
+  panel.querySelector('#btn-close-purchase-excel')?.addEventListener('click', closeExcel);
+  panel.querySelector('#btn-cancel-purchase-excel')?.addEventListener('click', closeExcel);
+  panel.querySelector('#btn-save-purchase-excel')?.addEventListener('click', () => processPurchaseExcelImport(panel));
+  browseExcelButton?.addEventListener('click', event => {
+    event.stopPropagation();
+    excelInput?.click();
+  });
+  excelDropzone?.addEventListener('click', event => {
+    if (event.target.closest('button')) return;
+    excelInput?.click();
+  });
+  excelInput?.addEventListener('change', event => handlePurchaseExcelFile(panel, event.target.files?.[0]));
+  excelDropzone?.addEventListener('dragover', event => {
+    event.preventDefault();
+    excelDropzone.classList.add('dragover');
+  });
+  excelDropzone?.addEventListener('dragleave', () => excelDropzone.classList.remove('dragover'));
+  excelDropzone?.addEventListener('drop', event => {
+    event.preventDefault();
+    excelDropzone.classList.remove('dragover');
+    handlePurchaseExcelFile(panel, event.dataTransfer?.files?.[0]);
+  });
+  excelModal?.addEventListener('click', event => {
+    if (event.target === excelModal) closeExcel();
+  });
+  excelModal?.addEventListener('keydown', event => {
+    if (event.key === 'Escape') closeExcel();
+  });
   panel.querySelector('#btn-add-purchase-item-row')?.addEventListener('click', () => {
     panel.querySelector('#purchase-entry-items-body').insertAdjacentHTML('beforeend', itemRow()); updateTotals(panel);
   });
@@ -442,20 +779,12 @@ function attachEvents(panel) {
 
   const updateFilteredTable = () => {
     const query = (panel.dataset.purchaseSearch || '').trim().toLowerCase();
-    const statusFilter = panel.dataset.purchaseStatus || 'all';
     const activeId = panel.dataset.activePurchaseId || '';
     const purchases = state.purchases || [];
     const failedDomains = getCloudReadHealth().failedDomains;
     const purchasesReadFailed = failedDomains.includes('purchases');
     const suppliersReadFailed = failedDomains.includes('suppliers');
-    const filtered = purchases.filter(p => {
-      if (statusFilter !== 'all' && p.status !== statusFilter) return false;
-      if (query) {
-        const haystack = `${p.code || ''} ${p.invoiceNumber || ''} ${p.supplierName || ''} ${p.supplierCode || ''} ${p.createdBy || ''}`.toLowerCase();
-        if (!haystack.includes(query)) return false;
-      }
-      return true;
-    });
+    const filtered = getFilteredPurchases(panel);
     const tbody = panel.querySelector('#purchases-table-body');
     if (tbody) {
       tbody.innerHTML = renderPurchaseRows(filtered, activeId, {
@@ -470,7 +799,7 @@ function attachEvents(panel) {
     if (countEl) {
       countEl.textContent = purchasesReadFailed
         ? '—'
-        : (query || statusFilter !== 'all')
+        : ((panel.dataset.purchaseSearch || '').trim() || (panel.dataset.purchaseStatus || 'all') !== 'all')
         ? `${filtered.length} / ${purchases.length} phiếu`
         : `${purchases.length} phiếu`;
     }
@@ -496,6 +825,8 @@ function attachEvents(panel) {
 
 export function renderPurchasesPanel(panel) {
   if (!panel) return;
+  activePurchasePanel = panel;
+  installSupplierSavedListener();
   if (!financeRole()) {
     panel.innerHTML = '<div class="empty-state">Bạn không có quyền truy cập phân hệ mua hàng.</div>';
     return;
@@ -515,14 +846,7 @@ export function renderPurchasesPanel(panel) {
   const totalPaid = activePurchases.reduce((sum, p) => sum + Number(p.paidAmount || 0), 0);
   const totalDebt = activePurchases.reduce((sum, p) => sum + Number(p.balanceDue || 0), 0);
 
-  const filteredPurchases = purchases.filter(p => {
-    if (statusFilter !== 'all' && p.status !== statusFilter) return false;
-    if (query) {
-      const haystack = `${p.code || ''} ${p.invoiceNumber || ''} ${p.supplierName || ''} ${p.supplierCode || ''} ${p.createdBy || ''}`.toLowerCase();
-      if (!haystack.includes(query)) return false;
-    }
-    return true;
-  });
+  const filteredPurchases = getFilteredPurchases(panel);
 
   panel.innerHTML = `
     <div class="purchase-page">
@@ -533,6 +857,18 @@ export function renderPurchasesPanel(panel) {
             <small class="panel-subtitle">Ghi nhận giá trị mua và công nợ nhà cung cấp</small>
           </div>
           <div class="purchase-actions">
+            <button type="button" class="btn btn-secondary btn-sm" id="btn-download-purchase-excel-template">
+              <i data-lucide="download"></i> Tải file mẫu
+            </button>
+            <button type="button" class="btn btn-secondary btn-sm" id="btn-export-purchases-excel" ${purchasesReadFailed ? 'disabled title="Tải lại danh sách phiếu mua trước khi xuất."' : ''}>
+              <i data-lucide="file-down"></i> Xuất Excel
+            </button>
+            <button type="button" class="btn btn-secondary btn-sm" id="btn-open-purchase-excel-import" ${purchasesReadFailed || suppliersReadFailed ? 'disabled title="Tải lại dữ liệu Cloud trước khi nhập."' : ''}>
+              <i data-lucide="file-up"></i> Nhập Excel
+            </button>
+            <button type="button" class="btn btn-secondary btn-sm" id="btn-add-purchase-supplier" ${suppliersReadFailed ? 'disabled title="Tải lại danh sách nhà cung cấp trước."' : ''}>
+              <i data-lucide="user-plus"></i> Thêm nhà cung cấp
+            </button>
             <button class="purchase-primary-btn btn btn-primary" id="btn-open-purchase-modal" ${purchasesReadFailed || suppliersReadFailed || !hasSuppliers ? 'disabled' : ''}>
               <i data-lucide="plus"></i> Tạo phiếu mua
             </button>
@@ -607,7 +943,8 @@ export function renderPurchasesPanel(panel) {
         </div>
       </div>
     </div>
-    ${purchaseModal()}`;
+    ${purchaseModal()}
+    ${purchaseExcelImportModal()}`;
   attachEvents(panel);
   safeCreateIcons();
 }

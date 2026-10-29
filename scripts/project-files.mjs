@@ -11,6 +11,7 @@ export const publicFiles = Object.freeze([
   'index.html',
   'styles/base.css',
   'styles/app.css',
+  'styles/platform-admin.css',
   'styles/landing.css',
   'styles/print.css',
   'sovie-favicon.png',
@@ -26,6 +27,7 @@ export const publicFiles = Object.freeze([
 export const immutablePublicFiles = Object.freeze([
   'styles/base.css',
   'styles/app.css',
+  'styles/platform-admin.css',
   'styles/landing.css',
   'styles/print.css',
   'sovie-favicon.png',

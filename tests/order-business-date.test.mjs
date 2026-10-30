@@ -51,7 +51,7 @@ test('database accepts historical dates only from privileged roles and preserves
   assert.match(migration, /last_order_at = GREATEST\(COALESCE\(last_order_at, business_date\), business_date\)/);
   assert.match(migration, /Order date cannot be in the future/);
   assert.match(service, /date: order\.date \|\| new Date\(\)\.toISOString\(\)/);
-  assert.match(service, /date: order\.order_date \|\| order\.created_at/);
+  assert.match(service, /date: isDraft\s*\? \(order\.created_at \|\| order\.order_date\)\s*: \(order\.order_date \|\| order\.created_at\)/);
 });
 
 test('database compares the Vietnam business day and clamps same-day clock skew', () => {

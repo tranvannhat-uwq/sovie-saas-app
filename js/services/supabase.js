@@ -1339,7 +1339,12 @@ function mapOrderRowForState(order, isDraft = false) {
     customerAddress: order.customer_address || order.customerAddress || '',
     notes: order.notes || '',
     items: typeof order.items === 'string' ? JSON.parse(order.items) : order.items,
-    date: order.order_date || order.created_at,
+    // Draft writes store the selected/imported business date in created_at.
+    // Some schemas inherit order_date DEFAULT now() from orders, so that
+    // untouched default must not replace the date saved with the draft.
+    date: isDraft
+      ? (order.created_at || order.order_date)
+      : (order.order_date || order.created_at),
     pricingVersion: order.pricing_version || order.pricingVersion || '',
     totalMarket: parseFloat(order.total_market || 0),
     totalDiscount: parseFloat(order.total_discount || 0),
